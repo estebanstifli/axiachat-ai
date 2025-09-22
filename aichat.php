@@ -1,0 +1,452 @@
+<?php
+/**
+ * Plugin Name:       AI Chat
+ * Plugin URI:        https://wpbotwriter.com/ai-chat
+ * Description:       A customizable AI chatbot for WordPress using OpenAI.
+ * Version:           1.1.0
+ * Requires at least: 5.0
+ * Requires PHP:      7.4
+ * Author:            estebandezafra
+ * Author URI:        https://wpbotwriter.com
+ * License:           GPL-2.0+
+ * License URI:       https://www.gnu.org/licenses/gpl-2.0.txt
+ * Text Domain:       aichat
+ * Domain Path:       /languages
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+    exit; // Exit if accessed directly.
+}
+
+// Definir constantes del plugin
+define( 'AICHAT_VERSION', '1.1.0' );
+define( 'AICHAT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
+define( 'AICHAT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+
+// Include Composer autoloader
+require_once AICHAT_PLUGIN_DIR . 'vendor/autoload.php';
+//use Smalot\PdfParser\Parser;
+
+
+require_once AICHAT_PLUGIN_DIR . 'includes/shortcode.php'; 
+
+// Incluir archivos de clases principales
+require_once AICHAT_PLUGIN_DIR . 'includes/class-aichat-core.php';
+require_once AICHAT_PLUGIN_DIR . 'includes/class-aichat-ajax.php';
+require_once AICHAT_PLUGIN_DIR . 'includes/settings.php';
+require_once AICHAT_PLUGIN_DIR . 'includes/class-aichat-api.php';
+require_once AICHAT_PLUGIN_DIR . 'includes/class-aichat-messages.php';
+require_once AICHAT_PLUGIN_DIR . 'includes/class-aichat-analytics.php';
+
+require_once AICHAT_PLUGIN_DIR . 'includes/contexto-functions.php'; // Nuevo archivo para funciones de contexto
+
+require_once AICHAT_PLUGIN_DIR . 'includes/contexto-settings.php'; // 1ª pestaña de contexto
+require_once AICHAT_PLUGIN_DIR . 'includes/contexto-ajax-settings.php'; // 1ª pestaña de contexto (AJAX)
+
+require_once AICHAT_PLUGIN_DIR . 'includes/contexto-create.php'; // 2ª pestaña de contexto (crear)
+require_once AICHAT_PLUGIN_DIR . 'includes/contexto-ajax-create.php'; // 2ª pestaña de contexto (crear) AJAX
+
+require_once AICHAT_PLUGIN_DIR . 'includes/contexto-pdf-template.php'; // 3ª pestaña de contexto (PDF)
+require_once AICHAT_PLUGIN_DIR . 'includes/contexto-pdf-ajax.php'; // 3ª pestaña de contexto (PDF) AJAX
+
+require_once AICHAT_PLUGIN_DIR . 'includes/aichat-cron.php'; // Nuevo archivo para tareas programadas
+
+require_once AICHAT_PLUGIN_DIR . 'includes/bots.php'; // Nuevo archivo para la lógica de los bots
+require_once AICHAT_PLUGIN_DIR . 'includes/bots_ajax.php'; // Nuevo archivo para la lógica AJAX de los bots
+
+require_once AICHAT_PLUGIN_DIR . 'includes/moderation.php';
+
+// Páginas de logs (listado y detalle)
+require_once AICHAT_PLUGIN_DIR . 'includes/logs.php';
+require_once AICHAT_PLUGIN_DIR . 'includes/logs-detail.php';
+
+
+
+
+
+
+
+
+
+// Instanciar las clases principales
+$aichat_core = new AIChat_Core();
+$aichat_ajax = new AIChat_Ajax();
+
+// Hook de activación del plugin
+register_activation_hook( __FILE__, 'aichat_activation' );
+function aichat_activation() {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'aichat_conversations';
+    $chunks_table = $wpdb->prefix . 'aichat_chunks';
+    $charset_collate = $wpdb->get_charset_collate();
+    $contexts_table = $wpdb->prefix . 'aichat_contexts';
+
+    // Crear tabla wp_aichat_contexts
+    $sql_contexts = "CREATE TABLE IF NOT EXISTS $contexts_table (
+                    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    context_type ENUM('local', 'remoto') NOT NULL DEFAULT 'local',
+                    remote_type VARCHAR(50) NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    remote_api_key VARCHAR(255) DEFAULT NULL,
+                    remote_endpoint VARCHAR(255) DEFAULT NULL,
+                    processing_status VARCHAR(20) DEFAULT 'pending',
+                    processing_progress INT DEFAULT 0,
+                    items_to_process LONGTEXT NULL
+                ) $charset_collate;";
+
+    require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+    dbDelta( $sql_contexts );
+
+    // Crear tabla wp_aichat_conversations
+    $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+        id BIGINT(20) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        user_id BIGINT(20) UNSIGNED DEFAULT 0,
+        session_id VARCHAR(64) NOT NULL DEFAULT '',
+        bot_slug VARCHAR(100) NOT NULL DEFAULT '',
+        page_id BIGINT(20) UNSIGNED DEFAULT 0,
+    ip_address VARBINARY(16) NULL,
+        message LONGTEXT NOT NULL,
+        response LONGTEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        KEY idx_session_bot (session_id, bot_slug, id),
+        KEY idx_user (user_id),
+        KEY idx_page (page_id)
+    ) $charset_collate;";
+
+    require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+    dbDelta( $sql );
+
+  // Asegurarnos de que la columna ip_address exista (en instalaciones anteriores)
+  $col = $wpdb->get_var( $wpdb->prepare("SHOW COLUMNS FROM `$table_name` LIKE %s", 'ip_address') );
+  if ( ! $col ) {
+    // Usamos VARBINARY(16) para soportar IPv4 (4 bytes) e IPv6 (16 bytes)
+    $wpdb->query( "ALTER TABLE `$table_name` ADD COLUMN ip_address VARBINARY(16) NULL AFTER page_id" );
+  }
+
+    // Crear tabla wp_aichat_chunks sin permalink
+    $chunks_sql = "CREATE TABLE IF NOT EXISTS $chunks_table (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        id_context BIGINT UNSIGNED DEFAULT NULL,
+        post_id BIGINT UNSIGNED,
+        type VARCHAR(20),
+        title VARCHAR(255),
+        content TEXT NOT NULL,
+        embedding LONGTEXT,
+        tokens INT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (id_context) REFERENCES $contexts_table(id) ON DELETE SET NULL
+    ) $charset_collate;";
+
+    dbDelta( $chunks_sql );
+
+    // tabla de bots
+    aichat_bots_maybe_create();
+    // Insertar bot por defecto si la tabla está vacía
+    aichat_bots_insert_default();
+
+    // Opcionalmente, agregar opciones predeterminadas
+    add_option( 'aichat_openai_api_key', '' );
+    add_option( 'aichat_chat_color', '#0073aa' ); // Color predeterminado
+    add_option( 'aichat_position', 'bottom-right' );
+    add_option( 'aichat_rag_enabled', false ); // RAG desactivado por defecto
+}
+
+
+function aichat_bots_maybe_create(){
+  global $wpdb;
+  $t = aichat_bots_table();
+  $charset = $wpdb->get_charset_collate();
+
+  // Sube versión de esquema al cambiar estructura
+  $SCHEMA_VER = '5';
+
+  require_once ABSPATH.'wp-admin/includes/upgrade.php';
+
+  // ¿Existe la tabla?
+  $exists = ($wpdb->get_var( $wpdb->prepare("SHOW TABLES LIKE %s", $t) ) === $t);
+
+  if (!$exists) {
+    // Crear desde cero
+    $sql = "CREATE TABLE $t (
+      id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+      name VARCHAR(100) NOT NULL DEFAULT '',
+      slug VARCHAR(100) NOT NULL,
+      type ENUM('text','voice_text') NOT NULL DEFAULT 'text', 
+      instructions LONGTEXT NULL,
+      provider VARCHAR(32) NOT NULL DEFAULT 'openai',
+      model VARCHAR(64) NOT NULL DEFAULT 'GPT-4o',
+      temperature DECIMAL(3,2) NOT NULL DEFAULT 0.70,
+      max_tokens INT NOT NULL DEFAULT 2048,
+      reasoning ENUM('off','fast','accurate') NOT NULL DEFAULT 'off',
+      verbosity ENUM('low','medium','high') NOT NULL DEFAULT 'medium',
+      context_mode ENUM('embeddings','page','none') NOT NULL DEFAULT 'embeddings',
+      context_id BIGINT UNSIGNED NULL,
+      input_max_length INT NOT NULL DEFAULT 512,
+      max_messages INT NOT NULL DEFAULT 20,
+      context_max_length INT NOT NULL DEFAULT 4096,
+      ui_color VARCHAR(7) NOT NULL DEFAULT '#1a73e8',
+      ui_position ENUM('br','bl','tr','tl') NOT NULL DEFAULT 'br',
+      ui_avatar_enabled TINYINT(1) NOT NULL DEFAULT 0,
+      ui_avatar_key VARCHAR(32) DEFAULT NULL,
+      ui_icon_url VARCHAR(255) DEFAULT NULL,
+      ui_start_sentence VARCHAR(255) DEFAULT NULL,
+      ui_placeholder VARCHAR(255) NOT NULL DEFAULT 'Write your question...',
+      ui_button_send VARCHAR(64)  NOT NULL DEFAULT 'Send',
+      ui_closable TINYINT(1) NOT NULL DEFAULT 1,
+      ui_minimizable TINYINT(1) NOT NULL DEFAULT 1,
+      ui_draggable TINYINT(1) NOT NULL DEFAULT 1,
+      ui_minimized_default TINYINT(1) NOT NULL DEFAULT 0,
+      is_active TINYINT(1) NOT NULL DEFAULT 1,
+      created_at DATETIME NOT NULL,
+      updated_at DATETIME NOT NULL,
+      PRIMARY KEY (id),
+      UNIQUE KEY slug (slug),
+      KEY provider (provider),
+      KEY context_id (context_id)
+    ) $charset;";
+    dbDelta($sql);
+    update_option('aichat_bots_schema_ver', $SCHEMA_VER);
+    return;
+  }
+
+  // La tabla existe: añadir columnas nuevas con ALTER
+  // Helper: ¿columna existe?
+  $col_exists = function($col) use ($wpdb, $t){
+    return (bool) $wpdb->get_var( $wpdb->prepare("SHOW COLUMNS FROM `$t` LIKE %s", $col) );
+  };
+
+  // ui_placeholder
+  if (!$col_exists('ui_placeholder')) {
+    $wpdb->query("ALTER TABLE `$t` ADD COLUMN `ui_placeholder` VARCHAR(255) NOT NULL DEFAULT 'Write your question...' AFTER `ui_start_sentence`");
+  }
+  // ui_button_send
+  if (!$col_exists('ui_button_send')) {
+    $wpdb->query("ALTER TABLE `$t` ADD COLUMN `ui_button_send` VARCHAR(64) NOT NULL DEFAULT 'Send' AFTER `ui_placeholder`");
+  }
+  if (!$col_exists('ui_closable'))          { $wpdb->query("ALTER TABLE `$t` ADD COLUMN `ui_closable` TINYINT(1) NOT NULL DEFAULT 1 AFTER `ui_button_send`"); }
+  if (!$col_exists('ui_minimizable'))       { $wpdb->query("ALTER TABLE `$t` ADD COLUMN `ui_minimizable` TINYINT(1) NOT NULL DEFAULT 1 AFTER `ui_closable`"); }
+  if (!$col_exists('ui_draggable'))         { $wpdb->query("ALTER TABLE `$t` ADD COLUMN `ui_draggable` TINYINT(1) NOT NULL DEFAULT 1 AFTER `ui_minimizable`"); }
+  if (!$col_exists('ui_minimized_default')) { $wpdb->query("ALTER TABLE `$t` ADD COLUMN `ui_minimized_default` TINYINT(1) NOT NULL DEFAULT 0 AFTER `ui_draggable`"); }
+
+  update_option('aichat_bots_schema_ver', $SCHEMA_VER);
+}
+
+// Hook de desactivación (vacío para no perder datos)
+register_deactivation_hook( __FILE__, 'aichat_deactivation' );
+function aichat_deactivation() {
+    // No eliminamos datos en la desactivación
+}
+
+// Hook de desinstalación
+register_uninstall_hook( __FILE__, 'aichat_uninstall' );
+function aichat_uninstall() {
+    // Eliminar solo las opciones, no la tabla
+    delete_option( 'aichat_openai_api_key' );
+    delete_option( 'aichat_chat_color' );
+    delete_option( 'aichat_position' );
+}
+
+// Agregar menús y páginas
+add_action( 'admin_menu', 'aichat_admin_menu' );
+function aichat_admin_menu() {
+    add_menu_page(
+        __( 'AI Chat Settings', 'aichat' ), // Título de la página
+        __( 'AI Chat', 'aichat' ),          // Título del menú
+        'manage_options',                   // Capacidad requerida
+        'aichat-settings',                  // Slug del menú
+        'aichat_settings_page',             // Función de callback
+        'dashicons-format-chat',            // Icono del menú
+        80                                  // Posición en el menú
+    );
+
+  // Submenú Settings (primero) - evita que WP genere uno por defecto con el título original
+  add_submenu_page(
+    'aichat-settings',
+    __( 'Settings', 'aichat' ),
+    __( 'Settings', 'aichat' ),
+    'manage_options',
+    'aichat-settings',
+    'aichat_settings_page'
+  );
+
+   
+    // Submenú para Contexto 
+    add_submenu_page(
+        'aichat-settings', // Parent slug
+        __( 'Context', 'aichat' ), // Título de la página
+        __( 'Context', 'aichat' ), // Título del submenú
+        'manage_options', // Capacidad
+        'aichat-contexto-settings', // Slug
+        'aichat_contexto_settings_page' // Callback for the page
+    );
+
+    // Submenú para bots
+    add_submenu_page(
+        'aichat-settings', // Parent slug
+        __( 'Bots', 'aichat' ), // Título de la página
+        __( 'Bots', 'aichat' ), // Título del submenú
+        'manage_options', // Capacidad
+        'aichat-bots-settings', // Slug
+        'aichat_bots_settings_page' // Callback for the page
+    );
+
+  // Submenú para logs (listado principal)
+  add_submenu_page(
+    'aichat-settings',
+    __( 'Logs', 'aichat' ),
+    __( 'Logs', 'aichat' ),
+    'manage_options',
+    'aichat-logs',
+    'aichat_logs_page'
+  );
+
+
+
+    add_submenu_page(
+        null, // Sin menú padre
+        __('Create Context', 'aichat'), // Título de la página
+        '', // Título del menú (vacío)
+        'manage_options', // Capacidad
+        'aichat-contexto-create', // Slug de la página
+        'aichat_contexto_create_page' // Función de callback
+    );
+
+    add_submenu_page(
+        null, // Sin menú padre
+        __('Import PDF/Data', 'aichat'), // Título de la página
+        '', // Título del menú (vacío)
+        'manage_options', // Capacidad
+        'aichat-contexto-pdf', // Slug de la página
+        'aichat_contexto_pdf_page' // Función de callback
+    );
+
+  
+  // Página oculta para detalle de conversación
+  add_submenu_page(
+    null,
+    __( 'Conversation Detail', 'aichat' ),
+    '',
+    'manage_options',
+    'aichat-logs-detail',
+    'aichat_logs_detail_page'
+  );
+
+  add_action('admin_enqueue_scripts', function($hook){
+    if ( ! isset($_GET['page']) ) return;
+    $page = sanitize_text_field( wp_unslash( $_GET['page'] ) );
+  // Incluir también la página principal de ajustes para usar Bootstrap en el rediseño
+  $needs_bootstrap = in_array( $page, [ 'aichat-settings','aichat-bots-settings','aichat-logs','aichat-logs-detail' ], true );
+    if ( ! $needs_bootstrap ) return;
+
+    // Registrar Bootstrap y Bootstrap Icons si no están
+    if ( ! wp_style_is( 'aichat-bootstrap', 'registered' ) ) {
+      wp_register_style(
+        'aichat-bootstrap',
+        AICHAT_PLUGIN_URL . 'assets/vendor/bootstrap/css/bootstrap.min.css',
+        [],
+        '5.3.0'
+      );
+    }
+    if ( ! wp_script_is( 'aichat-bootstrap', 'registered' ) ) {
+      wp_register_script(
+        'aichat-bootstrap',
+        AICHAT_PLUGIN_URL . 'assets/vendor/bootstrap/js/bootstrap.bundle.min.js',
+        [ 'jquery' ],
+        '5.3.0',
+        true
+      );
+    }
+    if ( ! wp_style_is( 'aichat-bootstrap-icons', 'registered' ) ) {
+      wp_register_style(
+        'aichat-bootstrap-icons',
+        AICHAT_PLUGIN_URL . 'assets/vendor/bootstrap-icons/font/bootstrap-icons.css',
+        [],
+        '1.11.3'
+      );
+    }
+
+    // Encolar comunes
+    wp_enqueue_style('aichat-bootstrap');
+    wp_enqueue_style('aichat-bootstrap-icons');
+    // Nuevo: hoja de estilos admin consolidada
+    wp_enqueue_style('aichat-admin', AICHAT_PLUGIN_URL.'assets/css/aichat-admin.css', ['aichat-bootstrap'], AICHAT_VERSION);    
+    wp_enqueue_script('aichat-bootstrap');
+
+    // Lógica específica para página de bots
+    if ( $page === 'aichat-bots-settings' ) {
+      wp_enqueue_script('aichat-bots-js', AICHAT_PLUGIN_URL.'assets/js/bots.js', ['jquery'], AICHAT_VERSION, true);
+
+      global $wpdb;
+      $contexts_table = $wpdb->prefix . 'aichat_contexts';
+      $rows = $wpdb->get_results(
+        "SELECT id, name FROM {$contexts_table} WHERE processing_status = 'completed' ORDER BY name ASC",
+        ARRAY_A
+      );
+      $embedding_options = [];
+      if ( is_array($rows) ) {
+        foreach ( $rows as $r ) {
+          $embedding_options[] = [ 'id'=>(int)$r['id'], 'text'=>$r['name'] ];
+        }
+      }
+      array_unshift($embedding_options, ['id'=>0,'text'=>'— None —']);
+      wp_localize_script('aichat-bots-js', 'aichat_bots_ajax', [
+        'ajax_url'          => admin_url('admin-ajax.php'),
+        'nonce'             => wp_create_nonce('aichat_bots_nonce'),
+        'embedding_options' => $embedding_options,
+      ]);
+    }
+  });
+    
+
+}
+
+// para vista previa del bot en el front (shortcode)
+add_action('template_redirect', function () {
+  if (!isset($_GET['aichat_preview'])) return;
+  if (!current_user_can('manage_options')) { status_header(403); exit; }
+
+  $slug = sanitize_title($_GET['bot'] ?? 'default');
+
+  status_header(200);
+  nocache_headers();
+  ?>
+  <!doctype html>
+  <html <?php language_attributes(); ?>>
+    <head>
+      <meta charset="<?php bloginfo('charset'); ?>">
+      <?php wp_head(); ?>
+      <style>
+        html,body{height:100%;margin:0}
+      </style>
+    </head>
+    <body>
+      <?php echo do_shortcode('[aichat id="'.esc_attr($slug).'"]'); ?>
+      <?php wp_footer(); ?>
+    </body>
+  </html>
+  <?php
+  exit;
+});
+
+// Acción para eliminar una conversación completa
+add_action( 'admin_post_aichat_delete_conversation', 'aichat_handle_delete_conversation' );
+function aichat_handle_delete_conversation() {
+  if ( ! current_user_can('manage_options') ) {
+    wp_die( esc_html__( 'Unauthorized', 'aichat' ) );
+  }
+  check_admin_referer( 'aichat_delete_conversation' );
+
+  $session_id = isset($_POST['session_id']) ? sanitize_text_field( wp_unslash( $_POST['session_id'] ) ) : '';
+  $bot_slug   = isset($_POST['bot_slug']) ? sanitize_title( wp_unslash( $_POST['bot_slug'] ) ) : '';
+
+  if ( $session_id && $bot_slug ) {
+    global $wpdb; 
+    $table = $wpdb->prefix . 'aichat_conversations';
+    $wpdb->query( $wpdb->prepare( "DELETE FROM $table WHERE session_id=%s AND bot_slug=%s", $session_id, $bot_slug ) );
+  }
+
+  wp_safe_redirect( add_query_arg( [ 'page'=>'aichat-logs', 'deleted'=>1 ], admin_url('admin.php') ) );
+  exit;
+}
+

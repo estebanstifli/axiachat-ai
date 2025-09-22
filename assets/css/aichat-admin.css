@@ -1,0 +1,33 @@
+/* AI Chat – Admin consolidated styles */
+
+/* ---- Bots Page ---- */
+.aichat-avatar{width:48px;height:48px;border-radius:6px;object-fit:cover;cursor:pointer;transition:.2s}
+.aichat-avatar.active{outline:2px solid rgba(25,94,197,.96);background:#fff}
+.aichat-shortcode{display:inline-flex;align-items:center;gap:6px;background:#f8f9fa;border:1px solid #e0e0e0;border-radius:6px;padding:6px 8px;font-family:Menlo,Consolas,monospace;font-size:12px}
+.aichat-shortcode .copy-btn{border:none;background:transparent;cursor:pointer;color:#0d6efd}
+#aichat-panel .form-check{display:inline-flex;align-items:center;gap:8px}
+#aichat-panel .form-check-input{float:none!important}
+
+/* ---- Logs Page ---- */
+.aichat-logs-filters .form-label{font-weight:600}
+@media (max-width:781px){
+  .aichat-logs-filters .row > [class*=col-]{margin-bottom:6px}
+}
+
+/* ---- Context PDF Page ---- */
+.aichat-container{max-width:none}
+.aichat-fullwidth{margin-left:-20px;margin-right:-20px}
+@media (max-width:782px){.aichat-fullwidth{margin-left:-12px;margin-right:-12px}}
+.aichat-drop{border:2px dashed #c3c4c7;border-radius:10px;padding:28px;text-align:center;background:#fafafa;transition:.15s}
+.aichat-drop.dragover{background:#eef7ff;border-color:#0d6efd}
+.aichat-drop .big-icon{font-size:2.2rem}
+.aichat-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;font-size:12px;border-radius:30px;background:#f1f3f5}
+.aichat-badge.ok{background:#e8f5ee;color:#198754}
+.aichat-badge.no{background:#fdecea;color:#dc3545}
+.aichat-cap-muted{color:#6c757d;font-size:12px}
+.aichat-cap-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+.aichat-cap-card .aichat-cap-icon{font-size:22px;margin-right:6px}
+.aichat-cap-card .aichat-badge{margin-top:4px}
+
+/* ---- Generic utility ---- */
+.aichat-hidden{display:none!important}
