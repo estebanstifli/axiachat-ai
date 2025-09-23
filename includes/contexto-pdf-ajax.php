@@ -45,7 +45,7 @@ add_action('init', function(){
 // ==============================
 // Helpers
 // ==============================
-function aichat_pdf_log($m){ error_log('[AIChat PDF] '.$m); }
+function aichat_pdf_log($m){ aichat_log_debug('[AIChat PDF] '.$m); }
 
 function aichat_upload_dir(){
     $up = wp_upload_dir();

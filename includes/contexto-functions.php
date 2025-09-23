@@ -201,7 +201,7 @@ function aichat_generate_embedding( $text ) {
     ] );
 
     if ( is_wp_error( $response ) ) {
-        error_log( '[AIChat] Embedding error: ' . $response->get_error_message() );
+        aichat_log_debug( '[AIChat] Embedding error: ' . $response->get_error_message() );
         return null;
     }
 
@@ -336,7 +336,7 @@ function aichat_get_context_for_question( $question, $args = [] ) {
         // Sanitizar remote_endpoint
         $remote_endpoint = aichat_sanitize_remote_endpoint( $raw_ep );
         if ( $remote_endpoint === '' ) {
-            error_log('[AIChat] Invalid remote_endpoint discarded: '. $raw_ep);
+            aichat_log_debug('[AIChat] Invalid remote_endpoint discarded: '. $raw_ep);
             $GLOBALS['contexts'] = [];
             return [];
         }
@@ -356,14 +356,14 @@ function aichat_get_context_for_question( $question, $args = [] ) {
         ] );
 
         if ( is_wp_error( $response ) ) {
-            error_log( '[AIChat] Pinecone query error: ' . $response->get_error_message() );
+            aichat_log_debug( '[AIChat] Pinecone query error: ' . $response->get_error_message() );
             $GLOBALS['contexts'] = [];
             return [];
         }
 
         $code = wp_remote_retrieve_response_code( $response );
         if ( $code !== 200 ) {
-            error_log( '[AIChat] Pinecone HTTP ' . $code . ' → ' . wp_remote_retrieve_body( $response ) );
+            aichat_log_debug( '[AIChat] Pinecone HTTP ' . $code . ' → ' . wp_remote_retrieve_body( $response ) );
             $GLOBALS['contexts'] = [];
             return [];
         }

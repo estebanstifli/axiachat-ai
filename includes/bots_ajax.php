@@ -13,7 +13,7 @@ add_action('wp_ajax_aichat_bot_reset',     'aichat_bot_reset');
 add_action('wp_ajax_aichat_bot_delete',    'aichat_bot_delete');
 
 function aichat_bots_table(){ global $wpdb; return $wpdb->prefix.'aichat_bots'; }
-function aichat_bots_log($m,$ctx=[]){ error_log('[AIChat Bots AJAX] '.$m.( $ctx? ' | '.wp_json_encode($ctx):'' )); }
+function aichat_bots_log($m,$ctx=[]){ aichat_log_debug('[AIChat Bots AJAX] '.$m.( $ctx? ' | '.wp_json_encode($ctx):'' )); }
 function aichat_bots_check(){ if(!current_user_can('manage_options')){ wp_send_json_error(['message'=>'Forbidden'],403);} check_ajax_referer('aichat_bots_nonce','nonce'); }
 
 

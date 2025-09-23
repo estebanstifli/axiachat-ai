@@ -3,7 +3,7 @@
  * Plugin Name:       AI Chat
  * Plugin URI:        https://wpbotwriter.com/ai-chat
  * Description:       A customizable AI chatbot for WordPress using OpenAI.
- * Version:           1.1.0
+ * Version:           1.1.1
  * Requires at least: 5.0
  * Requires PHP:      7.4
  * Author:            estebandezafra
@@ -19,9 +19,44 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Definir constantes del plugin
-define( 'AICHAT_VERSION', '1.1.0' );
+define( 'AICHAT_VERSION', '1.1.1' );
 define( 'AICHAT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AICHAT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+define('AICHAT_DEBUG', true);
+
+// Debug helper: log only if AICHAT_DEBUG is defined and true.
+if ( ! function_exists( 'aichat_log_debug' ) ) {
+  /**
+   * Conditional debug logger.
+   * Adds unified prefix and safely encodes context.
+   *
+   * @param string $message  Short message (without prefix).
+   * @param array  $context  Optional associative array (scalars preferred).
+   */
+  function aichat_log_debug( $message, array $context = [] ) {
+    if ( ! ( defined( 'AICHAT_DEBUG' ) && AICHAT_DEBUG ) ) {
+      return;
+    }
+    if ( ! empty( $context ) ) {
+      $safe = [];
+      foreach ( $context as $k => $v ) {
+        if ( is_scalar( $v ) || $v === null ) {
+          $safe[ $k ] = $v;
+        } elseif ( $v instanceof WP_Error ) {
+          $safe[ $k ] = 'WP_Error: ' . $v->get_error_message();
+        } else {
+          $safe[ $k ] = is_object( $v ) ? get_class( $v ) : gettype( $v );
+        }
+      }
+      $json = wp_json_encode( $safe );
+      if ( $json ) {
+        $message .= ' | ' . $json;
+      }
+    }
+    error_log( '[AIChat] ' . $message );
+  }
+}
+
 
 // Include Composer autoloader
 require_once AICHAT_PLUGIN_DIR . 'vendor/autoload.php';
@@ -34,9 +69,7 @@ require_once AICHAT_PLUGIN_DIR . 'includes/shortcode.php';
 require_once AICHAT_PLUGIN_DIR . 'includes/class-aichat-core.php';
 require_once AICHAT_PLUGIN_DIR . 'includes/class-aichat-ajax.php';
 require_once AICHAT_PLUGIN_DIR . 'includes/settings.php';
-require_once AICHAT_PLUGIN_DIR . 'includes/class-aichat-api.php';
-require_once AICHAT_PLUGIN_DIR . 'includes/class-aichat-messages.php';
-require_once AICHAT_PLUGIN_DIR . 'includes/class-aichat-analytics.php';
+
 
 require_once AICHAT_PLUGIN_DIR . 'includes/contexto-functions.php'; // Nuevo archivo para funciones de contexto
 
@@ -117,13 +150,6 @@ function aichat_activation() {
     require_once ABSPATH . 'wp-admin/includes/upgrade.php';
     dbDelta( $sql );
 
-  // Asegurarnos de que la columna ip_address exista (en instalaciones anteriores)
-  $col = $wpdb->get_var( $wpdb->prepare("SHOW COLUMNS FROM `$table_name` LIKE %s", 'ip_address') );
-  if ( ! $col ) {
-    // Usamos VARBINARY(16) para soportar IPv4 (4 bytes) e IPv6 (16 bytes)
-    $wpdb->query( "ALTER TABLE `$table_name` ADD COLUMN ip_address VARBINARY(16) NULL AFTER page_id" );
-  }
-
     // Crear tabla wp_aichat_chunks sin permalink
     $chunks_sql = "CREATE TABLE IF NOT EXISTS $chunks_table (
         id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -154,82 +180,52 @@ function aichat_activation() {
 
 
 function aichat_bots_maybe_create(){
+  // Versión simplificada para el primer release: un único CREATE con todas las columnas.
   global $wpdb;
   $t = aichat_bots_table();
   $charset = $wpdb->get_charset_collate();
-
-  // Sube versión de esquema al cambiar estructura
-  $SCHEMA_VER = '5';
-
   require_once ABSPATH.'wp-admin/includes/upgrade.php';
 
-  // ¿Existe la tabla?
-  $exists = ($wpdb->get_var( $wpdb->prepare("SHOW TABLES LIKE %s", $t) ) === $t);
+  // Nota: evitamos 'IF NOT EXISTS' para que dbDelta pueda comparar y ajustar correctamente.
+  $sql = "CREATE TABLE $t (
+    id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL DEFAULT '',
+    slug VARCHAR(100) NOT NULL,
+    type ENUM('text','voice_text') NOT NULL DEFAULT 'text',
+    instructions LONGTEXT NULL,
+    provider VARCHAR(32) NOT NULL DEFAULT 'openai',
+  model VARCHAR(64) NOT NULL DEFAULT 'gpt-4o',
+    temperature DECIMAL(3,2) NOT NULL DEFAULT 0.70,
+    max_tokens INT NOT NULL DEFAULT 2048,
+    reasoning ENUM('off','fast','accurate') NOT NULL DEFAULT 'off',
+    verbosity ENUM('low','medium','high') NOT NULL DEFAULT 'medium',
+    context_mode ENUM('embeddings','page','none') NOT NULL DEFAULT 'embeddings',
+    context_id BIGINT UNSIGNED NULL,
+    input_max_length INT NOT NULL DEFAULT 512,
+    max_messages INT NOT NULL DEFAULT 20,
+    context_max_length INT NOT NULL DEFAULT 4096,
+    ui_color VARCHAR(7) NOT NULL DEFAULT '#1a73e8',
+    ui_position ENUM('br','bl','tr','tl') NOT NULL DEFAULT 'br',
+    ui_avatar_enabled TINYINT(1) NOT NULL DEFAULT 0,
+    ui_avatar_key VARCHAR(32) DEFAULT NULL,
+    ui_icon_url VARCHAR(255) DEFAULT NULL,
+    ui_start_sentence VARCHAR(255) DEFAULT NULL,
+    ui_placeholder VARCHAR(255) NOT NULL DEFAULT 'Write your question...',
+    ui_button_send VARCHAR(64) NOT NULL DEFAULT 'Send',
+    ui_closable TINYINT(1) NOT NULL DEFAULT 1,
+    ui_minimizable TINYINT(1) NOT NULL DEFAULT 1,
+    ui_draggable TINYINT(1) NOT NULL DEFAULT 1,
+    ui_minimized_default TINYINT(1) NOT NULL DEFAULT 0,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY slug (slug),
+    KEY provider (provider),
+    KEY context_id (context_id)
+  ) $charset;";
 
-  if (!$exists) {
-    // Crear desde cero
-    $sql = "CREATE TABLE $t (
-      id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-      name VARCHAR(100) NOT NULL DEFAULT '',
-      slug VARCHAR(100) NOT NULL,
-      type ENUM('text','voice_text') NOT NULL DEFAULT 'text', 
-      instructions LONGTEXT NULL,
-      provider VARCHAR(32) NOT NULL DEFAULT 'openai',
-      model VARCHAR(64) NOT NULL DEFAULT 'GPT-4o',
-      temperature DECIMAL(3,2) NOT NULL DEFAULT 0.70,
-      max_tokens INT NOT NULL DEFAULT 2048,
-      reasoning ENUM('off','fast','accurate') NOT NULL DEFAULT 'off',
-      verbosity ENUM('low','medium','high') NOT NULL DEFAULT 'medium',
-      context_mode ENUM('embeddings','page','none') NOT NULL DEFAULT 'embeddings',
-      context_id BIGINT UNSIGNED NULL,
-      input_max_length INT NOT NULL DEFAULT 512,
-      max_messages INT NOT NULL DEFAULT 20,
-      context_max_length INT NOT NULL DEFAULT 4096,
-      ui_color VARCHAR(7) NOT NULL DEFAULT '#1a73e8',
-      ui_position ENUM('br','bl','tr','tl') NOT NULL DEFAULT 'br',
-      ui_avatar_enabled TINYINT(1) NOT NULL DEFAULT 0,
-      ui_avatar_key VARCHAR(32) DEFAULT NULL,
-      ui_icon_url VARCHAR(255) DEFAULT NULL,
-      ui_start_sentence VARCHAR(255) DEFAULT NULL,
-      ui_placeholder VARCHAR(255) NOT NULL DEFAULT 'Write your question...',
-      ui_button_send VARCHAR(64)  NOT NULL DEFAULT 'Send',
-      ui_closable TINYINT(1) NOT NULL DEFAULT 1,
-      ui_minimizable TINYINT(1) NOT NULL DEFAULT 1,
-      ui_draggable TINYINT(1) NOT NULL DEFAULT 1,
-      ui_minimized_default TINYINT(1) NOT NULL DEFAULT 0,
-      is_active TINYINT(1) NOT NULL DEFAULT 1,
-      created_at DATETIME NOT NULL,
-      updated_at DATETIME NOT NULL,
-      PRIMARY KEY (id),
-      UNIQUE KEY slug (slug),
-      KEY provider (provider),
-      KEY context_id (context_id)
-    ) $charset;";
-    dbDelta($sql);
-    update_option('aichat_bots_schema_ver', $SCHEMA_VER);
-    return;
-  }
-
-  // La tabla existe: añadir columnas nuevas con ALTER
-  // Helper: ¿columna existe?
-  $col_exists = function($col) use ($wpdb, $t){
-    return (bool) $wpdb->get_var( $wpdb->prepare("SHOW COLUMNS FROM `$t` LIKE %s", $col) );
-  };
-
-  // ui_placeholder
-  if (!$col_exists('ui_placeholder')) {
-    $wpdb->query("ALTER TABLE `$t` ADD COLUMN `ui_placeholder` VARCHAR(255) NOT NULL DEFAULT 'Write your question...' AFTER `ui_start_sentence`");
-  }
-  // ui_button_send
-  if (!$col_exists('ui_button_send')) {
-    $wpdb->query("ALTER TABLE `$t` ADD COLUMN `ui_button_send` VARCHAR(64) NOT NULL DEFAULT 'Send' AFTER `ui_placeholder`");
-  }
-  if (!$col_exists('ui_closable'))          { $wpdb->query("ALTER TABLE `$t` ADD COLUMN `ui_closable` TINYINT(1) NOT NULL DEFAULT 1 AFTER `ui_button_send`"); }
-  if (!$col_exists('ui_minimizable'))       { $wpdb->query("ALTER TABLE `$t` ADD COLUMN `ui_minimizable` TINYINT(1) NOT NULL DEFAULT 1 AFTER `ui_closable`"); }
-  if (!$col_exists('ui_draggable'))         { $wpdb->query("ALTER TABLE `$t` ADD COLUMN `ui_draggable` TINYINT(1) NOT NULL DEFAULT 1 AFTER `ui_minimizable`"); }
-  if (!$col_exists('ui_minimized_default')) { $wpdb->query("ALTER TABLE `$t` ADD COLUMN `ui_minimized_default` TINYINT(1) NOT NULL DEFAULT 0 AFTER `ui_draggable`"); }
-
-  update_option('aichat_bots_schema_ver', $SCHEMA_VER);
+  dbDelta($sql); // dbDelta hará los ajustes necesarios si ya existe.
 }
 
 // Hook de desactivación (vacío para no perder datos)
@@ -373,6 +369,17 @@ function aichat_admin_menu() {
     wp_enqueue_style('aichat-admin', AICHAT_PLUGIN_URL.'assets/css/aichat-admin.css', ['aichat-bootstrap'], AICHAT_VERSION);    
     wp_enqueue_script('aichat-bootstrap');
 
+    // Script específico de la página de ajustes (toggle mostrar/ocultar API keys)
+    if ( $page === 'aichat-settings' && ! wp_script_is('aichat-settings-js','enqueued') ) {
+      wp_enqueue_script(
+        'aichat-settings-js',
+        AICHAT_PLUGIN_URL . 'assets/js/settings.js',
+        [],
+        AICHAT_VERSION,
+        true
+      );
+    }
+
     // Lógica específica para página de bots
     if ( $page === 'aichat-bots-settings' ) {
       wp_enqueue_script('aichat-bots-js', AICHAT_PLUGIN_URL.'assets/js/bots.js', ['jquery'], AICHAT_VERSION, true);
@@ -449,4 +456,5 @@ function aichat_handle_delete_conversation() {
   wp_safe_redirect( add_query_arg( [ 'page'=>'aichat-logs', 'deleted'=>1 ], admin_url('admin.php') ) );
   exit;
 }
+
 

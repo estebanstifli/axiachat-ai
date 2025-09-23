@@ -216,6 +216,9 @@ function aichat_settings_page() {
                                         <label for="aichat_global_bot_slug" class="form-label fw-semibold"><?php echo esc_html__( 'Global Bot', 'aichat' ); ?></label>
                                         <?php if ( empty($bots) ): ?>
                                             <select id="aichat_global_bot_slug" class="form-select" disabled name="aichat_global_bot_slug"><option><?php echo esc_html__( 'No bots defined yet', 'aichat'); ?></option></select>
+                                            <?php
+                                            /* translators: %s: URL to the AI Chat Bots admin settings page */
+                                            ?>
                                             <div class="form-text"><?php printf( wp_kses_post( __( 'Create one in <a href="%s">AI Chat → Bots</a>.','aichat') ), esc_url( admin_url('admin.php?page=aichat-bots-settings') ) ); ?></div>
                                         <?php else: ?>
                                             <select id="aichat_global_bot_slug" class="form-select" name="aichat_global_bot_slug">

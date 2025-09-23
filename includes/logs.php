@@ -74,6 +74,7 @@ function aichat_logs_page() {
     }
 
     // Listado principal
+    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $where_sql is built only from whitelisted fragments with placeholders; values bound via $wpdb->prepare below.
     $sql = "
         SELECT 
             MIN(c.created_at) AS first_at,
@@ -107,7 +108,8 @@ function aichat_logs_page() {
     if ( $rows ) {
         $last_ids = wp_list_pluck($rows,'last_id');
         $placeholders = implode(',', array_fill(0, count($last_ids), '%d'));
-        $sql_last = "SELECT id, response, message FROM $table WHERE id IN ($placeholders)";
+    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- IN clause placeholders (%d) generated to match sanitized integer IDs; executed with $wpdb->prepare.
+    $sql_last = "SELECT id, response, message FROM $table WHERE id IN ($placeholders)";
         $last_res = $wpdb->get_results( $wpdb->prepare($sql_last, $last_ids), ARRAY_A );
         foreach($last_res as $r){
             $txt = trim( wp_strip_all_tags( $r['response'] ?: $r['message'] ) );

@@ -41,7 +41,7 @@ if ( ! function_exists('aichat_stable_unique_ids') ) {
 // =====================
 
 /** Helper de logging con request-id corto */
-function aichat_log($rid, $msg){ error_log("[AIChat AJAX $rid] $msg"); }
+function aichat_log($rid, $msg){ aichat_log_debug("[AIChat AJAX $rid] $msg"); }
 
 add_action('wp_ajax_aichat_process_context', 'aichat_process_context');
 

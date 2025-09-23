@@ -33,12 +33,12 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) { $debug = true; }
             if ( isset($_POST['debug']) && $_POST['debug'] ) { $debug = true; }
 
-            error_log("[AIChat AJAX][$uid] start");
+            aichat_log_debug("[AIChat AJAX][$uid] start");
 
             // Nonce
             $nonce = isset($_POST['nonce']) ? sanitize_text_field( wp_unslash($_POST['nonce']) ) : '';
             if ( empty($nonce) || ! wp_verify_nonce( $nonce, 'aichat_ajax' ) ) {
-                error_log("[AIChat AJAX][$uid] nonce invalid");
+                aichat_log_debug("[AIChat AJAX][$uid] nonce invalid");
                 wp_send_json_error( [ 'message' => __( 'Invalid nonce.', 'aichat' ) ], 403 );
             }
 
@@ -48,17 +48,17 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             if ($session==='') { $session = wp_generate_uuid4(); }
 
             if ( $message === '' ) {
-                error_log("[AIChat AJAX][$uid] empty message");
+                aichat_log_debug("[AIChat AJAX][$uid] empty message");
                 wp_send_json_error( [ 'message' => __( 'Message is empty.', 'aichat' ) ], 400 );
             }
-            error_log("[AIChat AJAX][$uid] payload slug={$bot_slug} msg_len=" . strlen($message));
+            aichat_log_debug("[AIChat AJAX][$uid] payload slug={$bot_slug} msg_len=" . strlen($message));
 
             // ---- Moderación temprana ----
             if ( function_exists('aichat_run_moderation_checks') ) {
                 $mod_check = aichat_run_moderation_checks( $message );
                 if ( is_wp_error( $mod_check ) ) {
                     $rej_msg = $mod_check->get_error_message();
-                    error_log("[AIChat AJAX][$uid] moderation blocked: " . $rej_msg);
+                    aichat_log_debug("[AIChat AJAX][$uid] moderation blocked: " . $rej_msg);
 
                     // Opcional: NO llamamos a proveedor, devolvemos mensaje como respuesta del bot
                     // Si quisieras registrar la interacción en la tabla, descomenta:
@@ -75,7 +75,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             // 1) Resolver BOT
             $bot = $this->resolve_bot( $bot_slug );
             if ( ! $bot ) {
-                error_log("[AIChat AJAX][$uid] resolve_bot: NOT FOUND");
+                aichat_log_debug("[AIChat AJAX][$uid] resolve_bot: NOT FOUND");
                 wp_send_json_error( [ 'message' => __( 'No bot found to process the request.', 'aichat' ) ], 404 );
             }
 
@@ -96,8 +96,8 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             $context_mode = isset( $bot['context_mode'] ) ? sanitize_key( $bot['context_mode'] ) : 'auto'; // 'embeddings'|'none'|'page' (legacy)
             $context_id   = isset( $bot['context_id'] )   ? intval( $bot['context_id'] ) : 0;
 
-            error_log("[AIChat AJAX][$uid] bot id={$bot_id} slug={$bot_slug_r} name={$bot_name} provider={$provider} model={$model} temp={$temperature} max_tokens={$max_tokens}");
-            error_log("[AIChat AJAX][$uid] context raw mode={$context_mode} context_id={$context_id}");
+            aichat_log_debug("[AIChat AJAX][$uid] bot id={$bot_id} slug={$bot_slug_r} name={$bot_name} provider={$provider} model={$model} temp={$temperature} max_tokens={$max_tokens}");
+            aichat_log_debug("[AIChat AJAX][$uid] context raw mode={$context_mode} context_id={$context_id}");
 
             // 2) Determinar modo de contexto efectivo
             $mode_arg = 'auto';
@@ -130,7 +130,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                     if (++$i >= 3) break;
                 }
             }
-            error_log("[AIChat AJAX][$uid] context mode_eff={$mode_arg} count={$ctx_count} time_ms=" . round( ($t_ctx1 - $t_ctx0)*1000 ) . " top=" . wp_json_encode($ctx_peek) );
+            aichat_log_debug("[AIChat AJAX][$uid] context mode_eff={$mode_arg} count={$ctx_count} time_ms=" . round( ($t_ctx1 - $t_ctx0)*1000 ) . " top=" . wp_json_encode($ctx_peek) );
 
             // 3) Construir mensajes (system + historial + user actual)
             // Base (system + user actual con CONTEXTO)
@@ -152,7 +152,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 if ( $m['role'] === 'system' ) { $sys_len += mb_strlen( (string)$m['content'] ); }
                 if ( $m['role'] === 'user' )   { $usr_len += mb_strlen( (string)$m['content'] ); }
             }
-            error_log("[AIChat AJAX][$uid] messages built sys_len={$sys_len} user_len={$usr_len}");
+            aichat_log_debug("[AIChat AJAX][$uid] messages built sys_len={$sys_len} user_len={$usr_len}");
 
             // 4) Claves API
             $openai_key = get_option( 'aichat_openai_api_key', '' );
@@ -167,11 +167,11 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             }
 
             if ( $provider === 'openai' && empty( $openai_key ) ) {
-                error_log("[AIChat AJAX][$uid] ERROR: OpenAI key missing");
+                aichat_log_debug("[AIChat AJAX][$uid] ERROR: OpenAI key missing");
                 wp_send_json_error( [ 'message' => __( 'Falta la OpenAI API Key en Ajustes.', 'aichat' ) ], 400 );
             }
             if ( $provider === 'claude' && empty( $claude_key ) ) {
-                error_log("[AIChat AJAX][$uid] ERROR: Claude key missing");
+                aichat_log_debug("[AIChat AJAX][$uid] ERROR: Claude key missing");
                 wp_send_json_error( [ 'message' => __( 'Falta la Claude API Key en Ajustes.', 'aichat' ) ], 400 );
             }
 
@@ -220,7 +220,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                     }
                     if ( $count_user >= $max_per_user ) {
                         $limit_msg = $msg_user !== '' ? $msg_user : __( 'Daily message limit reached for this user.', 'aichat' );
-                        error_log("[AIChat AJAX][$uid] per-user/IP limit reached count=$count_user max=$max_per_user");
+                        aichat_log_debug("[AIChat AJAX][$uid] per-user/IP limit reached count=$count_user max=$max_per_user");
                         wp_send_json_success( [ 'message' => $limit_msg, 'limited' => true, 'limit_type' => 'per_user' ] );
                     }
                 }
@@ -233,7 +233,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                     ) );
                     if ( $count_total >= $max_total ) {
                         // Según comportamiento: devolvemos mensaje (disabled) o lo tratamos como oculto
-                        error_log("[AIChat AJAX][$uid] global limit reached count=$count_total max=$max_total behavior=$beh_total");
+                        aichat_log_debug("[AIChat AJAX][$uid] global limit reached count=$count_total max=$max_total behavior=$beh_total");
                         if ( $beh_total === 'hidden' ) {
                             // Simulamos recurso no disponible
                             wp_send_json_error( [ 'message' => __( 'Chat temporarily unavailable.', 'aichat' ), 'limit_type'=>'daily_total_hidden' ], 403 );
@@ -248,13 +248,13 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
 
             $t_call0 = microtime(true);
             if ( $provider === 'openai' ) {
-                error_log("[AIChat AJAX][$uid] calling OpenAI model={$model}");
+                aichat_log_debug("[AIChat AJAX][$uid] calling OpenAI model={$model}");
                 $result = $this->call_openai_auto( $openai_key, $model, $messages, $temperature, $max_tokens );
             } elseif ( $provider === 'claude' ) {
-                error_log("[AIChat AJAX][$uid] calling Claude model={$model}");
+                aichat_log_debug("[AIChat AJAX][$uid] calling Claude model={$model}");
                 $result = $this->call_claude_messages( $claude_key, $model, $messages, $temperature, $max_tokens );
                 if (isset($result['error'])) {
-                    error_log("[AIChat AJAX][$uid] provider error (Claude): ".$result['error']);
+                    aichat_log_debug("[AIChat AJAX][$uid] provider error (Claude): ".$result['error']);
                     wp_send_json_error(['message'=>$result['error']], 500);
                 }
                 $answer = $result['message'];
@@ -271,20 +271,20 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 } else {
                     $error_message = __( 'Unknown error occurred.', 'aichat' );
                 }
-                error_log("[AIChat AJAX][$uid] provider WP_Error: " . $error_message);
+                aichat_log_debug("[AIChat AJAX][$uid] provider WP_Error: " . $error_message);
                 wp_send_json_error( [ 'message' => $error_message ], 500 );
             }
             if ( is_array( $result ) && isset( $result['error'] ) ) {
-                error_log("[AIChat AJAX][$uid] provider error: " . $result['error']);
+                aichat_log_debug("[AIChat AJAX][$uid] provider error: " . $result['error']);
                 wp_send_json_error( [ 'message' => (string)$result['error'] ], 500 );
             }
 
             $answer = is_array( $result ) && isset( $result['message'] ) ? (string) $result['message'] : '';
             $ans_preview = mb_substr( $answer, 0, 140 );
-            error_log("[AIChat AJAX][$uid] raw answer len=" . mb_strlen($answer) . " time_ms=" . round(($t_call1-$t_call0)*1000) . " preview=" . str_replace(array("\n","\r"), ' ', $ans_preview));
+            aichat_log_debug("[AIChat AJAX][$uid] raw answer len=" . mb_strlen($answer) . " time_ms=" . round(($t_call1-$t_call0)*1000) . " preview=" . str_replace(array("\n","\r"), ' ', $ans_preview));
 
             if ( $answer === '' ) {
-                error_log("[AIChat AJAX][$uid] ERROR: empty answer");
+                aichat_log_debug("[AIChat AJAX][$uid] ERROR: empty answer");
                 wp_send_json_error( [ 'message' => __( 'Model returned an empty response.', 'aichat' ) ], 500 );
             }
 
@@ -516,13 +516,13 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 ]);
                 if (is_wp_error($res)) {
                     $last_error = $res->get_error_message();
-                    error_log('[AIChat Claude][HTTP_ERR] '.$last_error);
+                    aichat_log_debug('[AIChat Claude][HTTP_ERR] '.$last_error);
                     continue;
                 }
                 $code   = wp_remote_retrieve_response_code($res);
                 $raw    = wp_remote_retrieve_body($res);
                 $req_id = wp_remote_retrieve_header($res, 'x-request-id');
-                error_log('[AIChat Claude][RAW] '.wp_json_encode([
+                aichat_log_debug('[AIChat Claude][RAW] '.wp_json_encode([
                     'status'=>$code,'model'=>$mdl_try,'req_id'=>$req_id ?: '-',
                     'attempt'=>($idx+1).'/'.count($attempts),
                     'payload_len'=>strlen($json_payload),
@@ -563,7 +563,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 }
                 // Si hubo fallback exitoso, log y devolver
                 if ($mdl_try !== $primary) {
-                    error_log('[AIChat Claude] Fallback model used: '.$mdl_try.' (original='.$primary.')');
+                    aichat_log_debug('[AIChat Claude] Fallback model used: '.$mdl_try.' (original='.$primary.')');
                 }
                 return ['message'=>$text];
             }
@@ -908,7 +908,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 }
                 $meta = $payload_meta;
                 if ($input_len !== null) { $meta['input_len'] = (int)$input_len; }
-                error_log(
+                aichat_log_debug(
                     '[AIChat AJAX][OpenAI '.$kind.']'.
                     ' model='.$model.
                     ' status='.$status.
@@ -919,7 +919,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                     ' body_raw='.$body_trim
                 );
             } catch (\Throwable $e) {
-                error_log('[AIChat AJAX][OpenAI '.$kind.'] log error: '.$e->getMessage());
+                aichat_log_debug('[AIChat AJAX][OpenAI '.$kind.'] log error: '.$e->getMessage());
             }
         }
 

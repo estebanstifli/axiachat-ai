@@ -20,7 +20,7 @@ if ( ! class_exists( 'AIChat_Core' ) ) {
         private static $vars_localized  = false;
 
         public function __construct() {
-            error_log('[AIChat Core] __construct: hooks');
+            aichat_log_debug('[AIChat Core] __construct: hooks');
             add_action( 'wp_enqueue_scripts', [ $this, 'register_assets' ] );
             // Prioridad baja para encolar/localizar ANTES de que WP imprima scripts en el footer
             add_action( 'wp_footer', [ $this, 'maybe_render_global_widget' ], 5 );
@@ -30,13 +30,13 @@ if ( ! class_exists( 'AIChat_Core' ) ) {
          * Registra (no encola) los assets del frontend.
          */
         public function register_assets() {
-            error_log('[AIChat Core] register_assets: start');
+            aichat_log_debug('[AIChat Core] register_assets: start');
 
             // Calcula desde la raíz del plugin (más robusto)
             $base_path = dirname( plugin_dir_path( __FILE__ ) ) . '/';
             $base_url  = dirname( plugin_dir_url( __FILE__ ) ) . '/';
-            error_log('[AIChat Core] register_assets: base_path=' . $base_path);
-            error_log('[AIChat Core] register_assets: base_url=' . $base_url);
+            aichat_log_debug('[AIChat Core] register_assets: base_path=' . $base_path);
+            aichat_log_debug('[AIChat Core] register_assets: base_url=' . $base_url);
 
             $css_url = $base_url . 'assets/css/aichat-frontend.css';
             $js_url  = $base_url . 'assets/js/aichat-frontend.js';
@@ -47,15 +47,15 @@ if ( ! class_exists( 'AIChat_Core' ) ) {
             $ver_css  = file_exists( $css_path ) ? (string) filemtime( $css_path ) : '1.0.0';
             $ver_js   = file_exists( $js_path )  ? (string) filemtime( $js_path )  : '1.0.0';
 
-            error_log('[AIChat Core] register_assets: css_url=' . $css_url . ' exists=' . ( file_exists($css_path) ? '1' : '0' ) . ' ver=' . $ver_css);
-            error_log('[AIChat Core] register_assets: js_url='  . $js_url  . ' exists=' . ( file_exists($js_path)  ? '1' : '0' ) . ' ver=' . $ver_js);
+            aichat_log_debug('[AIChat Core] register_assets: css_url=' . $css_url . ' exists=' . ( file_exists($css_path) ? '1' : '0' ) . ' ver=' . $ver_css);
+            aichat_log_debug('[AIChat Core] register_assets: js_url='  . $js_url  . ' exists=' . ( file_exists($js_path)  ? '1' : '0' ) . ' ver=' . $ver_js);
 
             // Registrar estilos y scripts (script depende de jQuery)
             wp_register_style( 'aichat-frontend', $css_url, [], $ver_css );
             wp_register_script( 'aichat-frontend', $js_url, ['jquery'], $ver_js, true );
 
-            error_log('[AIChat Core] register_assets: style registered=' . ( wp_style_is('aichat-frontend','registered') ? '1' : '0' ));
-            error_log('[AIChat Core] register_assets: script registered=' . ( wp_script_is('aichat-frontend','registered') ? '1' : '0' ));
+            aichat_log_debug('[AIChat Core] register_assets: style registered=' . ( wp_style_is('aichat-frontend','registered') ? '1' : '0' ));
+            aichat_log_debug('[AIChat Core] register_assets: script registered=' . ( wp_script_is('aichat-frontend','registered') ? '1' : '0' ));
 
             // Variables comunes para cualquier instancia (shortcode o global) — SOLO una vez
             if ( ! self::$vars_localized ) {
@@ -65,9 +65,9 @@ if ( ! class_exists( 'AIChat_Core' ) ) {
                     'page_id'  => get_queried_object_id(),
                 ] );
                 self::$vars_localized = true;
-                error_log('[AIChat Core] register_assets: localized AIChatVars (once)');
+                aichat_log_debug('[AIChat Core] register_assets: localized AIChatVars (once)');
             } else {
-                error_log('[AIChat Core] register_assets: AIChatVars already localized, skipping');
+                aichat_log_debug('[AIChat Core] register_assets: AIChatVars already localized, skipping');
             }
         }
 
@@ -75,7 +75,7 @@ if ( ! class_exists( 'AIChat_Core' ) ) {
         private function get_first_bot_slug() {
             global $wpdb;
             $slug = $wpdb->get_var( "SELECT slug FROM {$wpdb->prefix}aichat_bots ORDER BY id ASC LIMIT 1" );
-            error_log('[AIChat Core] get_first_bot_slug: ' . ( $slug ?: 'NULL' ));
+            aichat_log_debug('[AIChat Core] get_first_bot_slug: ' . ( $slug ?: 'NULL' ));
             return $slug;
         }
 
@@ -93,53 +93,53 @@ if ( ! class_exists( 'AIChat_Core' ) ) {
          * Pinta el widget GLOBAL en el footer si procede, con UI del bot desde BD.
          */
         public function maybe_render_global_widget() {
-            error_log('[AIChat Core] maybe_render_global_widget: start');
+            aichat_log_debug('[AIChat Core] maybe_render_global_widget: start');
 
             if ( self::$rendered_global ) {
-                error_log('[AIChat Core] maybe_render_global_widget: abort already rendered');
+                aichat_log_debug('[AIChat Core] maybe_render_global_widget: abort already rendered');
                 return;
             }
             self::$rendered_global = true;
 
             if ( is_admin() ) {
-                error_log('[AIChat Core] maybe_render_global_widget: abort is_admin');
+                aichat_log_debug('[AIChat Core] maybe_render_global_widget: abort is_admin');
                 return;
             }
             if ( is_feed() ) {
-                error_log('[AIChat Core] maybe_render_global_widget: abort is_feed');
+                aichat_log_debug('[AIChat Core] maybe_render_global_widget: abort is_feed');
                 return;
             }
             if ( wp_doing_ajax() ) {
-                error_log('[AIChat Core] maybe_render_global_widget: abort wp_doing_ajax');
+                aichat_log_debug('[AIChat Core] maybe_render_global_widget: abort wp_doing_ajax');
                 return;
             }
 
             if ( ! empty( $GLOBALS['aichat_has_shortcode'] ) ) {
-                error_log('[AIChat Core] maybe_render_global_widget: abort has_shortcode');
+                aichat_log_debug('[AIChat Core] maybe_render_global_widget: abort has_shortcode');
                 return;
             }
 
             $enabled = (bool) get_option( 'aichat_global_bot_enabled', false );
-            error_log('[AIChat Core] maybe_render_global_widget: enabled=' . ( $enabled ? '1' : '0' ));
+            aichat_log_debug('[AIChat Core] maybe_render_global_widget: enabled=' . ( $enabled ? '1' : '0' ));
             if ( ! $enabled ) {
-                error_log('[AIChat Core] maybe_render_global_widget: abort not enabled');
+                aichat_log_debug('[AIChat Core] maybe_render_global_widget: abort not enabled');
                 return;
             }
 
             $slug = get_option( 'aichat_global_bot_slug', '' );
-            error_log('[AIChat Core] maybe_render_global_widget: slug(opt)=' . ( $slug ?: 'EMPTY' ));
+            aichat_log_debug('[AIChat Core] maybe_render_global_widget: slug(opt)=' . ( $slug ?: 'EMPTY' ));
             if ( empty( $slug ) ) {
                 $slug = $this->get_first_bot_slug();
-                error_log('[AIChat Core] maybe_render_global_widget: slug(fallback)=' . ( $slug ?: 'EMPTY' ));
+                aichat_log_debug('[AIChat Core] maybe_render_global_widget: slug(fallback)=' . ( $slug ?: 'EMPTY' ));
                 if ( empty( $slug ) ) {
-                    error_log('[AIChat Core] maybe_render_global_widget: abort no bots');
+                    aichat_log_debug('[AIChat Core] maybe_render_global_widget: abort no bots');
                     return;
                 }
             }
 
             // Reutiliza el shortcode: incluye todos los data-* (type, avatar, closable/minimizable/draggable, etc.)
             echo do_shortcode( sprintf('[aichat id="%s" layout="floating"]', esc_attr($slug)) );
-            error_log('[AIChat Core] maybe_render_global_widget: rendered via shortcode bot=' . $slug );
+            aichat_log_debug('[AIChat Core] maybe_render_global_widget: rendered via shortcode bot=' . $slug );
         }
     }
 
