@@ -6,24 +6,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 // Incluir funciones necesarias
 require_once plugin_dir_path(__FILE__) . 'contexto-functions.php';
 
-// AJAX para guardar estado del contexto
-add_action( 'wp_ajax_aichat_toggle_rag', 'aichat_toggle_rag' );
-function aichat_toggle_rag() {
-    check_ajax_referer( 'aichat_nonce', 'nonce' );
-    $enabled = rest_sanitize_boolean( $_POST['enabled'] );
-    update_option( 'aichat_rag_enabled', $enabled );
-    wp_send_json_success( [ 'enabled' => $enabled ] );
-}
-
-// AJAX para actualizar el contexto activo
-add_action( 'wp_ajax_aichat_update_active_context', 'aichat_update_active_context' );
-function aichat_update_active_context() {
-    check_ajax_referer( 'aichat_nonce', 'nonce' );
-    $context_id = absint( $_POST['context_id'] );
-    update_option( 'aichat_active_context', $context_id );
-    wp_send_json_success();
-}
-
 // AJAX para cargar contextos
 add_action( 'wp_ajax_aichat_load_contexts', 'aichat_load_contexts' );
 function aichat_load_contexts() {

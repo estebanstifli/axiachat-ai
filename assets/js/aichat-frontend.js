@@ -67,6 +67,7 @@
       var minimizable   = !!parseInt($root.data('minimizable') || 0, 10);
       var draggable     = !!parseInt($root.data('draggable') || 0, 10);
       var minimizedDefault = !!parseInt($root.data('minimizedDefault') || 0, 10);
+  var superMinimizedDefault = !!parseInt($root.data('superminimizedDefault') || 0, 10);
 
 
       // Avatar dataset
@@ -443,6 +444,21 @@
 
       // Estado inicial minimizado
       if (minimizedDefault) $inner.addClass('is-minimized');
+      if (superMinimizedDefault) {
+        // Reutiliza lógica de creación avatar si no existe
+        if (!$root.find('.aichat-super-avatar').length){
+          var avatarHtml;
+          if (avatarEnabled && avatarUrl){
+            avatarHtml = '<div class="aichat-super-avatar" title="'+escapeHtml(title)+'"><img src="'+escapeHtml(avatarUrl)+'" alt="'+escapeHtml(title)+'" /></div>';
+          } else {
+            var initials = 'AI';
+            if (title && title.trim().length>=2){ initials = title.trim().substring(0,2).toUpperCase(); }
+            avatarHtml = '<div class="aichat-super-avatar" title="'+escapeHtml(title)+'">'+escapeHtml(initials)+'</div>';
+          }
+          $root.append(avatarHtml);
+        }
+        $root.addClass('is-superminimized');
+      }
 
       // ---------- 5) Eventos ----------
       $micBtn.on('click', function(e){
@@ -482,9 +498,38 @@
         });
       }
       if (closable) {
+        // Super-minimizado: alterna clase en el contenedor raíz
         $inner.on('click', '.aichat-btn-close', function(e){
           e.preventDefault();
-          $root.hide();
+          // Crear contenedor avatar si no existe
+          if (!$root.find('.aichat-super-avatar').length){
+            var avatarHtml;
+            if (avatarEnabled && avatarUrl){
+              avatarHtml = '<div class="aichat-super-avatar" title="'+escapeHtml(title)+'"><img src="'+escapeHtml(avatarUrl)+'" alt="'+escapeHtml(title)+'" /></div>';
+            } else {
+              // Iniciales (AI) o primera letra del título si existe
+              var initials = 'AI';
+              if (title && title.trim().length>=2){ initials = title.trim().substring(0,2).toUpperCase(); }
+              avatarHtml = '<div class="aichat-super-avatar" title="'+escapeHtml(title)+'">'+escapeHtml(initials)+'</div>';
+            }
+            $root.append(avatarHtml);
+          }
+          // Si ya está super-minimizado (caso raro: header visible por estilos), simplemente alterna
+          if ($root.hasClass('is-superminimized')) {
+            $root.removeClass('is-superminimized');
+            return;
+          }
+
+          // Añade estado super-minimizado primero (para tener tamaño final 56x56 al calcular destino)
+          $root.addClass('is-superminimized');
+
+          // Animar regreso a la esquina configurada si el usuario había arrastrado el widget (left/top inline)
+          animateToCorner($root, position);
+        });
+        // Restaurar al hacer click en el avatar circle
+        $root.on('click', '.aichat-super-avatar', function(e){
+          e.preventDefault();
+          $root.removeClass('is-superminimized');
         });
       }
 
@@ -678,6 +723,56 @@
         dragging = false;
         $root.removeClass('dragging');
       });
+    }
+
+    // Anima el widget hacia la esquina definida por 'position', limpiando estilos inline al finalizar.
+    function animateToCorner($root, position){
+      try {
+        var rectStart = $root.get(0).getBoundingClientRect();
+        // Establece posición inicial explícita (por si estaba anclado con right/bottom)
+        $root.stop(true, false).css({
+          left: rectStart.left + 'px',
+          top: rectStart.top + 'px',
+          right: 'auto',
+          bottom: 'auto'
+        });
+
+        // Dimensiones finales (ya en modo superminimizado 56x56)
+        var w = $root.outerWidth();
+        var h = $root.outerHeight();
+        var pad = 20; // margen estándar usado en CSS
+        var targetLeft, targetTop;
+        var vw = window.innerWidth;
+        var vh = window.innerHeight;
+        switch(position){
+          case 'top-left':
+            targetLeft = pad; targetTop = pad; break;
+          case 'top-right':
+            targetLeft = vw - pad - w; targetTop = pad; break;
+          case 'bottom-left':
+            targetLeft = pad; targetTop = vh - pad - h; break;
+          case 'bottom-right':
+          default:
+            targetLeft = vw - pad - w; targetTop = vh - pad - h; break;
+        }
+
+        // Si ya está prácticamente en destino, sólo limpiar estilos
+        if (Math.abs(rectStart.left - targetLeft) < 2 && Math.abs(rectStart.top - targetTop) < 2){
+          // Limpieza asincrónica para permitir reflow de la clase
+          setTimeout(function(){
+            $root.css({ left:'', top:'', right:'', bottom:'' });
+          }, 0);
+          return;
+        }
+
+        $root.animate({ left: targetLeft, top: targetTop }, 300, 'swing', function(){
+          // Al terminar: eliminar estilos inline y dejar que las clases (pos-*) gobiernen
+            $root.css({ left:'', top:'', right:'', bottom:'' });
+        });
+      } catch(err){
+        // Fallback silencioso: si algo falla, limpiar estilos para no dejar estado roto
+        $root.css({ left:'', top:'', right:'', bottom:'' });
+      }
     }
     // Carga historial del servidor y lo pinta
     function loadHistory($messages, botSlug, sessionId){

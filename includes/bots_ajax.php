@@ -20,18 +20,44 @@ function aichat_bots_check(){ if(!current_user_can('manage_options')){ wp_send_j
 function aichat_bots_insert_default(){
   global $wpdb;
   $table = aichat_bots_table();
+  // Asegurar que la tabla existe antes de consultar
+  if ( $wpdb->get_var( $wpdb->prepare("SHOW TABLES LIKE %s", $table ) ) !== $table ) {
+    aichat_log_debug('Default bot insert: table not found (skip)');
+    return;
+  }
+
+  // Si ya hay cualquier fila, no insertamos (más rápido que buscar slug)
+  $count = (int)$wpdb->get_var("SELECT COUNT(*) FROM $table");
+  if ( $count > 0 ) {
+    aichat_log_debug('Default bot insert: skipped (rows exist='.$count.')');
+    return;
+  }
+
+  // Verificación extra por slug (carrera muy improbable)
+  $exists = (int)$wpdb->get_var( $wpdb->prepare("SELECT COUNT(*) FROM $table WHERE slug=%s", 'default') );
+  if ( $exists > 0 ) {
+    aichat_log_debug('Default bot insert: skipped (default slug already present)');
+    return;
+  }
+
   $defaults = aichat_bots_defaults();
-  $wpdb->insert($table, $defaults);
+  $ok = $wpdb->insert($table, $defaults);
+  if ( ! $ok ) {
+    aichat_log_debug('Default bot insert: DB error', ['err'=>$wpdb->last_error]);
+    return;
+  }
+  update_option('aichat_default_bot_seeded', 1, false);
+  aichat_log_debug('Default bot insert: created id='.$wpdb->insert_id);
 }
 
 function aichat_bots_defaults($over=[]){
   $now = current_time('mysql');
   $d = [
-    'name' => 'Default', 'slug'=>'default', 'type'=>'text', 'instructions'=>'',
+    'name' => 'Default', 'slug'=>'default', 'type'=>'text', 'instructions'=>'Respond like a website support agent—friendly and creative. Use the page the customer is currently browsing as context.',
     'provider'=>'openai','model'=>'gpt-4o','temperature'=>0.70,'max_tokens'=>2048,'reasoning'=>'off','verbosity'=>'medium',
-    'context_mode'=>'embeddings','context_id'=>0,
+  'context_mode'=>'page','context_id'=>0,
     'input_max_length'=>512,'max_messages'=>20,'context_max_length'=>4096,
-    'ui_color'=>'#1a73e8','ui_position'=>'br','ui_avatar_enabled'=>0,'ui_avatar_key'=>null,'ui_icon_url'=>null,'ui_start_sentence'=>'Hi! How can I help you?',
+  'ui_color'=>'#1a73e8','ui_position'=>'br','ui_avatar_enabled'=>0,'ui_avatar_key'=>'','ui_icon_url'=>'','ui_start_sentence'=>'Hi! How can I help you?',
     /* nuevos por defecto */
     'ui_placeholder'  => 'Write your question...',
     'ui_button_send'  => 'Send',
@@ -39,6 +65,7 @@ function aichat_bots_defaults($over=[]){
     'ui_minimizable'        => 1,
     'ui_draggable'          => 1,
     'ui_minimized_default'  => 0,
+  'ui_superminimized_default' => 0,
     'is_active'=>1,'created_at'=>$now,'updated_at'=>$now
   ];
   return array_merge($d,$over);
@@ -117,6 +144,7 @@ function aichat_bots_sanitize_patch($patch,$row=null){
   if (isset($patch['ui_minimizable']))        $out['ui_minimizable']       = intval(!!$patch['ui_minimizable']);
   if (isset($patch['ui_draggable']))          $out['ui_draggable']         = intval(!!$patch['ui_draggable']);
   if (isset($patch['ui_minimized_default']))  $out['ui_minimized_default'] = intval(!!$patch['ui_minimized_default']);
+  if (isset($patch['ui_superminimized_default']))  $out['ui_superminimized_default'] = intval(!!$patch['ui_superminimized_default']);
 
   // Coherencia provider ↔ modelo
   if (isset($out['provider']) || isset($out['model'])) {
@@ -156,7 +184,7 @@ function aichat_bots_sanitize_patch($patch,$row=null){
 function aichat_bots_cast_row($r){
   if (!is_array($r)) return $r;
   $ints   = ['id','context_id','max_tokens','input_max_length','max_messages','context_max_length','is_active'];
-  $bools  = ['ui_avatar_enabled','ui_closable','ui_minimizable','ui_draggable','ui_minimized_default'];
+  $bools  = ['ui_avatar_enabled','ui_closable','ui_minimizable','ui_draggable','ui_minimized_default','ui_superminimized_default'];
   $floats = ['temperature'];
   foreach($ints as $k){ if(isset($r[$k])) $r[$k] = (int)$r[$k]; }
   foreach($bools as $k){ if(isset($r[$k])) $r[$k] = (int)!empty($r[$k]); }

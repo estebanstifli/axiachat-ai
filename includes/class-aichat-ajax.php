@@ -17,7 +17,16 @@ if ( ! defined( 'AICHAT_DEBUG') ) {
 if ( ! class_exists( 'AIChat_Ajax' ) ) {
 
     class AIChat_Ajax {
-        public function __construct() {
+        private static $instance = null;
+
+        public static function instance() {
+            if ( self::$instance === null ) {
+                self::$instance = new self();
+            }
+            return self::$instance;
+        }
+
+        private function __construct() {
             add_action( 'wp_ajax_aichat_process_message', [ $this, 'process_message' ] );
             add_action( 'wp_ajax_nopriv_aichat_process_message', [ $this, 'process_message' ] );
             add_action( 'wp_ajax_aichat_get_history', [ $this, 'get_history' ] );
@@ -53,12 +62,53 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             }
             aichat_log_debug("[AIChat AJAX][$uid] payload slug={$bot_slug} msg_len=" . strlen($message));
 
+            // ---- CAPTCHA (filtro opcional) ----
+            $captcha_ok = apply_filters( 'aichat_validate_captcha', true, $_POST );
+            if ( ! $captcha_ok ) {
+                aichat_log_debug("[AIChat AJAX][$uid] captcha failed");
+                wp_send_json_error( [ 'message' => __( 'Captcha validation failed.', 'aichat' ) ], 403 );
+            }
+
+            // ---- Honeypot anti bots ----
+            if ( ! empty( $_POST['aichat_hp'] ) ) {
+                aichat_log_debug("[AIChat AJAX][$uid] honeypot filled");
+                wp_send_json_error( [ 'message' => __( 'Request blocked.', 'aichat' ) ], 403 );
+            }
+
+            // ---- Rate limiting & burst control ----
+            if ( function_exists('aichat_rate_limit_check') ) {
+                $rl = aichat_rate_limit_check( $session, $bot_slug );
+                if ( is_wp_error( $rl ) ) {
+                    aichat_log_debug("[AIChat AJAX][$uid] rate limit: " . $rl->get_error_code());
+                    wp_send_json_error( [ 'message' => $rl->get_error_message() ], 429 );
+                }
+            }
+
+            // ---- Longitud máxima dura (defensa DoS semántico) ----
+            $len = mb_strlen( $message );
+            if ( $len > 4000 ) {
+                aichat_log_debug("[AIChat AJAX][$uid] message too long len=$len");
+                wp_send_json_error( [ 'message' => __( 'Message too long.', 'aichat' ) ], 400 );
+            }
+
+            // ---- Firma / Patrón de spam básico ----
+            if ( function_exists('aichat_spam_signature_check') ) {
+                $sig = aichat_spam_signature_check( $message );
+                if ( is_wp_error( $sig ) && $sig->get_error_code() !== 'aichat_empty' ) {
+                    aichat_log_debug("[AIChat AJAX][$uid] spam signature: " . $sig->get_error_code());
+                    wp_send_json_error( [ 'message' => __( 'Blocked.', 'aichat' ) ], 400 );
+                }
+            }
+
             // ---- Moderación temprana ----
             if ( function_exists('aichat_run_moderation_checks') ) {
                 $mod_check = aichat_run_moderation_checks( $message );
                 if ( is_wp_error( $mod_check ) ) {
                     $rej_msg = $mod_check->get_error_message();
                     aichat_log_debug("[AIChat AJAX][$uid] moderation blocked: " . $rej_msg);
+                    if ( function_exists('aichat_record_moderation_block') ) {
+                        aichat_record_moderation_block( $mod_check->get_error_code() );
+                    }
 
                     // Opcional: NO llamamos a proveedor, devolvemos mensaje como respuesta del bot
                     // Si quisieras registrar la interacción en la tabla, descomenta:
@@ -966,10 +1016,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
         }
     }
 
-    // Alias retrocompatibilidad si código externo usa el nombre antiguo
     if ( ! class_exists( 'AICHAT_AJAX', false ) ) {
         class_alias( 'AIChat_Ajax', 'AICHAT_AJAX' );
     }
-
-    new AIChat_Ajax();
 }

@@ -85,6 +85,7 @@ function aichat_render_shortcode( $atts, $content = null, $tag = 'aichat' ) {
     $ui_minimizable        = intval( aichat_pick($bot, ['ui_minimizable'], 1) );
     $ui_draggable          = intval( aichat_pick($bot, ['ui_draggable'], 1) );
     $ui_minimized_default  = intval( aichat_pick($bot, ['ui_minimized_default'], 0) );
+    $ui_superminimized_default = intval( aichat_pick($bot, ['ui_superminimized_default'], 0) );
 
     // Start sentence
     $ui_start_sentence = aichat_pick($bot, ['ui_start_sentence','start_sentence','ui_start_text','start_text'], '');
@@ -157,7 +158,7 @@ function aichat_render_shortcode( $atts, $content = null, $tag = 'aichat' ) {
         'data-width="%d" data-height="%d" '.
         'data-avatar-enabled="%d" data-avatar-url="%s" '.
         'data-start-sentence="%s" data-button-send="%s" '.
-        'data-closable="%d" data-minimizable="%d" data-draggable="%d" data-minimized-default="%d"></div>',
+        'data-closable="%d" data-minimizable="%d" data-draggable="%d" data-minimized-default="%d" data-superminimized-default="%d"></div>',
         esc_attr( implode(' ', $classes) ),
         $style,
         esc_attr( $slug ),
@@ -176,8 +177,14 @@ function aichat_render_shortcode( $atts, $content = null, $tag = 'aichat' ) {
         $ui_closable ? 1 : 0,
         $ui_minimizable ? 1 : 0,
         $ui_draggable ? 1 : 0,
-        $ui_minimized_default ? 1 : 0
+        $ui_minimized_default ? 1 : 0,
+        $ui_superminimized_default ? 1 : 0
     );
+
+    // Honeypot (front-end). Bots that auto-complete will fill this hidden field.
+    // Backend rejects any request where $_POST['aichat_hp'] is non-empty.
+    $honeypot = '<input type="text" name="aichat_hp" value="" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute!important;left:-9999px!important;top:auto!important;width:1px!important;height:1px!important;overflow:hidden!important;" />';
+    $html .= $honeypot;
 
     return $html;
 }
@@ -185,8 +192,15 @@ function aichat_render_shortcode( $atts, $content = null, $tag = 'aichat' ) {
 /** helper: toma el primer campo no vacío de un array de claves */
 function aichat_pick(array $row, array $keys, $default = '') {
     foreach ($keys as $k) {
-        if ( isset($row[$k]) && $row[$k] !== '' && $row[$k] !== null ) {
-            return is_string($row[$k]) ? wp_unslash($row[$k]) : $row[$k];
+        if ( array_key_exists($k, $row) ) {
+            $val = $row[$k];
+            if ($val === null) continue; // evita null → deprecated en core
+            if ($val === '') continue;
+            // Normaliza arrays/objetos a cadena corta para evitar notices si se pasan a sanitize_*
+            if (is_array($val) || is_object($val)) {
+                $val = ''; // no usamos estructuras complejas aquí
+            }
+            return is_string($val) ? wp_unslash($val) : $val;
         }
     }
     return $default;

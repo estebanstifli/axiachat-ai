@@ -18,10 +18,16 @@ function aichat_bots_settings_page() {
   array_unshift($embedding_options, ['id'=>0,'text'=>'— None —']);
 
   // Prepara objeto JS (por si no has hecho wp_localize_script encolando bots.js)
+  // Si ya fueron localizadas encolando el script (aichat.php) no sobreescribir; sólo fallback.
+  $instruction_templates = function_exists('aichat_get_chatbot_templates') ? aichat_get_chatbot_templates() : [];
+  if ( function_exists('aichat_log_debug') ) {
+    aichat_log_debug('Bots page render templates', [ 'count' => is_array($instruction_templates)?count($instruction_templates):0 ]);
+  }
   $ajax_boot = [
-    'ajax_url'          => admin_url('admin-ajax.php'),
-    'nonce'             => wp_create_nonce('aichat_bots_nonce'),
-    'embedding_options' => $embedding_options,
+    'ajax_url'              => admin_url('admin-ajax.php'),
+    'nonce'                 => wp_create_nonce('aichat_bots_nonce'),
+    'embedding_options'     => $embedding_options,
+    'instruction_templates' => $instruction_templates,
   ];
   ?>
   <div class="wrap">

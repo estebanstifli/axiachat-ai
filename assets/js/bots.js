@@ -9,6 +9,9 @@
    console.log('[AIChat Bots] READY — panel?', $('#aichat-panel').length, 
               'tabs?', $('#aichat-tab-strip').length, 
               'ajax obj?', !!window.aichat_bots_ajax);
+  if(window.aichat_bots_ajax){
+    console.log('[AIChat Bots] templates localized?', !!window.aichat_bots_ajax.instruction_templates, 'count=', window.aichat_bots_ajax.instruction_templates ? Object.keys(window.aichat_bots_ajax.instruction_templates).length : 0);
+  }
 
   // ---------------- State ----------------
   let bots = [];          // lista de bots desde el servidor
@@ -146,6 +149,19 @@
     document.head.appendChild(st);
   }
 
+  // Derivar plantillas desde PHP (si existen)
+  function getInstructionTemplates(){
+    const raw = (window.aichat_bots_ajax && window.aichat_bots_ajax.instruction_templates) || {};
+    // Normalizar a array [{key,id,name,description,template}]
+    return Object.keys(raw).map(k=>({
+      key: k,
+      id: k,
+      name: raw[k].name || k,
+      description: raw[k].description || '',
+      template: raw[k].template || ''
+    })).filter(t=>t.template);
+  }
+
   /* ================== HOOK RENDER FILA ================== */
   const _afterRenderBotRow_orig = window.afterRenderBotRow || null;
   window.afterRenderBotRow = function(botId){
@@ -158,7 +174,7 @@
     name: 'Default',
     slug: 'default',
     type: 'text',
-    instructions: '',
+    instructions: 'Respond like a website support agent—friendly and creative. Use the page the customer is currently browsing as context.',
 
     provider: 'openai',
     model: 'gpt-4o',
@@ -167,7 +183,7 @@
     reasoning: 'off',     // off|fast|accurate
     verbosity: 'medium',  // low|medium|high
 
-    context_mode: 'embeddings', // embeddings|page|none
+  context_mode: 'page', // embeddings|page|none (changed default to 'page')
     context_id: 0,
 
     input_max_length: 512,
@@ -188,6 +204,7 @@
   ui_minimizable: 1,
   ui_draggable: 1,
   ui_minimized_default: 0,
+  ui_superminimized_default: 0,
 
     is_default: 0
   });
@@ -387,6 +404,9 @@
       `;
     }).join('');
 
+  const tplList = getInstructionTemplates();
+  const tplItemsHTML = tplList.map(t=>`<div class=\"aichat-tpl-item\" data-bot=\"${bot.id}\" data-id=\"${t.id}\" title=\"${escapeHtml(t.description)}\">${escapeHtml(t.name)}</div>`).join('');
+
     const html = `
       <form class="aichat-bot-form" data-id="${bot.id}">
         <div class="accordion aichat-accordion" id="acc-${bot.id}">
@@ -419,8 +439,18 @@
                 </div>
 
                 <div class="mt-3">
-                  <label class="form-label fw-semibold" for="inst-${bot.id}">Instructions / System prompt</label>
-                  <textarea class="form-control aichat-field" data-field="instructions" data-id="${bot.id}" id="inst-${bot.id}" rows="4">${escapeHtml(bot.instructions||'')}</textarea>
+                  <div class="d-flex align-items-baseline gap-2 mb-2">
+                    <label class="form-label fw-semibold mb-0" for="inst-${bot.id}">Instructions / System prompt</label>
+                    <span class="form-text-muted">(You can edit freely or load a predefined template)</span>
+                  </div>
+                  <div class="aichat-tpl-simple" id="tpl-panel-${bot.id}">
+                    <div class="aichat-tpl-list" id="tpl-list-${bot.id}" role="listbox" aria-label="Instruction templates">${tplItemsHTML || '<div class=\"aichat-tpl-empty\">No templates</div>'}</div>
+                    <div class="aichat-tpl-side">
+                      <div class="aichat-tpl-desc" id="tpl-desc-${bot.id}" aria-live="polite"></div>
+                      <button type="button" class="button button-secondary aichat-tpl-load mt-2" data-id="${bot.id}" disabled><i class="bi bi-download"></i> Load</button>
+                    </div>
+                  </div>
+                  <textarea class="form-control aichat-field mt-3" data-field="instructions" data-id="${bot.id}" id="inst-${bot.id}" rows="6">${escapeHtml(bot.instructions||'')}</textarea>
                 </div>
 
                 <div class="mt-3 d-flex align-items-center gap-2">
@@ -615,6 +645,18 @@
                       <input class="form-check-input aichat-field" type="checkbox" id="mindef-${bot.id}" data-field="ui_minimized_default" data-id="${bot.id}" ${bot.ui_minimized_default? 'checked':''}>
                       <label class="form-check-label" for="mindef-${bot.id}">Minimized (default)</label>
                     </div>
+                  </div>
+                </div>
+                <!-- NUEVA FILA: Super minimized -->
+                <div class="row g-3 mt-1">
+                  <div class="col-md-3">
+                    <div class="form-check mt-2">
+                      <input class="form-check-input aichat-field" type="checkbox" id="supmindef-${bot.id}" data-field="ui_superminimized_default" data-id="${bot.id}" ${bot.ui_superminimized_default? 'checked':''}>
+                      <label class="form-check-label" for="supmindef-${bot.id}">Super minimized (avatar)</label>
+                    </div>
+                  </div>
+                  <div class="col-md-9">
+                    <div class="form-text-muted" style="margin-top:14px;">If enabled, the widget starts as an avatar bubble. Opening it will show the full chat window.</div>
                   </div>
                 </div>
 
@@ -836,6 +878,43 @@
         if (bots.length<=1 || bot.slug==='default') return;
         if (confirm('Delete this bot? This action cannot be undone.')) deleteBot(id);
       }
+    });
+
+    // Plantillas: seleccionar
+    $(document).on('click.aichat', '#aichat-panel .aichat-tpl-item', function(){
+      const $it=$(this); const botId=$it.data('bot');
+      $(`#tpl-list-${botId} .aichat-tpl-item`).removeClass('active');
+      $it.addClass('active');
+      const tplId=$it.data('id');
+      const list=getInstructionTemplates();
+      const tpl=list.find(t=>t.id===tplId);
+      const $desc=$(`#tpl-desc-${botId}`);
+      const $btn=$(`#tpl-panel-${botId} .aichat-tpl-load[data-id="${botId}"]`);
+      if(tpl){
+        $desc.text(tpl.description);
+        $btn.prop('disabled', false).data('tplId', tpl.id);
+      } else {
+        $desc.text('');
+        $btn.prop('disabled', true).removeData('tplId');
+      }
+    });
+    // Plantillas: cargar
+    $(document).on('click.aichat', '#aichat-panel .aichat-tpl-load', function(){
+      const botId=$(this).data('id');
+      const tplId=$(this).data('tplId');
+      if(!tplId) return; const list=getInstructionTemplates();
+      const tpl=list.find(t=>t.id===tplId); if(!tpl) return;
+      const $ta=$(`#inst-${botId}`); if(!$ta.length) return;
+      const current=($ta.val()||'').trim();
+      if(current && current!==tpl.template){
+        if(!confirm('This will replace the current instructions. Continue?')) return;
+      }
+      $ta.val(tpl.template).trigger('input');
+    });
+
+    // Flechas de navegación en pestañas
+    $(document).on('mouseenter.aichat', '#aichat-tab-strip', function(){
+      updateArrows();
     });
   }
 

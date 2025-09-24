@@ -93,6 +93,8 @@ require_once AICHAT_PLUGIN_DIR . 'includes/moderation.php';
 require_once AICHAT_PLUGIN_DIR . 'includes/logs.php';
 require_once AICHAT_PLUGIN_DIR . 'includes/logs-detail.php';
 
+//Pagina de templates prompt
+require_once AICHAT_PLUGIN_DIR . 'includes/templates-prompt.php';
 
 
 
@@ -101,9 +103,14 @@ require_once AICHAT_PLUGIN_DIR . 'includes/logs-detail.php';
 
 
 
-// Instanciar las clases principales
-$aichat_core = new AIChat_Core();
-$aichat_ajax = new AIChat_Ajax();
+
+// Instanciar las clases principales (singleton) evitando duplicados
+if ( class_exists('AIChat_Core') && method_exists('AIChat_Core','instance') ) {
+  AIChat_Core::instance();
+}
+if ( class_exists('AIChat_Ajax') && method_exists('AIChat_Ajax','instance') ) {
+  AIChat_Ajax::instance();
+}
 
 // Hook de activación del plugin
 register_activation_hook( __FILE__, 'aichat_activation' );
@@ -150,32 +157,46 @@ function aichat_activation() {
     require_once ABSPATH . 'wp-admin/includes/upgrade.php';
     dbDelta( $sql );
 
-    // Crear tabla wp_aichat_chunks sin permalink
-    $chunks_sql = "CREATE TABLE IF NOT EXISTS $chunks_table (
-        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        id_context BIGINT UNSIGNED DEFAULT NULL,
-        post_id BIGINT UNSIGNED,
-        type VARCHAR(20),
-        title VARCHAR(255),
-        content TEXT NOT NULL,
-        embedding LONGTEXT,
-        tokens INT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (id_context) REFERENCES $contexts_table(id) ON DELETE SET NULL
-    ) $charset_collate;";
+  // Crear tabla wp_aichat_chunks (añadido updated_at y UNIQUE(post_id,id_context) para ON DUPLICATE KEY)
+  $chunks_sql = "CREATE TABLE IF NOT EXISTS $chunks_table (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id_context BIGINT UNSIGNED DEFAULT NULL,
+    post_id BIGINT UNSIGNED NOT NULL,
+    type VARCHAR(20),
+    title VARCHAR(255),
+    content TEXT NOT NULL,
+    embedding LONGTEXT,
+    tokens INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NULL DEFAULT NULL,
+    UNIQUE KEY unique_post_context (post_id, id_context),
+    KEY idx_context (id_context),
+    CONSTRAINT fk_chunks_context FOREIGN KEY (id_context) REFERENCES $contexts_table(id) ON DELETE SET NULL
+  ) $charset_collate;";
 
     dbDelta( $chunks_sql );
 
     // tabla de bots
     aichat_bots_maybe_create();
-    // Insertar bot por defecto si la tabla está vacía
-    aichat_bots_insert_default();
 
-    // Opcionalmente, agregar opciones predeterminadas
+    // Insertar bot por defecto SOLO si no existe ninguno
+    if ( ! get_option('aichat_default_bot_seeded') ) {
+        aichat_bots_insert_default();
+    } else {
+        // Marcador existe: aún así validar que la tabla no esté vacía (caso limpieza manual)
+        $table = $wpdb->prefix.'aichat_bots';
+        $rows  = (int)$wpdb->get_var("SELECT COUNT(*) FROM $table");
+        if ($rows === 0) {
+            delete_option('aichat_default_bot_seeded');
+            aichat_bots_insert_default();
+        }
+    }
+
+    // Opciones iniciales (no tocar si ya existen)
     add_option( 'aichat_openai_api_key', '' );
-    add_option( 'aichat_chat_color', '#0073aa' ); // Color predeterminado
+    add_option( 'aichat_chat_color', '#0073aa' );
     add_option( 'aichat_position', 'bottom-right' );
-    add_option( 'aichat_rag_enabled', false ); // RAG desactivado por defecto
+    // add_option('aichat_rag_enabled', false); // (deprecated si ya lo eliminaste)
 }
 
 
@@ -216,6 +237,7 @@ function aichat_bots_maybe_create(){
     ui_minimizable TINYINT(1) NOT NULL DEFAULT 1,
     ui_draggable TINYINT(1) NOT NULL DEFAULT 1,
     ui_minimized_default TINYINT(1) NOT NULL DEFAULT 0,
+  ui_superminimized_default TINYINT(1) NOT NULL DEFAULT 0,
     is_active TINYINT(1) NOT NULL DEFAULT 1,
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,
@@ -397,10 +419,21 @@ function aichat_admin_menu() {
         }
       }
       array_unshift($embedding_options, ['id'=>0,'text'=>'— None —']);
+
+      // Obtener plantillas de instrucciones
+      if ( function_exists('aichat_get_chatbot_templates') ) {
+        $instruction_templates = aichat_get_chatbot_templates();
+        aichat_log_debug('Localizing instruction templates', [ 'count' => is_array($instruction_templates) ? count($instruction_templates) : 0 ]);
+      } else {
+        $instruction_templates = [];
+        aichat_log_debug('Instruction templates function missing');
+      }
+
       wp_localize_script('aichat-bots-js', 'aichat_bots_ajax', [
-        'ajax_url'          => admin_url('admin-ajax.php'),
-        'nonce'             => wp_create_nonce('aichat_bots_nonce'),
-        'embedding_options' => $embedding_options,
+        'ajax_url'              => admin_url('admin-ajax.php'),
+        'nonce'                 => wp_create_nonce('aichat_bots_nonce'),
+        'embedding_options'     => $embedding_options,
+        'instruction_templates' => $instruction_templates,
       ]);
     }
   });
@@ -455,6 +488,109 @@ function aichat_handle_delete_conversation() {
 
   wp_safe_redirect( add_query_arg( [ 'page'=>'aichat-logs', 'deleted'=>1 ], admin_url('admin.php') ) );
   exit;
+}
+
+if ( ! function_exists('aichat_get_ip') ) {
+  function aichat_get_ip() {
+    foreach ( ['HTTP_CLIENT_IP','HTTP_X_FORWARDED_FOR','REMOTE_ADDR'] as $k ) {
+      if ( empty($_SERVER[$k]) ) continue;
+      $raw = explode(',', $_SERVER[$k]);
+      $ip  = trim($raw[0]);
+      if ( filter_var($ip, FILTER_VALIDATE_IP) ) return $ip;
+    }
+    return '';
+  }
+}
+
+if ( ! function_exists('aichat_rate_limit_check') ) {
+  /**
+   * Devuelve WP_Error si excede límite (ráfagas + cooldown + bloqueos adaptativos)
+   */
+  function aichat_rate_limit_check( $session, $bot_slug ) {
+    $ip = aichat_get_ip();
+    if ( $ip === '' ) return true; // sin IP no aplicamos (o decide bloquear)
+
+    $now      = time();
+    $window   = 60;               // ventana 60s
+    $max_hits = 10;               // máx 10 peticiones / 60s
+    $cooldown = 1.5;              // min 1.5s entre peticiones
+
+    $key = 'aichat_rl_'. md5($ip.$bot_slug);
+    $data = get_transient( $key );
+    if ( ! is_array($data) ) {
+      $data = [ 'hits'=>0, 'start'=>$now, 'last'=>0 ];
+    }
+
+    // Bloqueo adaptativo (transient separado si IP fue castigada)
+    if ( get_transient( 'aichat_block_'.$ip ) ) {
+      return new WP_Error( 'aichat_blocked_ip_temp', __( 'Too many requests. Try later.', 'aichat' ) );
+    }
+
+    // Reinicia ventana
+    if ( $now - $data['start'] > $window ) {
+      $data = [ 'hits'=>0, 'start'=>$now, 'last'=>0 ];
+    }
+
+    // Cooldown
+    if ( $data['last'] && ($now - $data['last']) < $cooldown ) {
+      return new WP_Error( 'aichat_cooldown', __( 'Please slow down.', 'aichat' ) );
+    }
+
+    $data['hits']++;
+    $data['last'] = $now;
+
+    if ( $data['hits'] > $max_hits ) {
+      // castigo temporal 15 min
+      set_transient( 'aichat_block_'.$ip, 1, 15 * MINUTE_IN_SECONDS );
+      return new WP_Error( 'aichat_rate_limited', __( 'Rate limit reached. Try again later.', 'aichat' ) );
+    }
+
+    set_transient( $key, $data, $window );
+    return true;
+  }
+}
+
+if ( ! function_exists('aichat_spam_signature_check') ) {
+  /**
+   * Detecta patrones básicos de spam
+   */
+  function aichat_spam_signature_check( $msg ) {
+    $plain = mb_strtolower( trim( $msg ) );
+    if ( $plain === '' ) return new WP_Error('aichat_empty','');
+
+    // URLs excesivas
+    if ( substr_count($plain,'http://') + substr_count($plain,'https://') > 3 ) {
+      return new WP_Error('aichat_spam_links', __( 'Too many links.', 'aichat' ) );
+    }
+    // Repetición de mismo caracter
+    if ( preg_match('/(.)\\1{20,}/u', $plain) ) {
+      return new WP_Error('aichat_spam_repeat', __( 'Invalid pattern.', 'aichat' ) );
+    }
+    // Mensaje idéntico repetido (almacenamos hash breve)
+    $hash = substr( md5( $plain ), 0, 12 );
+    $k = 'aichat_lastmsg_'. ( is_user_logged_in() ? 'u'.get_current_user_id() : 'ip'.md5(aichat_get_ip()) );
+    $last = get_transient($k);
+    set_transient($k, $hash, 10 * MINUTE_IN_SECONDS);
+    if ( $last && $last === $hash ) {
+      return new WP_Error('aichat_dup', __( 'Duplicate message detected.', 'aichat' ) );
+    }
+    return true;
+  }
+}
+
+if ( ! function_exists('aichat_record_moderation_block') ) {
+  function aichat_record_moderation_block( $reason ) {
+    $ip = aichat_get_ip();
+    if ( $ip === '' ) return;
+    $k = 'aichat_modfails_'.md5($ip);
+    $c = (int)get_transient($k);
+    $c++;
+    set_transient($k,$c, 30 * MINUTE_IN_SECONDS);
+    if ( $c >= 5 ) {
+      set_transient('aichat_block_'.$ip,1, 30 * MINUTE_IN_SECONDS);
+      aichat_log_debug('IP temporarily blocked for moderation failures', ['ip'=>$ip,'count'=>$c]);
+    }
+  }
 }
 
 

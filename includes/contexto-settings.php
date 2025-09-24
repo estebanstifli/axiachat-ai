@@ -5,9 +5,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Página de settings para Configuración y Mantenimiento de Contextos
 function aichat_contexto_settings_page() {
-    $rag_enabled    = get_option( 'aichat_rag_enabled', false );
-    $active_context = get_option( 'aichat_active_context', 0 );
-
     global $wpdb;
     $contexts = $wpdb->get_results(
         "SELECT id, name, processing_progress FROM {$wpdb->prefix}aichat_contexts",
@@ -15,7 +12,7 @@ function aichat_contexto_settings_page() {
     );
     ?>
     <div class="wrap aichat-admin">
-        <h1 class="mb-3"><?php echo esc_html( __( 'Contexto Settings', 'aichat' ) ); ?></h1>
+        <h1 class="mb-3"><?php echo esc_html( __( 'Context Settings', 'aichat' ) ); ?></h1>
 
         <!-- Pestañas -->
         <ul class="nav nav-tabs mb-4" id="context-tabs" role="tablist">
@@ -40,55 +37,6 @@ function aichat_contexto_settings_page() {
         <!-- Contenido de las pestañas -->
         <div class="tab-content" id="context-tab-content">
             <div class="tab-pane fade show active" id="context" role="tabpanel" aria-labelledby="context-tab">
-
-                <!-- Card: Ajustes (Enable / Active Context) -->
-                <div class="card shadow-sm border-0 mb-4">
-                    <div class="card-header bg-white">
-                        <h5 class="mb-0">
-                            <i class="bi bi-sliders"></i> <?php esc_html_e('General Settings', 'aichat'); ?>
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <form id="aichat-contexto-settings-form" onsubmit="return false;">
-                            <div class="row g-4">
-                               <!-- Enable RAG (sin estilos Bootstrap en el checkbox) -->
-<div class="col-12">
-    <label for="aichat_rag_enabled">
-        <input type="checkbox"
-               id="aichat_rag_enabled"
-               name="aichat_rag_enabled"
-               value="1" <?php checked( $rag_enabled ); ?> />
-        <?php esc_html_e( 'Enable RAG (Contexto)', 'aichat' ); ?>
-    </label>
-    <p class="description">
-        <?php esc_html_e( 'Enable Retrieval-Augmented Generation for the chat.', 'aichat' ); ?>
-    </p>
-</div>
-
-                                <!-- Active Context -->
-                                <div class="col-12 col-lg-6">
-                                    <label for="aichat_active_context" class="form-label fw-semibold">
-                                        <i class="bi bi-diagram-3"></i> <?php esc_html_e( 'Active Context', 'aichat' ); ?>
-                                    </label>
-                                    <select id="aichat_active_context" name="aichat_active_context" class="form-select">
-                                        <option value="0"><?php esc_html_e( 'None', 'aichat' ); ?></option>
-                                        <?php foreach ($contexts as $context) : ?>
-                                            <option value="<?php echo esc_attr($context['id']); ?>"
-                                                <?php selected($active_context, $context['id']); ?>>
-                                                <?php echo esc_html($context['name']); ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                    <div class="form-text">
-                                        <?php esc_html_e( 'Select the active context to use.', 'aichat' ); ?>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div id="aichat-message" class="mt-3 text-danger"></div>
-                        </form>
-                    </div>
-                </div>
 
                 <!-- Card: Existing Contexts -->
                 <div class="card shadow-sm border-0">

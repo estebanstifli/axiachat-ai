@@ -13,16 +13,26 @@ if ( ! class_exists( 'AIChat_Core' ) ) {
 
     class AIChat_Core {
 
+        /** Instancia singleton */
+        private static $instance = null;
+
         /** Evita doble render en el mismo request */
         private static $rendered_global = false;
 
         /** Evita duplicar la variable AIChatVars */
         private static $vars_localized  = false;
 
-        public function __construct() {
+        /** Obtiene instancia única */
+        public static function instance() {
+            if ( self::$instance === null ) {
+                self::$instance = new self();
+            }
+            return self::$instance;
+        }
+
+        private function __construct() {
             aichat_log_debug('[AIChat Core] __construct: hooks');
             add_action( 'wp_enqueue_scripts', [ $this, 'register_assets' ] );
-            // Prioridad baja para encolar/localizar ANTES de que WP imprima scripts en el footer
             add_action( 'wp_footer', [ $this, 'maybe_render_global_widget' ], 5 );
         }
 
@@ -147,7 +157,4 @@ if ( ! class_exists( 'AIChat_Core' ) ) {
     if ( ! class_exists( 'AICHAT_Core' ) ) {
         class_alias( 'AIChat_Core', 'AICHAT_Core' );
     }
-
-    // Bootstrap nueva clase canónica
-    new AIChat_Core();
 }

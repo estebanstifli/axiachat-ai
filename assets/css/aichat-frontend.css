@@ -284,6 +284,41 @@
 .aichat-inner.is-minimized .aichat-inputbar{ display: none; }
 .aichat-inner.is-minimized{ border-bottom-left-radius:10px; border-bottom-right-radius:10px; }
 
+/* Super minimizado: solo avatar (o un círculo) */
+.aichat-widget.is-superminimized{
+  width:56px !important;
+  height:56px !important;
+  min-width:56px;
+  min-height:56px;
+  overflow:visible;
+}
+.aichat-widget.is-superminimized .aichat-inner{
+  padding:0;
+  width:56px;
+  height:56px;
+  background:transparent;
+  border:none;
+  box-shadow:none;
+}
+.aichat-widget.is-superminimized .aichat-header,
+.aichat-widget.is-superminimized .aichat-messages,
+.aichat-widget.is-superminimized .aichat-inputbar,
+.aichat-widget.is-superminimized .aichat-tts-overlay{ display:none !important; }
+.aichat-super-avatar{
+  position:relative;
+  width:56px; height:56px;
+  border-radius:50%;
+  background:#0073aa;
+  display:flex; align-items:center; justify-content:center;
+  color:#fff; font-weight:600; font-size:15px;
+  box-shadow:0 4px 14px rgba(0,0,0,.25);
+  cursor:pointer;
+  user-select:none;
+}
+.aichat-super-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
+.aichat-widget.is-superminimized .aichat-super-avatar{display:flex;}
+.aichat-widget:not(.is-superminimized) .aichat-super-avatar{display:none;}
+
 /* Arrastre */
 .aichat-widget.is-global.is-draggable .aichat-header{ cursor: move; }
 .aichat-widget.dragging{ opacity: .96; box-shadow: 0 10px 28px rgba(0,0,0,.18); }

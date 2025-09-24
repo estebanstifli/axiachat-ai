@@ -40,7 +40,7 @@ function aichat_mark_completed( $context_id ){
     delete_option( aichat_total_items_key($context_id) );
     delete_option( aichat_cursor_key($context_id) );
     delete_option( aichat_last_post_key($context_id) );
-    error_log("AIChat: Context $context_id marked as completed.");
+    aichat_log_debug("Context $context_id marked as completed.");
 }
 
 function aichat_schedule_single( $timestamp, $hook, array $args=[], $group='aichat' ){
@@ -95,7 +95,7 @@ function aichat_normalize_items_and_totals( $context ){
             [ 'items_to_process' => maybe_serialize($items_unique) ],
             [ 'id' => $context_id ]
         );
-        error_log("AIChat: ctx $context_id de-duplicated: ".count($raw)." → $unique_total.");
+    aichat_log_debug("ctx $context_id de-duplicated", ['original_count'=>count($raw), 'unique_total'=>$unique_total]);
     }
 
     // Total fijo a los únicos
@@ -103,7 +103,7 @@ function aichat_normalize_items_and_totals( $context ){
     $prev_total = (int)get_option( $total_key, 0 );
     if ( $prev_total !== $unique_total ) {
         update_option( $total_key, $unique_total, false );
-        error_log("AIChat: ctx $context_id total_items set to $unique_total (unique).");
+    aichat_log_debug("ctx $context_id total_items updated", ['total_unique'=>$unique_total]);
     }
 
     // Ajustar cursor si queda fuera de rango
@@ -112,7 +112,7 @@ function aichat_normalize_items_and_totals( $context ){
     if ( $cursor > $unique_total ) {
         $cursor = $unique_total;
         update_option($cursor_key, $cursor, false);
-        error_log("AIChat: ctx $context_id cursor adjusted to $cursor due to dedup/resize.");
+    aichat_log_debug("ctx $context_id cursor adjusted after dedup", ['cursor'=>$cursor]);
     }
 
     return [ $items_unique, $unique_total ];
@@ -136,11 +136,11 @@ function aichat_process_embeddings_batch( $context_id, $batch_number_ignored ){
         $started = (int)get_option($lock_key,0);
         $elapsed = $now - $started;
         if($started && $elapsed <= AICHAT_LOCK_TTL){
-            error_log("AIChat: ctx $context_id already locked ($elapsed s), skipping.");
+            aichat_log_debug("ctx $context_id already locked, skipping", ['elapsed'=>$elapsed]);
             return;
         }
         update_option($lock_key,$now,false);
-        error_log("AIChat: lock for ctx $context_id was stale ($elapsed s). Renewed.");
+    aichat_log_debug("ctx $context_id stale lock renewed", ['elapsed'=>$elapsed]);
     }
     update_option($start_key,$now,false);
 
@@ -159,10 +159,10 @@ function aichat_process_embeddings_batch( $context_id, $batch_number_ignored ){
                  SET processing_status='in_progress'
                  WHERE id=%d AND processing_status='pending'", $context_id
             ));
-            if($u){ $context['processing_status']='in_progress'; error_log("AIChat: Context $context_id moved to in_progress."); }
+            if($u){ $context['processing_status']='in_progress'; aichat_log_debug("Context $context_id moved to in_progress"); }
         }
         if($context['processing_status']!=='in_progress'){
-            error_log("AIChat: Context $context_id status={$context['processing_status']}. Skipping.");
+            aichat_log_debug("Context $context_id skipping (status not in_progress)", ['status'=>$context['processing_status']]);
             return;
         }
 
@@ -191,7 +191,7 @@ function aichat_process_embeddings_batch( $context_id, $batch_number_ignored ){
             return;
         }
 
-        error_log("AIChat: ctx $context_id processing from cursor $cursor (block size $attempted).");
+    aichat_log_debug("ctx $context_id processing batch", ['cursor'=>$cursor,'block_size'=>$attempted]);
 
         $last_post_id = null;
 
@@ -199,7 +199,7 @@ function aichat_process_embeddings_batch( $context_id, $batch_number_ignored ){
             $last_post_id = $post_id; // guardamos “por qué ID va”
             $post = get_post( $post_id );
             if ( ! $post || $post->post_status !== 'publish' ) {
-                error_log("AIChat: Skipping invalid/unpublished post $post_id (ctx $context_id).");
+                aichat_log_debug("Skipping invalid/unpublished post", ['post_id'=>$post_id,'ctx'=>$context_id]);
                 continue; // avanzaremos el cursor igualmente
             }
 
@@ -209,7 +209,7 @@ function aichat_process_embeddings_batch( $context_id, $batch_number_ignored ){
             if ( $context['context_type'] === 'remoto' && $context['remote_type'] === 'pinecone' ) {
                 $embedding = aichat_generate_embedding( $text );
                 if ( ! is_array($embedding) || ! $embedding ) {
-                    error_log("AIChat: Failed embedding for post $post_id (ctx $context_id).");
+                    aichat_log_debug("Failed embedding", ['post_id'=>$post_id,'ctx'=>$context_id]);
                     continue;
                 }
 
@@ -239,14 +239,14 @@ function aichat_process_embeddings_batch( $context_id, $batch_number_ignored ){
                 );
 
                 if ( is_wp_error($response) ) {
-                    error_log("AIChat: HTTP error (ctx $context_id, post $post_id): ".$response->get_error_message());
+                    aichat_log_debug("HTTP error during upsert", ['ctx'=>$context_id,'post_id'=>$post_id,'error'=>$response->get_error_message()]);
                     continue;
                 }
                 $code = (int) wp_remote_retrieve_response_code($response);
                 $body = json_decode( wp_remote_retrieve_body($response), true );
 
                 if ( !($code >= 200 && $code < 300 && isset($body['upsertedCount']) && (int)$body['upsertedCount'] >= 1) ) {
-                    error_log("AIChat: Pinecone upsert failed (ctx $context_id, post $post_id). Code=$code Body=".wp_remote_retrieve_body($response));
+                    aichat_log_debug("Pinecone upsert failed", ['ctx'=>$context_id,'post_id'=>$post_id,'code'=>$code,'body'=>wp_remote_retrieve_body($response)]);
                     // seguimos avanzando; si quieres reintentos, lo añadimos aparte
                 }
             } else {
@@ -267,7 +267,7 @@ function aichat_process_embeddings_batch( $context_id, $batch_number_ignored ){
             ['processing_progress'=>$new_progress],
             ['id'=>$context_id]
         );
-        error_log("AIChat: ctx $context_id progress set to $new_progress% (cursor=$new_cursor/$total_items).");
+    aichat_log_debug("ctx $context_id progress updated", ['progress'=>$new_progress,'cursor'=>$new_cursor,'total'=>$total_items]);
 
         // 6) Siguiente batch o fin
         if ( $new_cursor >= $total_items ) {
@@ -276,11 +276,11 @@ function aichat_process_embeddings_batch( $context_id, $batch_number_ignored ){
             // Calculamos el número de batch solo para las args de la acción (el worker usa cursor)
             $next_batch_number = (int) floor( $new_cursor / AICHAT_BATCH_SIZE );
             aichat_schedule_single( time() + 10, 'aichat_process_embeddings_batch', [ $context_id, $next_batch_number ], 'aichat' );
-            error_log("AIChat: scheduled next batch (cursor-based) for ctx $context_id; batch_num_hint=$next_batch_number.");
+            aichat_log_debug("Scheduled next batch", ['ctx'=>$context_id,'batch_hint'=>$next_batch_number]);
         }
 
     } catch ( Throwable $e ){
-        error_log('AIChat: Fatal in batch processor: '.$e->getMessage());
+    aichat_log_debug('Fatal in batch processor', ['error'=>$e->getMessage()]);
     } finally {
         delete_option( $lock_key );
         delete_option( $start_key );
@@ -296,7 +296,7 @@ add_action( 'aichat_process_embeddings_batch', 'aichat_process_embeddings_batch'
 ============================== */
 function aichat_cron_process_contexts(){
     global $wpdb;
-    error_log('AIChat Cron: scanning contexts '.current_time('mysql'));
+    aichat_log_debug('Cron scanning contexts', ['ts'=>current_time('mysql')]);
 
     $rows = $wpdb->get_results(
         "SELECT id, processing_status, processing_progress, items_to_process
@@ -304,7 +304,7 @@ function aichat_cron_process_contexts(){
          WHERE processing_status IN ('pending','in_progress')",
         ARRAY_A
     );
-    if ( empty($rows) ){ error_log('AIChat Cron: no pending/in_progress contexts.'); return; }
+    if ( empty($rows) ){ aichat_log_debug('Cron no pending/in_progress contexts'); return; }
 
     foreach( $rows as $row ){
         $id       = (int)$row['id'];
@@ -320,13 +320,13 @@ function aichat_cron_process_contexts(){
                  SET processing_status='in_progress'
                  WHERE id=%d AND processing_status='pending'", $id
             ));
-            if($u){ error_log("AIChat Cron: ctx $id moved to in_progress."); }
+            if($u){ aichat_log_debug("Cron ctx $id moved to in_progress"); }
         }
 
         // Lock vigente → no tocar
         $lock_started = (int) get_option( aichat_lock_key($id), 0 );
         if ( $lock_started && ( time() - $lock_started ) <= AICHAT_LOCK_TTL ) {
-            error_log("AIChat Cron: ctx $id locked; skipping.");
+            aichat_log_debug("Cron ctx $id locked; skipping");
             continue;
         }
 
@@ -358,9 +358,9 @@ function aichat_cron_process_contexts(){
 
         if ( ! $has_as && ! $has_wp ) {
             aichat_schedule_single( time(), 'aichat_process_embeddings_batch', [ $id, $batch_number ], 'aichat' );
-            error_log("AIChat Cron: scheduled cursor-based batch $batch_number for ctx $id (cursor=$cursor).");
+            aichat_log_debug("Cron scheduled batch", ['ctx'=>$id,'batch'=>$batch_number,'cursor'=>$cursor]);
         } else {
-            error_log("AIChat Cron: batch $batch_number for ctx $id already scheduled; skipping.");
+            aichat_log_debug("Cron batch already scheduled; skipping", ['ctx'=>$id,'batch'=>$batch_number]);
         }
     }
 }
