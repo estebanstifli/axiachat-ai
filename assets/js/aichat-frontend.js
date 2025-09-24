@@ -10,6 +10,29 @@
 'use strict';
 
 (function($){
+  // Asegura que AIChatGDPR exista incluso si la localización PHP falló (caché, orden, minifier, etc.)
+  if (typeof window !== 'undefined' && typeof window.AIChatGDPR === 'undefined') {
+    window.AIChatGDPR = { enabled: 0, text: '', button: '', cookie: 'aichat_gdpr_ok', _auto: true };
+  }
+  // Fallback temprano / normalización: rellena valores vacíos y añade trazas debug si ?aichat_debug=1
+  (function(){
+    if (typeof window === 'undefined' || !window.AIChatGDPR) return;
+    var dbg = /(?:\?|&)aichat_debug=1(?:&|$)/.test(window.location.search);
+    try {
+      var changed = false;
+      if (!window.AIChatGDPR.text || String(window.AIChatGDPR.text).trim() === '') {
+        window.AIChatGDPR.text = 'By using this chatbot, you agree to the recording and processing of your data for improving our services.';
+        changed = true;
+      }
+      if (!window.AIChatGDPR.button || String(window.AIChatGDPR.button).trim() === '') {
+        window.AIChatGDPR.button = 'I understand';
+        changed = true;
+      }
+      if (dbg) {
+        console.log('[AIChat][GDPR] init object', window.AIChatGDPR, 'changedDefaults=', changed);
+      }
+    } catch(e) { if (dbg) console.warn('[AIChat][GDPR] fallback error', e); }
+  })();
   // Activa logs si añades ?aichat_debug=1 a la URL
   var DEBUG = /(?:\?|&)aichat_debug=1(?:&|$)/.test(window.location.search);
   if (DEBUG) {
@@ -170,6 +193,15 @@
            // Función para inyectar el bloque GDPR si aún no existe
            function injectGDPRMessage(){
              if ($messages.find('.aichat-gdpr-consent').length) return; // ya insertado
+             // Revalidar justo antes por si otro script ha modificado AIChatGDPR
+             try {
+               if (!AIChatGDPR.text || String(AIChatGDPR.text).trim()==='') {
+                 AIChatGDPR.text = 'By using this chatbot, you agree to the recording and processing of your data for improving our services.';
+               }
+               if (!AIChatGDPR.button || String(AIChatGDPR.button).trim()==='') {
+                 AIChatGDPR.button = 'I understand';
+               }
+             } catch(e){}
              var boxHtml = ''+
                '<div class="message bot-message aichat-gdpr-consent" role="group" aria-label="GDPR consent">'+
                  '<div class="aichat-gdpr-text" style="margin-bottom:8px;">'+ (AIChatGDPR.text || '') +'</div>'+

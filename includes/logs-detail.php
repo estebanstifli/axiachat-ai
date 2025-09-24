@@ -3,7 +3,7 @@ if ( ! defined('ABSPATH') ) { exit; }
 
 function aichat_logs_detail_page() {
     if ( ! current_user_can('manage_options') ) {
-        wp_die( esc_html__('Unauthorized','aichat') );
+    wp_die( esc_html__('Unauthorized','ai-chat') );
     }
     global $wpdb;
     $table = $wpdb->prefix.'aichat_conversations';
@@ -12,7 +12,7 @@ function aichat_logs_detail_page() {
     $bot     = isset($_GET['bot']) ? sanitize_title($_GET['bot']) : '';
 
     if ( ! $session || ! $bot ) {
-        echo '<div class="wrap"><h1>'.esc_html__('Conversation Detail','aichat').'</h1><p>'.esc_html__('Missing parameters.','aichat').'</p></div>';
+    echo '<div class="wrap"><h1>'.esc_html__('Conversation Detail','ai-chat').'</h1><p>'.esc_html__('Missing parameters.','ai-chat').'</p></div>';
         return;
     }
 
@@ -60,38 +60,38 @@ function aichat_logs_detail_page() {
     ?>
     <div class="wrap">
         <h1 class="mb-3 d-flex align-items-center gap-2">
-            <i class="bi bi-chat-square-text"></i> <?php esc_html_e('Conversation Detail','aichat'); ?>
+            <i class="bi bi-chat-square-text"></i> <?php esc_html_e('Conversation Detail','ai-chat'); ?>
         </h1>
 
         <div class="card mb-4 shadow-sm">
             <div class="card-body row g-4">
                 <div class="col-md-3">
-                    <div class="small text-muted"><?php esc_html_e('Session ID','aichat'); ?></div>
+                    <div class="small text-muted"><?php esc_html_e('Session ID','ai-chat'); ?></div>
                     <code><?php echo esc_html($session); ?></code>
                 </div>
                 <div class="col-md-2">
-                    <div class="small text-muted"><?php esc_html_e('Bot','aichat'); ?></div>
+                    <div class="small text-muted"><?php esc_html_e('Bot','ai-chat'); ?></div>
                     <code><?php echo esc_html($bot); ?></code>
                 </div>
                 <div class="col-md-2">
-                    <div class="small text-muted"><?php esc_html_e('User ID','aichat'); ?></div>
+                    <div class="small text-muted"><?php esc_html_e('User ID','ai-chat'); ?></div>
                     <span><?php echo $user_id ? intval($user_id) : '—'; ?></span>
                 </div>
                 <div class="col-md-2">
-                    <div class="small text-muted"><?php esc_html_e('Messages','aichat'); ?></div>
+                    <div class="small text-muted"><?php esc_html_e('Messages','ai-chat'); ?></div>
                     <span class="fw-semibold"><?php echo (int)$total; ?></span>
                 </div>
                 <div class="col-md-3 d-flex align-items-start gap-2 justify-content-end">
                     <a href="<?php echo esc_url( $back_url ); ?>" class="button">
-                        <i class="bi bi-arrow-left-circle"></i> <?php esc_html_e('Back','aichat'); ?>
+                        <i class="bi bi-arrow-left-circle"></i> <?php esc_html_e('Back','ai-chat'); ?>
                     </a>
-                    <form method="post" action="<?php echo esc_url( admin_url('admin-post.php') ); ?>" onsubmit="return confirm('<?php echo esc_attr__('Delete this entire conversation?','aichat'); ?>');">
+                    <form method="post" action="<?php echo esc_url( admin_url('admin-post.php') ); ?>" onsubmit="return confirm('<?php echo esc_attr__('Delete this entire conversation?','ai-chat'); ?>');">
                         <?php wp_nonce_field('aichat_delete_conversation'); ?>
                         <input type="hidden" name="action" value="aichat_delete_conversation" />
                         <input type="hidden" name="session_id" value="<?php echo esc_attr($session); ?>" />
                         <input type="hidden" name="bot_slug" value="<?php echo esc_attr($bot); ?>" />
                         <button type="submit" class="button button-danger">
-                            <i class="bi bi-trash"></i> <?php esc_html_e('Delete','aichat'); ?>
+                            <i class="bi bi-trash"></i> <?php esc_html_e('Delete','ai-chat'); ?>
                         </button>
                     </form>
                 </div>
@@ -102,15 +102,15 @@ function aichat_logs_detail_page() {
             <table class="table table-striped align-middle">
                 <thead class="table-light">
                     <tr>
-                        <th style="width:140px;"><?php esc_html_e('Time','aichat'); ?></th>
-                        <th style="width:110px;"><?php esc_html_e('Role','aichat'); ?></th>
-                        <th><?php esc_html_e('Text','aichat'); ?></th>
+                        <th style="width:140px;"><?php esc_html_e('Time','ai-chat'); ?></th>
+                        <th style="width:110px;"><?php esc_html_e('Role','ai-chat'); ?></th>
+                        <th><?php esc_html_e('Text','ai-chat'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
                 <?php if ( $messages ) : ?>
                     <?php foreach( $messages as $m ): 
-                        $role_label = $m['role']==='user' ? __('User','aichat') : __('Assistant','aichat');
+                        $role_label = $m['role']==='user' ? __('User','ai-chat') : __('Assistant','ai-chat');
                         ?>
                         <tr>
                             <td class="small text-muted"><?php echo esc_html($m['at']); ?></td>
@@ -133,7 +133,7 @@ function aichat_logs_detail_page() {
                     <?php endforeach; ?>
                 <?php else: ?>
                     <tr><td colspan="3" class="text-center text-muted py-4">
-                        <i class="bi bi-info-circle"></i> <?php esc_html_e('No messages in this conversation.','aichat'); ?>
+                        <i class="bi bi-info-circle"></i> <?php esc_html_e('No messages in this conversation.','ai-chat'); ?>
                     </td></tr>
                 <?php endif; ?>
                 </tbody>

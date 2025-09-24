@@ -16,10 +16,13 @@ if ( ! defined( 'ABSPATH' ) ) {
  * $wp_registered_settings structure to extract the configured 'default'.
  */
 function aichat_get_setting( $name ) {
-    $val = get_option( $name, null );
-    if ( null !== $val ) {
-        return $val; // Option exists (even empty string or '0').
+    // get_option devuelve false si la opción NO existe todavía.
+    // No podemos usar null como centinela porque WP no lo devuelve nunca.
+    $val = get_option( $name, '__AICHAT_NO_OPTION__' );
+    if ( $val !== '__AICHAT_NO_OPTION__' && $val !== false ) {
+        return $val; // Existe (aunque sea cadena vacía o '0').
     }
+    // Intentar obtener default registrado (solo disponible si se ejecutó register_setting - normalmente admin_init)
     global $wp_registered_settings;
     if ( isset( $wp_registered_settings[ $name ] ) && array_key_exists( 'default', $wp_registered_settings[ $name ] ) ) {
         return $wp_registered_settings[ $name ]['default'];
@@ -97,12 +100,12 @@ function aichat_register_simple_settings() {
     register_setting( $option_group, 'aichat_gdpr_text', [
         'type' => 'string',
         'sanitize_callback' => 'wp_kses_post', // permite enlaces o énfasis ligero
-        'default' => __( 'By using this chatbot, you agree to the recording and processing of your data for improving our services.', 'aichat' ),
+    'default' => __( 'By using this chatbot, you agree to the recording and processing of your data for improving our services.', 'ai-chat' ),
     ] );
         register_setting( $option_group, 'aichat_gdpr_button', [
         'type' => 'string',
         'sanitize_callback' => 'sanitize_text_field',
-        'default' => __( 'I understand', 'aichat' ),
+    'default' => __( 'I understand', 'ai-chat' ),
     ] );
 
         // ========== Usage Limits (nuevo) ==========
@@ -124,7 +127,7 @@ function aichat_register_simple_settings() {
         register_setting( $option_group, 'aichat_usage_per_user_message', [
             'type' => 'string',
             'sanitize_callback' => 'sanitize_text_field',
-            'default' => __( 'I\'m tired, please come back tomorrow.', 'aichat' ),
+            'default' => __( 'I\'m tired, please come back tomorrow.', 'ai-chat' ),
         ] );
         register_setting( $option_group, 'aichat_usage_daily_total_behavior', [
             'type' => 'string',
@@ -134,7 +137,7 @@ function aichat_register_simple_settings() {
         register_setting( $option_group, 'aichat_usage_daily_total_message', [
             'type' => 'string',
             'sanitize_callback' => 'sanitize_text_field',
-            'default' => __( 'Daily usage limit reached. Please try again tomorrow.', 'aichat' ),
+            'default' => __( 'Daily usage limit reached. Please try again tomorrow.', 'ai-chat' ),
         ] );
         
 
@@ -175,7 +178,7 @@ add_filter( 'pre_update_option_aichat_global_bot_slug', function( $new, $old ) {
  */
 function aichat_settings_page() {
     if ( ! current_user_can( 'manage_options' ) ) {
-        wp_die( esc_html__( 'You do not have sufficient permissions.', 'aichat' ) );
+    wp_die( esc_html__( 'You do not have sufficient permissions.', 'ai-chat' ) );
     }
 
     global $wpdb;
@@ -189,8 +192,8 @@ function aichat_settings_page() {
 
         ?>
         <div class="wrap aichat-settings-wrap">
-            <h1 class="wp-heading-inline"><span class="dashicons dashicons-format-chat" style="color:#2271b1"></span> <?php echo esc_html__( 'AI Chat — Settings', 'aichat' ); ?></h1>
-            <p class="description mb-3"><?php echo esc_html__( 'Configure global behaviour, API keys, logging, consent and moderation.', 'aichat' ); ?></p>
+            <h1 class="wp-heading-inline"><span class="dashicons dashicons-format-chat" style="color:#2271b1"></span> <?php echo esc_html__( 'AI Chat — Settings', 'ai-chat' ); ?></h1>
+            <p class="description mb-3"><?php echo esc_html__( 'Configure global behaviour, API keys, logging, consent and moderation.', 'ai-chat' ); ?></p>
 
             <form method="post" action="options.php" class="aichat-settings-form">
                 <?php settings_fields( 'aichat_settings' ); ?>
@@ -202,24 +205,24 @@ function aichat_settings_page() {
                             <!-- API Keys -->
                             <div class="card shadow-sm mb-4">
                                 <div class="card-header bg-primary text-white d-flex align-items-center">
-                                    <i class="bi bi-key-fill me-2"></i><strong><?php echo esc_html__( 'API Keys', 'aichat' ); ?></strong>
+                                    <i class="bi bi-key-fill me-2"></i><strong><?php echo esc_html__( 'API Keys', 'ai-chat' ); ?></strong>
                                 </div>
                                 <div class="card-body">
                                     <div class="mb-3">
-                                        <label for="aichat_openai_api_key" class="form-label fw-semibold"><?php echo esc_html__( 'OpenAI API Key', 'aichat' ); ?></label>
+                                        <label for="aichat_openai_api_key" class="form-label fw-semibold"><?php echo esc_html__( 'OpenAI API Key', 'ai-chat' ); ?></label>
                                         <div class="input-group">
                                             <input type="password" autocomplete="off" class="form-control" id="aichat_openai_api_key" name="aichat_openai_api_key" value="<?php echo esc_attr($openai_key); ?>" />
                                             <button class="btn btn-outline-secondary aichat-toggle-secret" type="button" data-target="aichat_openai_api_key" aria-label="Toggle visibility"><i class="bi bi-eye"></i></button>
                                         </div>
-                                        <div class="form-text"><?php echo esc_html__( 'API key to use OpenAI models.', 'aichat' ); ?></div>
+                                        <div class="form-text"><?php echo esc_html__( 'API key to use OpenAI models.', 'ai-chat' ); ?></div>
                                     </div>
                                     <div class="mb-0">
-                                        <label for="aichat_claude_api_key" class="form-label fw-semibold"><?php echo esc_html__( 'Claude (Anthropic) API Key', 'aichat' ); ?></label>
+                                        <label for="aichat_claude_api_key" class="form-label fw-semibold"><?php echo esc_html__( 'Claude (Anthropic) API Key', 'ai-chat' ); ?></label>
                                         <div class="input-group">
                                             <input type="password" autocomplete="off" class="form-control" id="aichat_claude_api_key" name="aichat_claude_api_key" value="<?php echo esc_attr($claude_key); ?>" />
                                             <button class="btn btn-outline-secondary aichat-toggle-secret" type="button" data-target="aichat_claude_api_key" aria-label="Toggle visibility"><i class="bi bi-eye"></i></button>
                                         </div>
-                                        <div class="form-text"><?php echo esc_html__( 'API key to use Anthropic (Claude) models.', 'aichat' ); ?></div>
+                                        <div class="form-text"><?php echo esc_html__( 'API key to use Anthropic (Claude) models.', 'ai-chat' ); ?></div>
                                     </div>
                                 </div>
                             </div>
@@ -227,41 +230,41 @@ function aichat_settings_page() {
                             <!-- Global Bot & Logging -->
                             <div class="card shadow-sm mb-4">
                                 <div class="card-header bg-secondary text-white d-flex align-items-center">
-                                    <i class="bi bi-robot me-2"></i><strong><?php echo esc_html__( 'Global Bot & Logging', 'aichat' ); ?></strong>
+                                    <i class="bi bi-robot me-2"></i><strong><?php echo esc_html__( 'Global Bot & Logging', 'ai-chat' ); ?></strong>
                                 </div>
                                 <div class="card-body">
                                         <div class="aichat-checkbox-row mb-3">
                                             <input type="hidden" name="aichat_global_bot_enabled" value="0" />
                                             <label for="aichat_global_bot_enabled" class="aichat-checkbox-label">
                                                 <input type="checkbox" id="aichat_global_bot_enabled" name="aichat_global_bot_enabled" value="1" <?php checked($global_on); ?> />
-                                                <span><?php echo esc_html__( 'Enable global floating bot', 'aichat' ); ?></span>
+                                                <span><?php echo esc_html__( 'Enable global floating bot', 'ai-chat' ); ?></span>
                                             </label>
-                                            <div class="form-text ms-0"><?php echo esc_html__( 'Shortcode [aichat bot="..."] on a page suppresses the global bot there.', 'aichat' ); ?></div>
+                                            <div class="form-text ms-0"><?php echo esc_html__( 'Shortcode [aichat bot="..."] on a page suppresses the global bot there.', 'ai-chat' ); ?></div>
                                         </div>
                                     <div class="mb-3">
-                                        <label for="aichat_global_bot_slug" class="form-label fw-semibold"><?php echo esc_html__( 'Global Bot', 'aichat' ); ?></label>
+                                        <label for="aichat_global_bot_slug" class="form-label fw-semibold"><?php echo esc_html__( 'Global Bot', 'ai-chat' ); ?></label>
                                         <?php if ( empty($bots) ): ?>
-                                            <select id="aichat_global_bot_slug" class="form-select" disabled name="aichat_global_bot_slug"><option><?php echo esc_html__( 'No bots defined yet', 'aichat'); ?></option></select>
+                                            <select id="aichat_global_bot_slug" class="form-select" disabled name="aichat_global_bot_slug"><option><?php echo esc_html__( 'No bots defined yet', 'ai-chat'); ?></option></select>
                                             <?php
                                             /* translators: %s: URL to the AI Chat Bots admin settings page */
                                             ?>
-                                            <div class="form-text"><?php printf( wp_kses_post( __( 'Create one in <a href="%s">AI Chat → Bots</a>.','aichat') ), esc_url( admin_url('admin.php?page=aichat-bots-settings') ) ); ?></div>
+                                            <div class="form-text"><?php printf( wp_kses_post( __( 'Create one in <a href="%s">AI Chat → Bots</a>.','ai-chat') ), esc_url( admin_url('admin.php?page=aichat-bots-settings') ) ); ?></div>
                                         <?php else: ?>
                                             <select id="aichat_global_bot_slug" class="form-select" name="aichat_global_bot_slug">
                                                 <?php foreach($bots as $bot): ?>
                                                     <option value="<?php echo esc_attr($bot['slug']); ?>" <?php selected($global_slug,$bot['slug']); ?>><?php echo esc_html($bot['name'].' ('.$bot['slug'].')'); ?></option>
                                                 <?php endforeach; ?>
                                             </select>
-                                            <div class="form-text"><?php echo esc_html__( 'Bot used when global floating bot is active.', 'aichat'); ?></div>
+                                            <div class="form-text"><?php echo esc_html__( 'Bot used when global floating bot is active.', 'ai-chat'); ?></div>
                                         <?php endif; ?>
                                     </div>
                                     <div class="aichat-checkbox-row mb-0">
                                         <input type="hidden" name="aichat_logging_enabled" value="0" />
                                         <label for="aichat_logging_enabled" class="aichat-checkbox-label">
                                             <input type="checkbox" id="aichat_logging_enabled" name="aichat_logging_enabled" value="1" <?php checked( (int) aichat_get_setting('aichat_logging_enabled'), 1 ); ?> />
-                                            <span><?php echo esc_html__( 'Conversation logging', 'aichat' ); ?></span>
+                                            <span><?php echo esc_html__( 'Conversation logging', 'ai-chat' ); ?></span>
                                         </label>
-                                        <div class="form-text ms-0"><?php echo esc_html__( 'Disable to stop saving new messages (existing records remain).', 'aichat'); ?></div>
+                                        <div class="form-text ms-0"><?php echo esc_html__( 'Disable to stop saving new messages (existing records remain).', 'ai-chat'); ?></div>
                                     </div>
                                 </div>
                             </div>
@@ -269,47 +272,47 @@ function aichat_settings_page() {
                                 <!-- Usage Limits -->
                                 <div class="card shadow-sm mb-4">
                                     <div class="card-header bg-dark text-white d-flex align-items-center">
-                                        <i class="bi bi-speedometer2 me-2"></i><strong><?php echo esc_html__( 'Usage (Limits)', 'aichat'); ?></strong>
+                                        <i class="bi bi-speedometer2 me-2"></i><strong><?php echo esc_html__( 'Usage (Limits)', 'ai-chat'); ?></strong>
                                     </div>
                                     <div class="card-body">
                                         <?php $logging_on = (bool) aichat_get_setting('aichat_logging_enabled'); ?>
                                         <?php if ( ! $logging_on ): ?>
-                                            <div class="alert alert-warning p-2 py-2 mb-3"><i class="bi bi-exclamation-triangle-fill me-1"></i> <?php echo esc_html__( 'Conversation logging must be enabled for limits to work.', 'aichat'); ?></div>
+                                            <div class="alert alert-warning p-2 py-2 mb-3"><i class="bi bi-exclamation-triangle-fill me-1"></i> <?php echo esc_html__( 'Conversation logging must be enabled for limits to work.', 'ai-chat'); ?></div>
                                         <?php endif; ?>
                                         <div class="aichat-checkbox-row mb-3">
                                             <input type="hidden" name="aichat_usage_limits_enabled" value="0" />
                                             <label for="aichat_usage_limits_enabled" class="aichat-checkbox-label">
                                                 <input type="checkbox" id="aichat_usage_limits_enabled" name="aichat_usage_limits_enabled" value="1" <?php checked( (int) aichat_get_setting('aichat_usage_limits_enabled'),1 ); ?> />
-                                                <span><?php echo esc_html__( 'Enable usage limits', 'aichat'); ?></span>
+                                                <span><?php echo esc_html__( 'Enable usage limits', 'ai-chat'); ?></span>
                                             </label>
                                         </div>
                                         <div class="row g-3">
                                             <div class="col-md-6">
-                                                <label for="aichat_usage_max_daily_total" class="form-label fw-semibold"><?php echo esc_html__( 'Max messages per day', 'aichat'); ?></label>
+                                                <label for="aichat_usage_max_daily_total" class="form-label fw-semibold"><?php echo esc_html__( 'Max messages per day', 'ai-chat'); ?></label>
                                                 <input type="number" min="0" class="form-control" id="aichat_usage_max_daily_total" name="aichat_usage_max_daily_total" value="<?php echo esc_attr( aichat_get_setting('aichat_usage_max_daily_total') ); ?>" />
-                                                <div class="form-text"><?php echo esc_html__( '0 = Unlimited', 'aichat'); ?></div>
+                                                <div class="form-text"><?php echo esc_html__( '0 = Unlimited', 'ai-chat'); ?></div>
                                             </div>
                                             <div class="col-md-6">
-                                                <label for="aichat_usage_max_daily_per_user" class="form-label fw-semibold"><?php echo esc_html__( 'Max messages per user/day', 'aichat'); ?></label>
+                                                <label for="aichat_usage_max_daily_per_user" class="form-label fw-semibold"><?php echo esc_html__( 'Max messages per user/day', 'ai-chat'); ?></label>
                                                 <input type="number" min="0" class="form-control" id="aichat_usage_max_daily_per_user" name="aichat_usage_max_daily_per_user" value="<?php echo esc_attr( aichat_get_setting('aichat_usage_max_daily_per_user') ); ?>" />
-                                                <div class="form-text"><?php echo esc_html__( 'Guests tracked by IP. 0 = Unlimited', 'aichat'); ?></div>
+                                                <div class="form-text"><?php echo esc_html__( 'Guests tracked by IP. 0 = Unlimited', 'ai-chat'); ?></div>
                                             </div>
                                         </div>
                                         <hr />
                                         <div class="mb-3">
-                                            <label for="aichat_usage_per_user_message" class="form-label fw-semibold"><?php echo esc_html__( 'Message when user limit reached', 'aichat'); ?></label>
+                                            <label for="aichat_usage_per_user_message" class="form-label fw-semibold"><?php echo esc_html__( 'Message when user limit reached', 'ai-chat'); ?></label>
                                             <input type="text" class="form-control" id="aichat_usage_per_user_message" name="aichat_usage_per_user_message" value="<?php echo esc_attr( aichat_get_setting('aichat_usage_per_user_message') ); ?>" />
                                         </div>
                                         <div class="mb-3">
-                                            <label class="form-label fw-semibold" for="aichat_usage_daily_total_behavior"><?php echo esc_html__( 'Daily total limit behavior', 'aichat'); ?></label>
+                                            <label class="form-label fw-semibold" for="aichat_usage_daily_total_behavior"><?php echo esc_html__( 'Daily total limit behavior', 'ai-chat'); ?></label>
                                             <?php $beh = get_option('aichat_usage_daily_total_behavior','disabled'); ?>
                                             <select class="form-select" id="aichat_usage_daily_total_behavior" name="aichat_usage_daily_total_behavior">
-                                                <option value="disabled" <?php selected($beh,'disabled'); ?>><?php echo esc_html__( 'Show widget disabled with message', 'aichat'); ?></option>
-                                                <option value="hide" <?php selected($beh,'hide'); ?>><?php echo esc_html__( 'Hide widget completely', 'aichat'); ?></option>
+                                                <option value="disabled" <?php selected($beh,'disabled'); ?>><?php echo esc_html__( 'Show widget disabled with message', 'ai-chat'); ?></option>
+                                                <option value="hide" <?php selected($beh,'hide'); ?>><?php echo esc_html__( 'Hide widget completely', 'ai-chat'); ?></option>
                                             </select>
                                         </div>
                                         <div class="mb-0">
-                                            <label for="aichat_usage_daily_total_message" class="form-label fw-semibold"><?php echo esc_html__( 'Daily total limit message', 'aichat'); ?></label>
+                                            <label for="aichat_usage_daily_total_message" class="form-label fw-semibold"><?php echo esc_html__( 'Daily total limit message', 'ai-chat'); ?></label>
                                             <input type="text" class="form-control" id="aichat_usage_daily_total_message" name="aichat_usage_daily_total_message" value="<?php echo esc_attr( aichat_get_setting('aichat_usage_daily_total_message') ); ?>" />
                                         </div>
                                     </div>
@@ -318,23 +321,23 @@ function aichat_settings_page() {
                             <!-- GDPR -->
                             <div class="card shadow-sm mb-4">
                                 <div class="card-header bg-info text-white d-flex align-items-center">
-                                    <i class="bi bi-shield-lock-fill me-2"></i><strong><?php echo esc_html__( 'GDPR Consent', 'aichat' ); ?></strong>
+                                    <i class="bi bi-shield-lock-fill me-2"></i><strong><?php echo esc_html__( 'GDPR Consent', 'ai-chat' ); ?></strong>
                                 </div>
                                 <div class="card-body">
                                     <div class="aichat-checkbox-row mb-3">
                                         <input type="hidden" name="aichat_gdpr_consent_enabled" value="0" />
                                         <label for="aichat_gdpr_consent_enabled" class="aichat-checkbox-label">
                                             <input type="checkbox" id="aichat_gdpr_consent_enabled" name="aichat_gdpr_consent_enabled" value="1" <?php checked( (int) aichat_get_setting('aichat_gdpr_consent_enabled'),1 ); ?> />
-                                            <span><?php echo esc_html__( 'Enable consent gate', 'aichat' ); ?></span>
+                                            <span><?php echo esc_html__( 'Enable consent gate', 'ai-chat' ); ?></span>
                                         </label>
                                     </div>
                                     <div class="mb-3">
-                                        <label for="aichat_gdpr_text" class="form-label fw-semibold"><?php echo esc_html__( 'Consent text', 'aichat' ); ?></label>
+                                        <label for="aichat_gdpr_text" class="form-label fw-semibold"><?php echo esc_html__( 'Consent text', 'ai-chat' ); ?></label>
                                         <input type="text" class="form-control" id="aichat_gdpr_text" name="aichat_gdpr_text" value="<?php echo esc_attr( aichat_get_setting('aichat_gdpr_text') ); ?>" />
-                                        <div class="form-text"><?php echo esc_html__( 'Shown above the accept button. Basic HTML allowed.', 'aichat'); ?></div>
+                                        <div class="form-text"><?php echo esc_html__( 'Shown above the accept button. Basic HTML allowed.', 'ai-chat'); ?></div>
                                     </div>
                                     <div class="mb-0">
-                                        <label for="aichat_gdpr_button" class="form-label fw-semibold"><?php echo esc_html__( 'Button label', 'aichat' ); ?></label>
+                                        <label for="aichat_gdpr_button" class="form-label fw-semibold"><?php echo esc_html__( 'Button label', 'ai-chat' ); ?></label>
                                         <input type="text" class="form-control" id="aichat_gdpr_button" name="aichat_gdpr_button" value="<?php echo esc_attr( aichat_get_setting('aichat_gdpr_button') ); ?>" />
                                     </div>
                                 </div>
@@ -346,42 +349,42 @@ function aichat_settings_page() {
                             <!-- Moderation -->
                             <div class="card shadow-sm mb-4">
                                 <div class="card-header bg-warning d-flex align-items-center">
-                                    <i class="bi bi-shield-exclamation me-2"></i><strong><?php echo esc_html__( 'Moderation', 'aichat'); ?></strong>
+                                    <i class="bi bi-shield-exclamation me-2"></i><strong><?php echo esc_html__( 'Moderation', 'ai-chat'); ?></strong>
                                 </div>
                                 <div class="card-body">
                                     <div class="aichat-checkbox-row mb-3">
                                         <label for="aichat_moderation_enabled" class="aichat-checkbox-label">
                                             <input type="checkbox" id="aichat_moderation_enabled" name="aichat_moderation_enabled" value="1" <?php checked( (int) aichat_get_setting('aichat_moderation_enabled'),1 ); ?> />
-                                            <span><?php echo esc_html__('Enable moderation layer','aichat'); ?></span>
+                                            <span><?php echo esc_html__('Enable moderation layer','ai-chat'); ?></span>
                                         </label>
-                                        <div class="form-text ms-0"><?php echo esc_html__('Checks IP/words and optionally external API before sending to AI.','aichat'); ?></div>
+                                        <div class="form-text ms-0"><?php echo esc_html__('Checks IP/words and optionally external API before sending to AI.','ai-chat'); ?></div>
                                     </div>
                                     <div class="aichat-checkbox-row mb-3">
                                         <label for="aichat_moderation_external_enabled" class="aichat-checkbox-label">
                                             <input type="checkbox" id="aichat_moderation_external_enabled" name="aichat_moderation_external_enabled" value="1" <?php checked( (int) aichat_get_setting('aichat_moderation_external_enabled'),1 ); ?> />
-                                            <span><?php echo esc_html__('External moderation (OpenAI)','aichat'); ?></span>
+                                            <span><?php echo esc_html__('External moderation (OpenAI)','ai-chat'); ?></span>
                                         </label>
-                                        <div class="form-text ms-0"><?php echo esc_html__('Requires OpenAI API key (omni-moderation-latest).','aichat'); ?></div>
+                                        <div class="form-text ms-0"><?php echo esc_html__('Requires OpenAI API key (omni-moderation-latest).','ai-chat'); ?></div>
                                     </div>
                                     <div class="mb-3">
-                                        <label for="aichat_moderation_rejection_message" class="form-label fw-semibold"><?php echo esc_html__('Rejection message','aichat'); ?></label>
+                                        <label for="aichat_moderation_rejection_message" class="form-label fw-semibold"><?php echo esc_html__('Rejection message','ai-chat'); ?></label>
                                         <input type="text" class="form-control" id="aichat_moderation_rejection_message" name="aichat_moderation_rejection_message" value="<?php echo esc_attr( aichat_get_setting('aichat_moderation_rejection_message') ); ?>" />
                                     </div>
                                     <div class="mb-3">
-                                        <label for="aichat_moderation_banned_ips" class="form-label fw-semibold"><?php echo esc_html__('Blocked IPs','aichat'); ?></label>
+                                        <label for="aichat_moderation_banned_ips" class="form-label fw-semibold"><?php echo esc_html__('Blocked IPs','ai-chat'); ?></label>
                                         <textarea class="form-control" id="aichat_moderation_banned_ips" name="aichat_moderation_banned_ips" rows="4"><?php echo esc_textarea( get_option('aichat_moderation_banned_ips','') ); ?></textarea>
-                                        <div class="form-text"><?php echo esc_html__('One per line. Supports CIDR.','aichat'); ?></div>
+                                        <div class="form-text"><?php echo esc_html__('One per line. Supports CIDR.','ai-chat'); ?></div>
                                     </div>
                                     <div>
-                                        <label for="aichat_moderation_banned_words" class="form-label fw-semibold d-block"><?php echo esc_html__('Banned words','aichat'); ?></label>
+                                        <label for="aichat_moderation_banned_words" class="form-label fw-semibold d-block"><?php echo esc_html__('Banned words','ai-chat'); ?></label>
                                         <div class="form-check mb-2">
                                             <label class="aichat-checkbox-label" for="aichat_moderation_use_default_words">
                                                 <input type="checkbox" id="aichat_moderation_use_default_words" name="aichat_moderation_use_default_words" value="1" <?php checked( (int) aichat_get_setting('aichat_moderation_use_default_words'),1 ); ?> />
-                                                <span><?php echo esc_html__('Include base list in English','aichat'); ?></span>
+                                                <span><?php echo esc_html__('Include base list in English','ai-chat'); ?></span>
                                             </label>
                                         </div>
                                         <textarea class="form-control" id="aichat_moderation_banned_words" name="aichat_moderation_banned_words" rows="5"><?php echo esc_textarea( get_option('aichat_moderation_banned_words','') ); ?></textarea>
-                                        <div class="form-text"><?php echo esc_html__('One per line. Regex allowed if wrapped in /.','aichat'); ?></div>
+                                        <div class="form-text"><?php echo esc_html__('One per line. Regex allowed if wrapped in /.','ai-chat'); ?></div>
                                     </div>
                                 </div>
                             </div>
@@ -389,12 +392,12 @@ function aichat_settings_page() {
                             <!-- Save -->
                             <div class="card shadow-sm mb-4">
                                 <div class="card-header bg-light d-flex align-items-center">
-                                    <i class="bi bi-save2 me-2"></i><strong><?php echo esc_html__('Save','aichat'); ?></strong>
+                                    <i class="bi bi-save2 me-2"></i><strong><?php echo esc_html__('Save','ai-chat'); ?></strong>
                                 </div>
                                 <div class="card-body">
-                                    <?php submit_button( __( 'Save changes', 'aichat' ), 'primary', 'submit', false ); ?>
+                                    <?php submit_button( __( 'Save changes', 'ai-chat' ), 'primary', 'submit', false ); ?>
                                     <?php if ( $global_on && ( empty($bots) || empty($global_slug) ) ): ?>
-                                        <div class="alert alert-warning mt-3 mb-0"><strong>AI Chat:</strong> <?php echo esc_html__( 'Global Bot is enabled but no bot is selected. On save the first available bot will be used.', 'aichat'); ?></div>
+                                        <div class="alert alert-warning mt-3 mb-0"><strong>AI Chat:</strong> <?php echo esc_html__( 'Global Bot is enabled but no bot is selected. On save the first available bot will be used.', 'ai-chat'); ?></div>
                                     <?php endif; ?>
                                 </div>
                             </div>
@@ -447,15 +450,15 @@ if ( ! function_exists( 'aichat_admin_api_key_notice' ) ) {
         ?>
         <div class="notice notice-warning">
             <p>
-                <strong><?php echo esc_html__( 'AI Chat', 'aichat' ); ?>:</strong>
+                <strong><?php echo esc_html__( 'AI Chat', 'ai-chat' ); ?>:</strong>
                 <?php
                 printf(
                     wp_kses(
                         /* translators: %s: settings page link */
-                        __( 'Please add an OpenAI or Claude API key in %s to start using the chatbot.', 'aichat' ),
+                        __( 'Please add an OpenAI or Claude API key in %s to start using the chatbot.', 'ai-chat' ),
                         [ 'a' => [ 'href' => [], 'target' => [], 'rel' => [] ] ]
                     ),
-                    '<a href="' . esc_url( $url ) . '">' . esc_html__( 'AI Chat Settings', 'aichat' ) . '</a>'
+                    '<a href="' . esc_url( $url ) . '">' . esc_html__( 'AI Chat Settings', 'ai-chat' ) . '</a>'
                 );
                 ?>
             </p>

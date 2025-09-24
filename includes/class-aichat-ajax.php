@@ -48,7 +48,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             $nonce = isset($_POST['nonce']) ? sanitize_text_field( wp_unslash($_POST['nonce']) ) : '';
             if ( empty($nonce) || ! wp_verify_nonce( $nonce, 'aichat_ajax' ) ) {
                 aichat_log_debug("[AIChat AJAX][$uid] nonce invalid");
-                wp_send_json_error( [ 'message' => __( 'Invalid nonce.', 'aichat' ) ], 403 );
+                wp_send_json_error( [ 'message' => __( 'Invalid nonce.', 'ai-chat' ) ], 403 );
             }
 
             $message  = isset( $_POST['message'] )  ? sanitize_textarea_field( wp_unslash( $_POST['message'] ) ) : '';
@@ -58,7 +58,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
 
             if ( $message === '' ) {
                 aichat_log_debug("[AIChat AJAX][$uid] empty message");
-                wp_send_json_error( [ 'message' => __( 'Message is empty.', 'aichat' ) ], 400 );
+                wp_send_json_error( [ 'message' => __( 'Message is empty.', 'ai-chat' ) ], 400 );
             }
             aichat_log_debug("[AIChat AJAX][$uid] payload slug={$bot_slug} msg_len=" . strlen($message));
 
@@ -66,13 +66,13 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             $captcha_ok = apply_filters( 'aichat_validate_captcha', true, $_POST );
             if ( ! $captcha_ok ) {
                 aichat_log_debug("[AIChat AJAX][$uid] captcha failed");
-                wp_send_json_error( [ 'message' => __( 'Captcha validation failed.', 'aichat' ) ], 403 );
+                wp_send_json_error( [ 'message' => __( 'Captcha validation failed.', 'ai-chat' ) ], 403 );
             }
 
             // ---- Honeypot anti bots ----
             if ( ! empty( $_POST['aichat_hp'] ) ) {
                 aichat_log_debug("[AIChat AJAX][$uid] honeypot filled");
-                wp_send_json_error( [ 'message' => __( 'Request blocked.', 'aichat' ) ], 403 );
+                wp_send_json_error( [ 'message' => __( 'Request blocked.', 'ai-chat' ) ], 403 );
             }
 
             // ---- Rate limiting & burst control ----
@@ -88,7 +88,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             $len = mb_strlen( $message );
             if ( $len > 4000 ) {
                 aichat_log_debug("[AIChat AJAX][$uid] message too long len=$len");
-                wp_send_json_error( [ 'message' => __( 'Message too long.', 'aichat' ) ], 400 );
+                wp_send_json_error( [ 'message' => __( 'Message too long.', 'ai-chat' ) ], 400 );
             }
 
             // ---- Firma / Patrón de spam básico ----
@@ -96,7 +96,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 $sig = aichat_spam_signature_check( $message );
                 if ( is_wp_error( $sig ) && $sig->get_error_code() !== 'aichat_empty' ) {
                     aichat_log_debug("[AIChat AJAX][$uid] spam signature: " . $sig->get_error_code());
-                    wp_send_json_error( [ 'message' => __( 'Blocked.', 'aichat' ) ], 400 );
+                    wp_send_json_error( [ 'message' => __( 'Blocked.', 'ai-chat' ) ], 400 );
                 }
             }
 
@@ -126,7 +126,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             $bot = $this->resolve_bot( $bot_slug );
             if ( ! $bot ) {
                 aichat_log_debug("[AIChat AJAX][$uid] resolve_bot: NOT FOUND");
-                wp_send_json_error( [ 'message' => __( 'No bot found to process the request.', 'aichat' ) ], 404 );
+                wp_send_json_error( [ 'message' => __( 'No bot found to process the request.', 'ai-chat' ) ], 404 );
             }
 
             // Sanitiza/normaliza campos del bot
@@ -218,11 +218,11 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
 
             if ( $provider === 'openai' && empty( $openai_key ) ) {
                 aichat_log_debug("[AIChat AJAX][$uid] ERROR: OpenAI key missing");
-                wp_send_json_error( [ 'message' => __( 'Falta la OpenAI API Key en Ajustes.', 'aichat' ) ], 400 );
+                wp_send_json_error( [ 'message' => __( 'Falta la OpenAI API Key en Ajustes.', 'ai-chat' ) ], 400 );
             }
             if ( $provider === 'claude' && empty( $claude_key ) ) {
                 aichat_log_debug("[AIChat AJAX][$uid] ERROR: Claude key missing");
-                wp_send_json_error( [ 'message' => __( 'Falta la Claude API Key en Ajustes.', 'aichat' ) ], 400 );
+                wp_send_json_error( [ 'message' => __( 'Falta la Claude API Key en Ajustes.', 'ai-chat' ) ], 400 );
             }
 
             // 5) Llamar al proveedor
@@ -269,7 +269,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                         $count_user = 0; // si no podemos detectar IP, no limitamos anónimo (alternativa: bloquear) 
                     }
                     if ( $count_user >= $max_per_user ) {
-                        $limit_msg = $msg_user !== '' ? $msg_user : __( 'Daily message limit reached for this user.', 'aichat' );
+                        $limit_msg = $msg_user !== '' ? $msg_user : __( 'Daily message limit reached for this user.', 'ai-chat' );
                         aichat_log_debug("[AIChat AJAX][$uid] per-user/IP limit reached count=$count_user max=$max_per_user");
                         wp_send_json_success( [ 'message' => $limit_msg, 'limited' => true, 'limit_type' => 'per_user' ] );
                     }
@@ -286,9 +286,9 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                         aichat_log_debug("[AIChat AJAX][$uid] global limit reached count=$count_total max=$max_total behavior=$beh_total");
                         if ( $beh_total === 'hidden' ) {
                             // Simulamos recurso no disponible
-                            wp_send_json_error( [ 'message' => __( 'Chat temporarily unavailable.', 'aichat' ), 'limit_type'=>'daily_total_hidden' ], 403 );
+                            wp_send_json_error( [ 'message' => __( 'Chat temporarily unavailable.', 'ai-chat' ), 'limit_type'=>'daily_total_hidden' ], 403 );
                         } else {
-                            $limit_msg_total = $msg_total !== '' ? $msg_total : __( 'Daily total message limit reached.', 'aichat' );
+                            $limit_msg_total = $msg_total !== '' ? $msg_total : __( 'Daily total message limit reached.', 'ai-chat' );
                             wp_send_json_success( [ 'message' => $limit_msg_total, 'limited' => true, 'limit_type' => 'daily_total' ] );
                         }
                     }
@@ -309,7 +309,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 }
                 $answer = $result['message'];
             } else {
-                wp_send_json_error( [ 'message' => __( 'Provider not supported.', 'aichat' ) ], 400 );
+                wp_send_json_error( [ 'message' => __( 'Provider not supported.', 'ai-chat' ) ], 400 );
             }
             $t_call1 = microtime(true);
 
@@ -319,7 +319,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 } elseif ( is_array( $result ) && isset( $result['error'] ) ) {
                     $error_message = (string) $result['error'];
                 } else {
-                    $error_message = __( 'Unknown error occurred.', 'aichat' );
+                    $error_message = __( 'Unknown error occurred.', 'ai-chat' );
                 }
                 aichat_log_debug("[AIChat AJAX][$uid] provider WP_Error: " . $error_message);
                 wp_send_json_error( [ 'message' => $error_message ], 500 );
@@ -335,7 +335,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
 
             if ( $answer === '' ) {
                 aichat_log_debug("[AIChat AJAX][$uid] ERROR: empty answer");
-                wp_send_json_error( [ 'message' => __( 'Model returned an empty response.', 'aichat' ) ], 500 );
+                wp_send_json_error( [ 'message' => __( 'Model returned an empty response.', 'ai-chat' ) ], 500 );
             }
 
             // 6) Reemplazo [LINK]
@@ -450,13 +450,13 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             $body = json_decode( wp_remote_retrieve_body( $res ), true );
 
             if ( $code >= 400 ) {
-                $msg = isset( $body['error']['message'] ) ? $body['error']['message'] : __( 'OpenAI error.', 'aichat' );
+                $msg = isset( $body['error']['message'] ) ? $body['error']['message'] : __( 'OpenAI error.', 'ai-chat' );
                 return [ 'error' => $msg ];
             }
 
             $text = $body['choices'][0]['message']['content'] ?? '';
             if ( $text === '' ) {
-                return [ 'error' => __( 'Empty response from OpenAI.', 'aichat' ) ];
+                return [ 'error' => __( 'Empty response from OpenAI.', 'ai-chat' ) ];
             }
 
             return [ 'message' => $text ];
@@ -679,7 +679,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
         public function get_history() {
             $nonce = isset($_POST['nonce']) ? sanitize_text_field( wp_unslash($_POST['nonce']) ) : '';
             if ( empty($nonce) || ! wp_verify_nonce( $nonce, 'aichat_ajax' ) ) {
-                wp_send_json_error( [ 'message' => __( 'Nonce inválido.', 'aichat' ) ], 403 );
+                wp_send_json_error( [ 'message' => __( 'Nonce inválido.', 'ai-chat' ) ], 403 );
             }
             $session  = isset( $_POST['session_id'] ) ? preg_replace('/[^a-z0-9\-]/i','', (string)wp_unslash($_POST['session_id'])) : '';
             $bot_slug = isset( $_POST['bot_slug'] ) ? sanitize_title( wp_unslash( $_POST['bot_slug'] ) ) : '';
@@ -888,7 +888,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             }
 
             if ($text === '') {
-                return [ 'error' => __( 'Empty response from OpenAI (Responses).', 'aichat' ) ];
+                return [ 'error' => __( 'Empty response from OpenAI (Responses).', 'ai-chat' ) ];
             }
             return [ 'message' => (string)$text ];
         }
@@ -914,11 +914,11 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             $code = wp_remote_retrieve_response_code($res);
             $body = json_decode( wp_remote_retrieve_body($res), true );
             if ($code >= 400) {
-                $msg = isset($body['error']['message']) ? $body['error']['message'] : __('Error en OpenAI.','aichat');
+                $msg = isset($body['error']['message']) ? $body['error']['message'] : __('Error en OpenAI.','ai-chat');
                 return [ 'error' => $msg ];
             }
             $text = $body['choices'][0]['message']['content'] ?? '';
-            if ($text === '') return [ 'error' => __('Respuesta vacía de OpenAI.','aichat') ];
+            if ($text === '') return [ 'error' => __('Respuesta vacía de OpenAI.','ai-chat') ];
             return [ 'message' => (string)$text ];
         }
 

@@ -8,7 +8,7 @@ if ( ! defined( 'AICHAT_BATCH_SIZE' ) ) define( 'AICHAT_BATCH_SIZE', 40 );
 if ( ! defined( 'AICHAT_LOCK_TTL' ) )   define( 'AICHAT_LOCK_TTL', 300 ); // 5 min
 
 add_filter( 'cron_schedules', function( $schedules ) {
-    $schedules['oneminute'] = ['interval'=>60,'display'=>__('Every 1 Minute','aichat')];
+    $schedules['oneminute'] = ['interval'=>60,'display'=>__('Every 1 Minute','ai-chat')];
     return $schedules;
 });
 

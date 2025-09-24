@@ -48,7 +48,7 @@ function aichat_render_shortcode( $atts, $content = null, $tag = 'aichat' ) {
     // Si seguimos sin slug, avisa (solo admin)
     if ( empty( $slug ) ) {
         if ( current_user_can('manage_options') ) {
-            return '<div class="aichat-widget"><em style="color:#b00">' . esc_html__( '[AIChat] No bots configured.', 'aichat' ) . '</em></div>';
+            return '<div class="aichat-widget"><em style="color:#b00">' . esc_html__( '[AIChat] No bots configured.', 'ai-chat' ) . '</em></div>';
         }
         return '<div class="aichat-widget"></div>';
     }
@@ -60,7 +60,7 @@ function aichat_render_shortcode( $atts, $content = null, $tag = 'aichat' ) {
     if ( ! $bot ) {
         if ( current_user_can('manage_options') ) {
             /* translators: %s: bot slug that was not found */
-            return '<div class="aichat-widget"><em style="color:#b00">[AIChat] ' . sprintf( esc_html__( 'Bot not found: %s', 'aichat' ), esc_html( $slug ) ) . '</em></div>';
+            return '<div class="aichat-widget"><em style="color:#b00">[AIChat] ' . sprintf( esc_html__( 'Bot not found: %s', 'ai-chat' ), esc_html( $slug ) ) . '</em></div>';
         }
         return '<div class="aichat-widget"></div>';
     }
@@ -134,20 +134,33 @@ function aichat_render_shortcode( $atts, $content = null, $tag = 'aichat' ) {
     wp_enqueue_script( 'jquery' );
     wp_enqueue_script( 'aichat-frontend' );
 
-    // Localizar opciones GDPR (se hace una sola vez de forma segura)
-    if ( ! wp_script_is( 'aichat-frontend-gdpr', 'done' ) ) {
-        $gdpr_enabled = (int) get_option( 'aichat_gdpr_consent_enabled', 0 );
-        $gdpr_text    = wp_kses_post( get_option( 'aichat_gdpr_text', '' ) );
-        $gdpr_button  = sanitize_text_field( get_option( 'aichat_gdpr_button', '' ) );
-        // Usamos un handle virtual para marcar que ya se localizó
-        wp_register_script( 'aichat-frontend-gdpr', '' );
-        wp_localize_script( 'aichat-frontend-gdpr', 'AIChatGDPR', [
+    // Localizar opciones GDPR directamente en el script principal (una sola vez)
+    static $aichat_gdpr_localized = false;
+    if ( ! $aichat_gdpr_localized ) {
+        // Usamos aichat_get_setting para que respete el default de register_setting si la opción aún no fue guardada.
+        $gdpr_enabled = (int) aichat_get_setting( 'aichat_gdpr_consent_enabled' );
+        $gdpr_text_raw   = aichat_get_setting( 'aichat_gdpr_text' );
+        $gdpr_button_raw = aichat_get_setting( 'aichat_gdpr_button' );
+
+        // En frontend (no admin_init) los defaults de register_setting no están cargados.
+        // Si vienen vacíos, aplicamos los textos por defecto traducibles.
+        if ($gdpr_text_raw === '' || $gdpr_text_raw === null || $gdpr_text_raw === false || trim((string)$gdpr_text_raw) === '') {
+            $gdpr_text_raw = __( 'By using this chatbot, you agree to the recording and processing of your data for improving our services.', 'ai-chat' );
+        }
+        if ($gdpr_button_raw === '' || $gdpr_button_raw === null || $gdpr_button_raw === false || trim((string)$gdpr_button_raw) === '') {
+            $gdpr_button_raw = __( 'I understand', 'ai-chat' );
+        }
+        // Sanitizamos para salida JS (el texto permite HTML básico, el botón solo texto plano)
+        $gdpr_text    = wp_kses_post( (string) $gdpr_text_raw );
+        $gdpr_button  = sanitize_text_field( (string) $gdpr_button_raw );
+        // Localizamos sobre el propio handle 'aichat-frontend' para que el objeto exista antes de ejecutar el JS
+        wp_localize_script( 'aichat-frontend', 'AIChatGDPR', [
             'enabled' => $gdpr_enabled ? 1 : 0,
             'text'    => $gdpr_text,
             'button'  => $gdpr_button,
             'cookie'  => 'aichat_gdpr_ok'
         ] );
-        wp_enqueue_script( 'aichat-frontend-gdpr' );
+        $aichat_gdpr_localized = true;
     }
 
     // Contenedor con data-attrs de UI

@@ -31,7 +31,7 @@ function aichat_bots_settings_page() {
   ];
   ?>
   <div class="wrap">
-    <h1><?php esc_html_e('Chatbots', 'aichat'); ?></h1>
+  <h1><?php esc_html_e('Chatbots', 'ai-chat'); ?></h1>
 
     <style>
       :root{ --aichat-blue:#1a73e8; }
@@ -173,17 +173,17 @@ function aichat_bots_settings_page() {
     <div class="aichat-layout">
       <div class="aichat-bot-wrapper">
         <div class="aichat-tabs">
-          <button type="button" id="aichat-tabs-prev" class="aichat-sbtn" aria-label="<?php esc_attr_e('Scroll left','aichat'); ?>" style="display:none">
+          <button type="button" id="aichat-tabs-prev" class="aichat-sbtn" aria-label="<?php esc_attr_e('Scroll left','ai-chat'); ?>" style="display:none">
             <i class="bi bi-chevron-left"></i>
           </button>
 
-          <div id="aichat-tab-strip" class="aichat-tab-strip" role="tablist" aria-label="<?php esc_attr_e('Chatbot tabs','aichat'); ?>"></div>
+          <div id="aichat-tab-strip" class="aichat-tab-strip" role="tablist" aria-label="<?php esc_attr_e('Chatbot tabs','ai-chat'); ?>"></div>
 
-          <button type="button" id="aichat-tabs-next" class="aichat-sbtn" aria-label="<?php esc_attr_e('Scroll right','aichat'); ?>" style="display:none">
+          <button type="button" id="aichat-tabs-next" class="aichat-sbtn" aria-label="<?php esc_attr_e('Scroll right','ai-chat'); ?>" style="display:none">
             <i class="bi bi-chevron-right"></i>
           </button>
 
-          <button type="button" id="aichat-add-bot" class="aichat-new-btn" aria-label="<?php esc_attr_e('Create new chatbot','aichat'); ?>">
+          <button type="button" id="aichat-add-bot" class="aichat-new-btn" aria-label="<?php esc_attr_e('Create new chatbot','ai-chat'); ?>">
             <i class="bi bi-plus-lg"></i>
           </button>
         </div>

@@ -12,24 +12,24 @@ function aichat_contexto_settings_page() {
     );
     ?>
     <div class="wrap aichat-admin">
-        <h1 class="mb-3"><?php echo esc_html( __( 'Context Settings', 'aichat' ) ); ?></h1>
+    <h1 class="mb-3"><?php echo esc_html( __( 'Context Settings', 'ai-chat' ) ); ?></h1>
 
         <!-- Pestañas -->
         <ul class="nav nav-tabs mb-4" id="context-tabs" role="tablist">
             <li class="nav-item" role="presentation">
                 <button class="nav-link active" id="context-tab" data-bs-toggle="tab" data-bs-target="#context"
                         type="button" role="tab" aria-controls="context" aria-selected="true">
-                    <i class="bi bi-gear"></i> <?php esc_html_e('Context', 'aichat'); ?>
+                    <i class="bi bi-gear"></i> <?php esc_html_e('Context', 'ai-chat'); ?>
                 </button>
             </li>
             <li class="nav-item" role="presentation">
                 <a class="nav-link" href="<?php echo esc_url( admin_url( 'admin.php?page=aichat-contexto-create' ) ); ?>" role="tab">
-                    <i class="bi bi-plus-circle"></i> <?php esc_html_e('Add New', 'aichat'); ?>
+                    <i class="bi bi-plus-circle"></i> <?php esc_html_e('Add New', 'ai-chat'); ?>
                 </a>
             </li>
             <li class="nav-item" role="presentation">
                 <a class="nav-link" href="<?php echo esc_url( admin_url( 'admin.php?page=aichat-contexto-pdf' ) ); ?>" role="tab">
-                    <i class="bi bi-file-earmark-arrow-up"></i> <?php esc_html_e('Import PDF/Data', 'aichat'); ?>
+                    <i class="bi bi-file-earmark-arrow-up"></i> <?php esc_html_e('Import PDF/Data', 'ai-chat'); ?>
                 </a>
             </li>
         </ul>
@@ -42,11 +42,11 @@ function aichat_contexto_settings_page() {
                 <div class="card shadow-sm border-0">
                     <div class="card-header bg-white d-flex align-items-center justify-content-between">
                         <h5 class="mb-0">
-                            <i class="bi bi-layers"></i> <?php esc_html_e( 'Existing Contexts', 'aichat' ); ?>
+                            <i class="bi bi-layers"></i> <?php esc_html_e( 'Existing Contexts', 'ai-chat' ); ?>
                         </h5>
                         <a href="<?php echo esc_url( admin_url( 'admin.php?page=aichat-contexto-create' ) ); ?>"
                            class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-plus-lg"></i> <?php esc_html_e('Create New', 'aichat'); ?>
+                            <i class="bi bi-plus-lg"></i> <?php esc_html_e('Create New', 'ai-chat'); ?>
                         </a>
                     </div>
                     <div class="card-body p-0">
@@ -54,10 +54,10 @@ function aichat_contexto_settings_page() {
                             <table id="aichat-contexts-table" class="table align-middle mb-0">
                                 <thead class="table-light">
                                     <tr>
-                                        <th scope="col" id="id"><?php esc_html_e( 'ID', 'aichat' ); ?></th>
-                                        <th scope="col" id="name"><?php esc_html_e( 'Name', 'aichat' ); ?></th>
-                                        <th scope="col" id="progress" class="w-25"><?php esc_html_e( 'Progress', 'aichat' ); ?></th>
-                                        <th scope="col" id="actions" class="text-end"><?php esc_html_e( 'Actions', 'aichat' ); ?></th>
+                                        <th scope="col" id="id"><?php esc_html_e( 'ID', 'ai-chat' ); ?></th>
+                                        <th scope="col" id="name"><?php esc_html_e( 'Name', 'ai-chat' ); ?></th>
+                                        <th scope="col" id="progress" class="w-25"><?php esc_html_e( 'Progress', 'ai-chat' ); ?></th>
+                                        <th scope="col" id="actions" class="text-end"><?php esc_html_e( 'Actions', 'ai-chat' ); ?></th>
                                     </tr>
                                 </thead>
                                 <tbody id="aichat-contexts-body">
@@ -91,10 +91,10 @@ function aichat_contexto_settings_page() {
                                                     <div class="btn-group" role="group" aria-label="Actions">
                                                         <!-- mantenemos las clases originales para no romper tu JS -->
                                                         <button type="button" class="button btn btn-sm btn-outline-secondary edit-context" data-id="<?php echo esc_attr($context['id']); ?>">
-                                                            <i class="bi bi-pencil-square"></i> <?php esc_html_e( 'Edit', 'aichat' ); ?>
+                                                            <i class="bi bi-pencil-square"></i> <?php esc_html_e( 'Edit', 'ai-chat' ); ?>
                                                         </button>
                                                         <button type="button" class="button btn btn-sm btn-outline-danger delete-context" data-id="<?php echo esc_attr($context['id']); ?>">
-                                                            <i class="bi bi-trash"></i> <?php esc_html_e( 'Delete', 'aichat' ); ?>
+                                                            <i class="bi bi-trash"></i> <?php esc_html_e( 'Delete', 'ai-chat' ); ?>
                                                         </button>
                                                     </div>
                                                 </td>
@@ -104,7 +104,7 @@ function aichat_contexto_settings_page() {
                                         <tr>
                                             <td colspan="4" class="text-center py-4 text-muted">
                                                 <i class="bi bi-inboxes"></i>
-                                                <?php esc_html_e( 'No contexts yet. Create one in the “Add New” tab.', 'aichat' ); ?>
+                                                <?php esc_html_e( 'No contexts yet. Create one in the “Add New” tab.', 'ai-chat' ); ?>
                                             </td>
                                         </tr>
                                     <?php endif; ?>
@@ -114,7 +114,7 @@ function aichat_contexto_settings_page() {
                     </div>
                     <div class="card-footer bg-white small text-muted">
                         <i class="bi bi-info-circle"></i>
-                        <?php esc_html_e( 'Progress updates automatically when indexing runs from Add New or via cron.', 'aichat' ); ?>
+                        <?php esc_html_e( 'Progress updates automatically when indexing runs from Add New or via cron.', 'ai-chat' ); ?>
                     </div>
                 </div>
 

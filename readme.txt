@@ -1,10 +1,10 @@
 === AI Chat ===
 Contributors: estebandezafra
-Tags: chatbot, ai, openai, chat, assistant, rag, pdf, embeddings
+Tags: chatbot, ai, openai, chat, assistant
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.1.1
+Stable tag: 1.1.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 A customizable AI chatbot plugin for WordPress powered by OpenAI. Create multiple bots, embed them via shortcode or a global floating widget, and optionally enhance answers with your own contextual content (RAG).
