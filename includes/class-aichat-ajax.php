@@ -385,6 +385,16 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 $resp['debug'] = $debug_payload;
             }
 
+            // Hook after response
+            do_action('aichat_after_response', [
+            'bot_slug'   => $bot_slug,
+            'session_id' => $session,
+            'question'   => $message,
+            'answer'     => $answer,
+            'provider'   => $provider,
+            'model'      => $model
+            ]);
+
             wp_send_json_success( $resp );
         }
 
@@ -621,6 +631,110 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
         }
 
         /**
+         * Genera una respuesta de un bot de forma programática (sin AJAX/nonce).
+         * Uso previsto por integraciones externas (addon WhatsApp, CRON, etc.).
+         * NO aplica captcha, honeypot ni rate limit. Añadir fuera si se requiere.
+         *
+         * @param string $bot_slug   Slug del bot (o vacío para fallback normal).
+         * @param string $message    Mensaje del usuario.
+         * @param string $session_id ID de sesión (UUID). Si vacío genera uno nuevo.
+         * @param array  $args       Opcionales: page_id(int), debug(bool), context_override(array)
+         * @return array|WP_Error    ['message','bot_slug','session_id','provider','model', 'debug'?]
+         */
+        public function process_message_internal( $bot_slug, $message, $session_id, $args = [] ) {
+            $message    = (string)$message;
+            if ($message === '') return new WP_Error('aichat_empty','Empty message');
+            $session_id = preg_replace('/[^a-z0-9\-]/i','', (string)$session_id);
+            if ($session_id === '') $session_id = wp_generate_uuid4();
+            $bot_slug   = sanitize_title($bot_slug);
+
+            $bot = $this->resolve_bot( $bot_slug );
+            if ( ! $bot ) return new WP_Error('aichat_bot_not_found','Bot not found');
+
+            // Normalización básica (mantener sincronizada con process_message)
+            $provider     = ! empty( $bot['provider'] ) ? sanitize_key( $bot['provider'] ) : 'openai';
+            if ($provider === 'anthropic') $provider = 'claude';
+            $model        = ! empty( $bot['model'] ) ? sanitize_text_field( $bot['model'] ) : ( $provider === 'claude' ? 'claude-3-haiku-20240307' : 'gpt-4o-mini' );
+            if ($provider === 'claude') { $model = $this->normalize_claude_model($model); }
+            $instructions = isset( $bot['instructions'] ) ? wp_kses_post( $bot['instructions'] ) : '';
+            $temperature  = isset( $bot['temperature'] ) ? floatval( $bot['temperature'] ) : 0.7;
+            if ($temperature < 0) $temperature = 0; if ($temperature > 2) $temperature = 2;
+            $max_tokens   = isset( $bot['max_tokens'] ) ? (int)$bot['max_tokens'] : 512; if ($max_tokens <= 0) $max_tokens = 512;
+            $context_mode = isset( $bot['context_mode'] ) ? sanitize_key( $bot['context_mode'] ) : 'auto';
+            $context_id   = isset( $bot['context_id'] ) ? (int)$bot['context_id'] : 0;
+            $page_id      = isset( $args['page_id'] ) ? (int)$args['page_id'] : 0;
+            $debug        = ! empty( $args['debug'] );
+
+            $mode_arg = 'auto';
+            if ($context_mode === 'none') $mode_arg = 'none';
+            if ($context_mode === 'page') $mode_arg = 'page';
+
+            if ( isset($args['context_override']) && is_array($args['context_override']) ) {
+                $contexts = $args['context_override'];
+            } else {
+                $contexts = aichat_get_context_for_question( $message, [
+                    'context_id' => $context_id,
+                    'mode'       => $mode_arg,
+                    'page_id'    => $page_id,
+                    'limit'      => 5,
+                ] );
+            }
+
+            $base = aichat_build_messages( $message, $contexts, $instructions );
+            $system_msg       = $base[0] ?? [ 'role'=>'system', 'content'=>'' ];
+            $current_user_msg = $base[1] ?? [ 'role'=>'user', 'content'=>$message ];
+
+            $max_messages_hist  = isset($bot['max_messages']) ? max(1,(int)$bot['max_messages']) : 20;
+            $context_max_length = isset($bot['context_max_length']) ? max(128,(int)$bot['context_max_length']) : 4096;
+            $history_msgs = $this->build_history_messages( $session_id, $bot['slug'], $max_messages_hist, $context_max_length );
+            $messages = array_merge( [ $system_msg ], $history_msgs, [ $current_user_msg ] );
+
+            $openai_key = get_option( 'aichat_openai_api_key', '' );
+            $claude_key = get_option( 'aichat_claude_api_key', '' );
+            if ( $provider === 'openai' && ! $openai_key ) return new WP_Error('aichat_no_key','Missing OpenAI key');
+            if ( $provider === 'claude' && ! $claude_key ) return new WP_Error('aichat_no_key','Missing Claude key');
+
+            if ( $provider === 'openai' ) {
+                $result = $this->call_openai_auto( $openai_key, $model, $messages, $temperature, $max_tokens );
+            } elseif ( $provider === 'claude' ) {
+                $result = $this->call_claude_messages( $claude_key, $model, $messages, $temperature, $max_tokens );
+            } else {
+                return new WP_Error('aichat_provider','Provider not supported');
+            }
+            if ( is_wp_error($result) ) return $result;
+            if ( isset($result['error']) ) return new WP_Error('aichat_provider_error', (string)$result['error']);
+
+            $answer = (string)($result['message'] ?? '');
+            if ($answer === '') return new WP_Error('aichat_empty_answer','Empty answer');
+            $answer = aichat_replace_link_placeholder( $answer );
+            $answer = $this->sanitize_answer_html( $answer );
+
+            if ( get_option( 'aichat_logging_enabled', 1 ) ) {
+                $this->maybe_log_conversation( get_current_user_id(), $session_id, $bot['slug'], $page_id, $message, $answer );
+            }
+
+            do_action( 'aichat_after_response', [
+                'bot_slug'   => $bot['slug'],
+                'session_id' => $session_id,
+                'question'   => $message,
+                'answer'     => $answer,
+                'provider'   => $provider,
+                'model'      => $model,
+                'internal'   => true,
+            ] );
+
+            $out = [
+                'message'    => $answer,
+                'bot_slug'   => $bot['slug'],
+                'session_id' => $session_id,
+                'provider'   => $provider,
+                'model'      => $model,
+            ];
+            if ($debug) $out['debug'] = [ 'context_count'=> is_array($contexts)?count($contexts):0 ];
+            return $out;
+        }
+
+        /**
          * Guarda conversación si la tabla existe.
          */
         protected function maybe_log_conversation( $user_id, $session_id, $bot_slug, $page_id, $q, $a ) {
@@ -671,6 +785,18 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 $formats[] = '%s'; // WordPress no tiene formato binario específico; %s funciona para VARBINARY
             }
             $wpdb->insert( $table, $data, $formats );
+
+            // Hook after insert
+            if ( ! empty( $wpdb->insert_id ) ) {
+            do_action('aichat_conversation_saved', [
+                'id'        => $wpdb->insert_id,
+                'bot_slug'  => $bot_slug,
+                'session_id'=> $session_id,
+                'user_id'   => $user_id,
+                'page_id'   => $page_id
+            ]);
+            }
+
         }
 
         /**
@@ -1019,4 +1145,44 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
     if ( ! class_exists( 'AICHAT_AJAX', false ) ) {
         class_alias( 'AIChat_Ajax', 'AICHAT_AJAX' );
     }
+}
+
+
+// Función externa para generar respuesta del bot (para uso en themes, plugins, etc.)
+function aichat_generate_bot_response( $bot_slug, $message, $args = [] ) {
+  // $args: session_id (opcional), page_id (opcional), debug (opcional)
+  if ( ! class_exists('AIChat_Ajax') ) return new WP_Error('aichat_missing','AI Chat not loaded');
+
+  $session_id = isset($args['session_id']) ? preg_replace('/[^a-z0-9\\-]/i','',$args['session_id']) : '';
+  if ( $session_id === '' ) { $session_id = wp_generate_uuid4(); }
+
+  // Reutiliza internamente la lógica: sugerido refactor (extract a private core method)
+  // Versión rápida: llama a un nuevo método público reducido
+  return AIChat_Ajax::instance()->process_message_internal($bot_slug, $message, $session_id, $args);
+}
+
+/**
+ * Genera una respuesta usando un número de teléfono externo (WhatsApp u otro canal) como base de sesión.
+ * No crea tablas nuevas: simplemente usa session_id determinista "wha<hash|digits>" para agrupar historial.
+ * @param string $bot_slug
+ * @param string $phone  Número en formato internacional sugerido (solo dígitos y '+').
+ * @param string $message Texto del usuario.
+ * @param array  $args    Acepta page_id, debug. session_id se ignora (se fuerza).
+ * @return array|WP_Error
+ */
+function aichat_generate_bot_response_for_phone( $bot_slug, $phone, $message, $args = [] ) {
+        if ( ! class_exists('AIChat_Ajax') ) return new WP_Error('aichat_missing','AI Chat not loaded');
+        // Normalizar teléfono: dejamos dígitos y '+' inicial si existe
+        $raw = trim((string)$phone);
+        $normalized = preg_replace('/[^0-9+]/','', $raw);
+        if ($normalized === '') return new WP_Error('aichat_phone_empty','Empty phone');
+        // Acotar longitud para prevenir abusos (guardamos máximo 24 chars visibles)
+        if (strlen($normalized) > 24) { $normalized = substr($normalized,0,24); }
+        // session determinista: wha<md5> o wha<digits>. (Antes se usaba 'wha_' con guion bajo; soportado en vistas).
+        $digits_only = preg_replace('/[^0-9]/','', $normalized);
+        if ($digits_only === '') { $digits_only = substr(md5($normalized),0,10); }
+        $session_id = 'wha'.$digits_only;
+        // Forzar session_id
+        $args['session_id'] = $session_id;
+        return aichat_generate_bot_response( $bot_slug, $message, $args );
 }

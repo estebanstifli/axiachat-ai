@@ -216,7 +216,26 @@ function aichat_logs_page() {
                                 <div class="small text-muted"><?php echo esc_html( $r['first_at'] ); ?></div>
                                 <div class="fw-semibold"><?php echo esc_html( $r['last_at'] ); ?></div>
                             </td>
-                            <td><?php echo $r['any_user'] ? intval($r['any_user']) : esc_html('—'); ?></td>
+                            <td>
+                                <?php
+                                // Si es una sesión de WhatsApp (prefijo wha) mostramos WHA + dígitos
+                                $sess = (string)$r['session_id'];
+                                $is_wha = false; $digits = '';
+                                if ( stripos($sess, 'wha_') === 0 ) { // compat antiguo
+                                    $is_wha = true; $digits = preg_replace('/[^0-9]/','', substr($sess,4));
+                                } elseif ( stripos($sess,'wha') === 0 ) { // nuevo formato sin guion bajo
+                                    $is_wha = true; $digits = preg_replace('/[^0-9]/','', substr($sess,3));
+                                }
+                                if ( $is_wha ) {
+                                    if ($digits === '') { $digits = substr(md5($sess),0,8); }
+                                    echo '<span class="badge bg-info" style="font-weight:500;">'.esc_html('WHA'.$digits).'</span>';
+                                } elseif ( $r['any_user'] ) {
+                                    echo intval($r['any_user']);
+                                } else {
+                                    echo esc_html('—');
+                                }
+                                ?>
+                            </td>
                             <td><code><?php echo esc_html($r['bot_slug']); ?></code></td>
                             <td><?php echo (int)$r['messages']; ?></td>
                             <td class="small"><?php echo esc_html($snippet); ?></td>

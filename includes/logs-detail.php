@@ -27,9 +27,20 @@ function aichat_logs_detail_page() {
         ARRAY_A
     );
 
-    $user_id = 0;
+    $user_id = 0; $wh_label = '';
     if ( $rows ) {
         foreach($rows as $r){ if ( (int)$r['user_id'] > 0 ) { $user_id = (int)$r['user_id']; break; } }
+    }
+    // Label especial si la sesión es de WhatsApp
+    if ( stripos($session,'wha_') === 0 || stripos($session,'wha') === 0 ) {
+        // Compat: antiguo 'wha_' y nuevo 'wha'
+        if ( stripos($session,'wha_') === 0 ) {
+            $digits = preg_replace('/[^0-9]/','', substr($session,4));
+        } else {
+            $digits = preg_replace('/[^0-9]/','', substr($session,3));
+        }
+        if ($digits === '') { $digits = substr(md5($session),0,8); }
+        $wh_label = 'WHA'.$digits;
     }
 
     $total = $rows ? count($rows) : 0;
@@ -74,8 +85,18 @@ function aichat_logs_detail_page() {
                     <code><?php echo esc_html($bot); ?></code>
                 </div>
                 <div class="col-md-2">
-                    <div class="small text-muted"><?php esc_html_e('User ID','ai-chat'); ?></div>
-                    <span><?php echo $user_id ? intval($user_id) : '—'; ?></span>
+                    <div class="small text-muted"><?php esc_html_e('User','ai-chat'); ?></div>
+                    <span>
+                        <?php
+                        if ( $wh_label ) {
+                            echo '<span class="badge bg-info" style="font-weight:500;">'.esc_html($wh_label).'</span>';
+                        } elseif ( $user_id ) {
+                            echo intval($user_id);
+                        } else {
+                            echo '—';
+                        }
+                        ?>
+                    </span>
                 </div>
                 <div class="col-md-2">
                     <div class="small text-muted"><?php esc_html_e('Messages','ai-chat'); ?></div>

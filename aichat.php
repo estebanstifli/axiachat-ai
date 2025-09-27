@@ -275,7 +275,7 @@ add_action( 'admin_menu', 'aichat_admin_menu' );
 function aichat_admin_menu() {
     add_menu_page(
   __( 'AI Chat Settings', 'ai-chat' ), // Título de la página
-  __( 'AI Chat', 'ai-chat' ),          // Título del menú
+        'AI Chat',          // Título del menú, no tiene sentido traducirlo
         'manage_options',                   // Capacidad requerida
         'aichat-settings',                  // Slug del menú
         'aichat_settings_page',             // Función de callback
@@ -597,5 +597,7 @@ if ( ! function_exists('aichat_record_moderation_block') ) {
     }
   }
 }
+
+
 
 
