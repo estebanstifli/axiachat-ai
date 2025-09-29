@@ -126,7 +126,17 @@ function aichat_sanitize_select_mode( $input ) {
     return in_array( $input, $valid_modes, true ) ? $input : '';
 }
 
-// Función para indexar post
+// Split helper (wrapper). Falls back to whole text if chunking function missing.
+function aichat_split_text_into_chunks( $full_text, $target_words = 1000, $overlap = 180 ) {
+    if ( function_exists('aichat_chunk_text') ) {
+        return aichat_chunk_text( $full_text, $target_words, $overlap ); // returns [ [index=>, text=>], ... ]
+    }
+    $full_text = trim($full_text);
+    if ($full_text === '') return [];
+    return [ ['index'=>0,'text'=>$full_text] ];
+}
+
+// Multi-chunk indexer: stores multiple rows (chunk_index) per post/context
 function aichat_index_post( $post_id, $context_id = 0 ) {
     $post_id    = (int) $post_id;
     $context_id = (int) $context_id;
@@ -136,47 +146,64 @@ function aichat_index_post( $post_id, $context_id = 0 ) {
         return false;
     }
 
-    $text       = wp_strip_all_tags( $post->post_title . "\n" . $post->post_content );
-    if ( $text === '' ) {
-        return false;
+    $base_text = wp_strip_all_tags( $post->post_title . "\n" . $post->post_content );
+    if ( $base_text === '' ) return false;
+
+    // Produce chunks
+    $raw_chunks = aichat_split_text_into_chunks( $base_text, 1000, 180 );
+    if ( empty($raw_chunks) ) return false;
+
+    global $wpdb; $table = $wpdb->prefix.'aichat_chunks';
+    // Remove existing chunks for this post/context (fresh rebuild)
+    $wpdb->delete( $table, [ 'post_id'=>$post_id, 'id_context'=>$context_id ], [ '%d','%d' ] );
+
+    $type  = $post->post_type;
+    $title = $post->post_title;
+    $ok_any = false; $i = 0;
+    $chunk_total = count($raw_chunks);
+    aichat_log_debug('Index start', ['post_id'=>$post_id,'context_id'=>$context_id,'raw_chunks'=>$chunk_total]);
+    foreach ( $raw_chunks as $ch ) {
+        $chunk_text = isset($ch['text']) ? trim($ch['text']) : '';
+        if ( $chunk_text === '' ) continue;
+        $embedding = aichat_generate_embedding( $chunk_text );
+        if ( $embedding === 0 ) {
+            // Anomalía: 0 numérico en vez de array
+            aichat_log_debug('Embedding anomaly numeric zero', ['post_id'=>$post_id,'context_id'=>$context_id,'chunk_index'=>$i]);
+        }
+        if ( ! is_array($embedding) || empty($embedding) ) {
+            aichat_log_debug('Embedding generation failed', ['post_id'=>$post_id,'context_id'=>$context_id,'chunk_index'=>$i,'len'=>strlen($chunk_text)]);
+            continue; // skip failed chunk
+        }
+        $embed_json = wp_json_encode( array_values($embedding) );
+        $tokens = str_word_count( $chunk_text );
+        // IMPORTANT: Ensure formats count matches columns and correct types.
+        // Previous bug: embedding was treated as %d because of a missing %s causing it to be saved as 0.
+        $insert_data = [
+            'post_id'     => $post_id,
+            'id_context'  => $context_id,
+            'chunk_index' => (int)$i,
+            'type'        => $type,
+            'title'       => $title,
+            'content'     => $chunk_text,
+            'embedding'   => $embed_json, // JSON string
+            'tokens'      => $tokens,
+            'created_at'  => current_time('mysql'),
+            'updated_at'  => current_time('mysql'),
+        ];
+        $insert_formats = [ '%d','%d','%d','%s','%s','%s','%s','%d','%s','%s' ];
+        if ( count($insert_data) !== count($insert_formats) ) {
+            aichat_log_debug('Insert format mismatch', ['have_fields'=>count($insert_data),'have_formats'=>count($insert_formats)]);
+        }
+        $wpdb->insert( $table, $insert_data, $insert_formats );
+        if ( $wpdb->last_error ) {
+            aichat_log_debug('Chunk insert error', ['post_id'=>$post_id,'i'=>$i,'err'=>$wpdb->last_error]);
+        } else {
+            $ok_any = true; $i++;
+            aichat_log_debug('Chunk inserted', ['post_id'=>$post_id,'context_id'=>$context_id,'i'=>$i]);
+        }
     }
-
-    // Genera embedding (pon tu propia función)
-    $embedding = aichat_generate_embedding( $text );
-    if ( ! is_array( $embedding ) || empty( $embedding ) ) {
-        return false;
-    }
-
-    $table   = $GLOBALS['wpdb']->prefix . 'aichat_chunks';
-    $type    = $post->post_type;
-    $title   = $post->post_title;
-    $content = $text;
-    $embed   = wp_json_encode( array_values( $embedding ) ); // JSON limpio
-    $tokens  = str_word_count( $text ); // métrica aproximada (no “tokens” de LLM)
-
-    // Requiere UNIQUE (post_id, id_context)
-    $sql = $GLOBALS['wpdb']->prepare(
-        "INSERT INTO `$table`
-            (`post_id`, `id_context`, `type`, `title`, `content`, `embedding`, `tokens`, `updated_at`)
-         VALUES
-            (%d, %d, %s, %s, %s, %s, %d, NOW())
-         ON DUPLICATE KEY UPDATE
-            `type`      = VALUES(`type`),
-            `title`     = VALUES(`title`),
-            `content`   = VALUES(`content`),
-            `embedding` = VALUES(`embedding`),
-            `tokens`    = VALUES(`tokens`),
-            `updated_at`= VALUES(`updated_at`)",
-        $post_id, $context_id, $type, $title, $content, $embed, $tokens
-    );
-
-    $r = $GLOBALS['wpdb']->query( $sql );
-    if ( $r === false ) {
-        aichat_log_debug('[AIChat] index_post FAIL', ['post_id'=>$post_id,'context_id'=>$context_id]);
-        return false;
-    }
-    aichat_log_debug('[AIChat] index_post OK', ['post_id'=>$post_id,'context_id'=>$context_id,'rows'=>$r]);
-    return true;
+    aichat_log_debug('Index multi-chunk result', ['post_id'=>$post_id,'context_id'=>$context_id,'chunks'=>$i]);
+    return $ok_any;
 }
 
 

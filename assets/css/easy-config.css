@@ -1,0 +1,12 @@
+.aichat-easy-config-wrapper{max-width:860px}
+.aichat-easy-progress{counter-reset:step;display:flex;list-style:none;padding:0;margin:0 0 24px;gap:12px}
+.aichat-easy-progress li{width:40px;height:40px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-weight:600;position:relative}
+.aichat-easy-progress li.active{background:#1a73e8;color:#fff}
+.aichat-easy-progress li.done{background:#34a853;color:#fff}
+.aichat-easy-panel{background:#fff;border:1px solid #dfe3e6;padding:24px;border-radius:8px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.aichat-progress{background:#f1f5f9;border-radius:4px;overflow:hidden;height:14px;margin:8px 0 12px}
+.aichat-progress>div{background:#1a73e8;height:100%;transition:width .35s}
+.aichat-discover-list{max-height:260px;overflow:auto;margin:12px 0;padding:8px 12px;background:#f8fafc;border:1px solid #dbe2e8;border-radius:6px;list-style:none}
+.aichat-discover-list li{margin:0 0 6px;padding:2px 0;font-size:13px;line-height:1.3}
+.aichat-discover-list input[type=checkbox]{margin-right:6px}
+.aichat-item-type{color:#60738a;font-size:11px}

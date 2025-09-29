@@ -43,6 +43,37 @@ Conversation logs are stored locally (can be disabled) so you can review usage (
 == Usage ==
 After installation, create at least one bot and (optionally) ingest context. Use the shortcode or enable the global widget. Adjust window control flags (closable, minimizable, draggable) in the bot settings.
 
+== Easy Config Wizard ==
+Version 1.1.2 introduces an optional "Easy Config" wizard that appears after initial activation (or until completed). It performs:
+1. Site scan: collects up to the most recent 200 published posts, pages (and products if WooCommerce detected).
+2. Context creation: creates a local embeddings context record.
+3. Batch indexing: chunks are created by generating embeddings for discovered items (10 per batch via AJAX) using your OpenAI API key.
+4. Bot linking: links the default bot (slug "default") to the new context with context mode = embeddings.
+
+Smart Mode (experimental):
+If available the wizard now uses a smart discovery mode prioritizing:
+* Homepage and its internal links
+* Legal / FAQ / About / Policy pages (slug heuristics)
+* WooCommerce top categories and a sample of recent products (if WooCommerce active)
+* Fallback to a few recent posts/pages if the set is too small
+Legacy behavior is still used internally as fallback.
+
+Real Chunking:
+From 1.1.2+ the indexing process splits long content into multiple overlapping chunks (~1000 words, ~180 overlap) each embedded separately, improving retrieval precision. Existing single-row entries will be transparently replaced on re‑index.
+
+Selective Indexing:
+The wizard lets you deselect discovered pages/products before indexing to reduce token usage and noise. At least one item must remain selected.
+
+Notes:
+* The wizard hides automatically after completion (flag stored in option `aichat_easy_config_completed`).
+* You can abort and later ingest additional or different content via the Context screens.
+* If you already manually configured a bot/context you can ignore the wizard and mark it complete by finishing or deleting the option.
+* Current limit (for safety) is 200 items; extend manually if needed.
+
+Troubleshooting:
+* If embeddings fail, check that your OpenAI API key is valid and that the server can reach api.openai.com.
+* Browser console (when AICHAT_DEBUG true) will include extra debug logs.
+
 == Shortcode Reference ==
 Basic:
 `[aichat id="bot-slug"]`
@@ -138,6 +169,13 @@ Planned (see roadmap).
 3. Context ingestion interface
 
 == Changelog ==
+= 1.1.2 =
+* Added Easy Config wizard (activation redirect, guided context + default bot linking)
+* Instruction template selector UI: fixed height with scrollbar + navigation arrows
+* Added 3 customer service instruction templates (English)
+* Settings: Embed Allowed Origins block moved before Save + example external snippet
+* Minor bug fix (undefined function call prevented bots list from loading)
+
 = 1.1.0 =
 * Added Logs admin screen (list + detail + delete) with filters & nonce protection
 * Logging ON/OFF toggle (no new inserts when disabled)

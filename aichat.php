@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'AICHAT_VERSION', '1.1.2' );
 define( 'AICHAT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AICHAT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
-define('AICHAT_DEBUG', false);
+define('AICHAT_DEBUG', true);
 
 // Cargar el dominio de traducción (nuevo dominio canónico 'ai-chat')
 add_action('init', function(){
@@ -101,6 +101,10 @@ require_once AICHAT_PLUGIN_DIR . 'includes/logs-detail.php';
 //Pagina de templates prompt
 require_once AICHAT_PLUGIN_DIR . 'includes/templates-prompt.php';
 
+// (Easy Config) include file if exists (will be created later)
+if ( file_exists( AICHAT_PLUGIN_DIR . 'includes/easy-config.php' ) ) {
+  require_once AICHAT_PLUGIN_DIR . 'includes/easy-config.php';
+}
 
 
 
@@ -167,15 +171,17 @@ function aichat_activation() {
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     id_context BIGINT UNSIGNED DEFAULT NULL,
     post_id BIGINT UNSIGNED NOT NULL,
+    chunk_index INT NOT NULL DEFAULT 0,
     type VARCHAR(20),
     title VARCHAR(255),
-    content TEXT NOT NULL,
+    content MEDIUMTEXT NOT NULL,
     embedding LONGTEXT,
     tokens INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NULL DEFAULT NULL,
-    UNIQUE KEY unique_post_context (post_id, id_context),
+    UNIQUE KEY uniq_post_ctx_chunk (post_id, id_context, chunk_index),
     KEY idx_context (id_context),
+    KEY idx_post_context (post_id,id_context),
     CONSTRAINT fk_chunks_context FOREIGN KEY (id_context) REFERENCES $contexts_table(id) ON DELETE SET NULL
   ) $charset_collate;";
 
@@ -202,6 +208,11 @@ function aichat_activation() {
     add_option( 'aichat_chat_color', '#0073aa' );
     add_option( 'aichat_position', 'bottom-right' );
     // add_option('aichat_rag_enabled', false); // (deprecated si ya lo eliminaste)
+
+  // Señal para redirigir a Easy Config tras activación (si no había bots previos)
+  if ( ! get_option( 'aichat_easy_config_completed' ) ) {
+    add_option( 'aichat_easy_config_do_redirect', 1 );
+  }
 }
 
 
@@ -254,6 +265,26 @@ function aichat_bots_maybe_create(){
 
   dbDelta($sql); // dbDelta hará los ajustes necesarios si ya existe.
 }
+
+// Upgrade routine for adding chunk_index if missing (run on admin_init lightweight)
+add_action('admin_init', function(){
+  global $wpdb; $table = $wpdb->prefix.'aichat_chunks';
+  $cols = $wpdb->get_results("SHOW COLUMNS FROM $table LIKE 'chunk_index'");
+  if (empty($cols)) {
+    $wpdb->query("ALTER TABLE $table ADD COLUMN chunk_index INT NOT NULL DEFAULT 0 AFTER post_id");
+  }
+  // Adjust unique key if old one exists
+  $indexes = $wpdb->get_results("SHOW INDEX FROM $table");
+  $has_old_unique = false; $has_new_unique = false;
+  foreach($indexes as $ix){
+    if ($ix->Key_name === 'unique_post_context') $has_old_unique = true;
+    if ($ix->Key_name === 'uniq_post_ctx_chunk') $has_new_unique = true;
+  }
+  if ($has_old_unique && ! $has_new_unique) {
+    $wpdb->query("ALTER TABLE $table DROP INDEX unique_post_context");
+    $wpdb->query("ALTER TABLE $table ADD UNIQUE KEY uniq_post_ctx_chunk (post_id,id_context,chunk_index)");
+  }
+});
 
 // Hook de desactivación (vacío para no perder datos)
 register_deactivation_hook( __FILE__, 'aichat_deactivation' );
@@ -314,6 +345,25 @@ function aichat_admin_menu() {
         'aichat_bots_settings_page' // Callback for the page
     );
 
+  // Easy Config (wizard) – aparece solo si no se ha marcado como completado
+  $show_easy = ! get_option('aichat_easy_config_completed');
+  if ( $show_easy ) {
+    add_submenu_page(
+      'aichat-settings',
+      __( 'Easy Config', 'ai-chat' ),
+      __( 'Easy Config', 'ai-chat' ),
+      'manage_options',
+      'aichat-easy-config',
+      function(){
+        if ( function_exists('aichat_easy_config_page') ) {
+          aichat_easy_config_page();
+        } else {
+          echo '<div class="wrap"><h1>Easy Config</h1><p>Loading...</p></div>';
+        }
+      }
+    );
+  }
+
   // Submenú para logs (listado principal)
   add_submenu_page(
     'aichat-settings',
@@ -360,9 +410,30 @@ function aichat_admin_menu() {
     $page = sanitize_text_field( wp_unslash( $_GET['page'] ) );
   // Incluir también la página principal de ajustes para usar Bootstrap en el rediseño
   $needs_bootstrap = in_array( $page, [ 'aichat-settings','aichat-bots-settings','aichat-logs','aichat-logs-detail' ], true );
+  // Añadir easy config a la lista que necesita bootstrap (reutilizamos estilos)
+  if ( $page === 'aichat-easy-config' ) {
+    $needs_bootstrap = true;
+  }
     if ( ! $needs_bootstrap ) return;
 
     // Registrar Bootstrap y Bootstrap Icons si no están
+    // Enqueue wizard assets
+    if ( $page === 'aichat-easy-config' ) {
+      // CSS propio (se creará posteriormente)
+      wp_enqueue_style('aichat-easy-config', AICHAT_PLUGIN_URL.'assets/css/easy-config.css', ['aichat-admin'], AICHAT_VERSION);
+      wp_enqueue_script('aichat-easy-config', AICHAT_PLUGIN_URL.'assets/js/easy-config.js', ['jquery'], AICHAT_VERSION, true);
+      wp_localize_script('aichat-easy-config','aichat_easycfg_ajax', [
+        'ajax_url' => admin_url('admin-ajax.php'),
+        'nonce'    => wp_create_nonce('aichat_easycfg'),
+        'i18n' => [
+          'discovering' => __('Scanning site content...', 'ai-chat'),
+          'indexing'    => __('Indexing content...', 'ai-chat'),
+          'creating_bot'=> __('Creating bot...', 'ai-chat'),
+          'done'        => __('Completed', 'ai-chat'),
+          'error'       => __('Error', 'ai-chat'),
+        ]
+      ]);
+    }
     if ( ! wp_style_is( 'aichat-bootstrap', 'registered' ) ) {
       wp_register_style(
         'aichat-bootstrap',
@@ -474,6 +545,16 @@ add_action('template_redirect', function () {
   exit;
 });
 
+// Redirect post-activation to the Easy Config wizard (one-time)
+add_action('admin_init', function(){
+  if ( ! current_user_can('manage_options') ) return;
+  if ( ! get_option('aichat_easy_config_do_redirect') ) return;
+  // Avoid redirect during AJAX / cron
+  if ( wp_doing_ajax() || ( defined('DOING_CRON') && DOING_CRON ) ) return;
+  delete_option('aichat_easy_config_do_redirect');
+  wp_safe_redirect( admin_url('admin.php?page=aichat-easy-config') );
+  exit;
+});
 // Acción para eliminar una conversación completa
 add_action( 'admin_post_aichat_delete_conversation', 'aichat_handle_delete_conversation' );
 function aichat_handle_delete_conversation() {
