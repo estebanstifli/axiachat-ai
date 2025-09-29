@@ -68,15 +68,14 @@ jQuery(document).ready(function($) {
                                 '<td>' + context.id + '</td>' +
                                 '<td>' +
                                     '<span class="context-name" data-id="' + context.id + '">' + context.name + '</span>' +
-                                    '<input type="text" class="edit-name" style="display:none;" data-id="' + context.id + '" value="' + context.name + '">' +
                                 '</td>' +
                                 '<td>' +
-                                    '<div class="progress">' +
-                                        '<div class="progress-bar" role="progressbar" style="width: ' + (context.processing_progress || 0) + '%;" aria-valuenow="' + (context.processing_progress || 0) + '" aria-valuemin="0" aria-valuemax="100"></div>' +
+                                    '<div class="progress" style="height:16px;">' +
+                                        '<div class="progress-bar" role="progressbar" style="width: ' + (context.processing_progress || 0) + '%;" aria-valuenow="' + (context.processing_progress || 0) + '" aria-valuemin="0" aria-valuemax="100">' + (context.processing_progress || 0) + '%</div>' +
                                     '</div>' +
                                 '</td>' +
                                 '<td>' +
-                                    '<button class="button edit-context" data-id="' + context.id + '">' + aichat_settings_ajax.edit_text + '</button> ' +
+                                    '<button class="button edit-context" data-id="' + context.id + '">Edit/Test</button> ' +
                                     '<button class="button delete-context" data-id="' + context.id + '">' + aichat_settings_ajax.delete_text + '</button>' +
                                 '</td>' +
                             '</tr>'
@@ -134,61 +133,68 @@ jQuery(document).ready(function($) {
     // Cargar contextos al iniciar
     loadContexts();
 
-    // Editar nombre
+    // Edit/Test: abrir panel meta + búsqueda
     $(document).on('click', '.edit-context', function() {
         var id = $(this).data('id');
-        var nameSpan = $('.context-name[data-id="' + id + '"]');
-        var editInput = $('.edit-name[data-id="' + id + '"]');
-        console.log('Edit clicked for ID:', id);
-        nameSpan.hide();
-        editInput.show().focus();
+        $('#aichat-context-test-wrapper').data('context-id', id);
+        $('#aichat-test-context-label').text('#'+id);
+        $('#aichat-test-results').hide();
+        $('#aichat-test-status').hide();
+        $('#aichat-context-meta').hide();
+        $('#aichat-context-test-wrapper').slideDown(150);
+        fetchContextMeta(id);
     });
 
-    $(document).on('blur', '.edit-name', function() {
-        var id = $(this).data('id');
-        var newName = $(this).val();
-        var nameSpan = $('.context-name[data-id="' + id + '"]');
-        var editInput = $(this);
-        console.log('Blur event for ID:', id, 'New Name:', newName);
-
-        if (newName === nameSpan.text()) {
-            console.log('No change detected, reverting.');
-            editInput.hide();
-            nameSpan.show();
-            return;
-        }
-
-        console.log('Sending AJAX for ID:', id, 'with name:', newName);
+    // Guardar nombre (botón dentro del panel)
+    $(document).on('click', '#aichat-save-context-name', function(){
+        var id = $('#aichat-context-test-wrapper').data('context-id');
+        var newName = $('#aichat-edit-context-name').val().trim();
+        if(!id) return false;
+        if(newName===''){ alert('Name required'); return false; }
+        var btn = $(this).prop('disabled', true);
         $.ajax({
             url: aichat_settings_ajax.ajax_url,
             method: 'POST',
-            data: {
-                action: 'aichat_update_context_name',
-                nonce: aichat_settings_ajax.nonce,
-                id: id,
-                name: newName
-            },
-            success: function(response) {
-                console.log('AJAX Success:', response);
-                if (response.success) {
-                    nameSpan.text(newName).show();
-                    editInput.hide();
+            data: { action: 'aichat_update_context_name', nonce: aichat_settings_ajax.nonce, id: id, name: newName },
+            success: function(r){
+                if(r.success){
+                    // Actualizar en la tabla visible
+                    $('.context-name[data-id="'+id+'"]').text(newName);
+                    $('#aichat-message').text(aichat_settings_ajax.updated_text || 'Updated').css('color','green').show().fadeOut(2500);
                     loadContexts();
-                    $('#aichat-message').text(aichat_settings_ajax.updated_text).css('color', 'green').show().fadeOut(3000);
                 } else {
-                    $('#aichat-message').text(response.data.message).show();
-                    editInput.hide();
-                    nameSpan.show();
+                    alert(r.data && r.data.message ? r.data.message : 'Error');
                 }
             },
-            error: function(xhr, status, error) {
-                console.log('AJAX Error (update):', xhr.status, xhr.statusText, xhr.responseText);
-                $('#aichat-message').text('Error updating name: ' + error).show();
-                editInput.hide();
-                nameSpan.show();
-            }
+            error: function(){ alert('Request failed'); },
+            complete: function(){ btn.prop('disabled', false); }
         });
+        return false;
     });
+
+    function fetchContextMeta(id){
+        $('#aichat-context-meta').hide();
+        $.ajax({
+            url: aichat_settings_ajax.ajax_url,
+            method: 'POST',
+            data: { action: 'aichat_get_context_meta', nonce: aichat_settings_ajax.nonce, id: id },
+            success: function(resp){
+                if(resp.success){
+                    var c = resp.data.context;
+                    $('#aichat-edit-context-name').val(c.name||'');
+                    $('#aichat-meta-chunks').text(c.chunk_count);
+                    $('#aichat-meta-posts').text(c.post_count);
+                    var created = c.created_at ? c.created_at : '—';
+                    var status = (c.processing_status||'') + ' ' + (c.processing_progress?('('+c.processing_progress+'%)'):'');
+                    $('#aichat-meta-created').text(created+' / '+status);
+                    $('#aichat-context-meta').fadeIn(120);
+                } else {
+                    $('#aichat-meta-created').text('Error');
+                }
+            },
+            error: function(){ $('#aichat-meta-created').text('Error'); }
+        });
+    }
 
     // Borrar contexto
     $(document).on('click', '.delete-context', function() {
@@ -222,4 +228,73 @@ jQuery(document).ready(function($) {
             });
         }
     });
+
+    // Cerrar tarjeta de test
+    $(document).on('click', '#aichat-close-test', function(){
+        $('#aichat-context-test-wrapper').slideUp(120);
+        $('#aichat-test-results').hide();
+        $('#aichat-test-status').hide();
+    });
+
+    // Ejecutar búsqueda semántica de prueba
+    $(document).on('click', '#aichat-run-test', function(){
+        var ctxId = $('#aichat-context-test-wrapper').data('context-id') || 0;
+        var q = $('#aichat-test-query').val().trim();
+        var limit = $('#aichat-test-limit').val();
+        if(!ctxId){
+            alert('Select a context first (edit).');
+            return false;
+        }
+        if(!q){
+            $('#aichat-test-query').focus();
+            return false;
+        }
+        var $status = $('#aichat-test-status');
+        $status.text(aichat_settings_ajax.searching || 'Searching...').show();
+        $('#aichat-test-results').hide();
+        $('#aichat-test-results tbody').empty();
+        $.ajax({
+            url: aichat_settings_ajax.ajax_url,
+            method: 'POST',
+            data: {
+                action: 'aichat_search_context_chunks',
+                nonce: aichat_settings_ajax.nonce,
+                context_id: ctxId,
+                q: q,
+                limit: limit
+            },
+            success: function(resp){
+                if(resp.success){
+                    var rows = resp.data.results || [];
+                    if(rows.length === 0){
+                        $status.text(aichat_settings_ajax.no_results || 'No results');
+                        return;
+                    }
+                    $status.text(rows.length + ' result(s).');
+                    var tbody = $('#aichat-test-results tbody');
+                    $.each(rows, function(i,r){
+                        var score = (r.score !== undefined) ? r.score.toFixed(4) : '';
+                        var cls = (i===0) ? 'table-success' : '';
+                        tbody.append('<tr class="'+cls+'">'
+                          +'<td><code>'+score+'</code></td>'
+                          +'<td>'+escapeHtml(r.title || '')+'</td>'
+                          +'<td><small>'+escapeHtml(r.excerpt || '')+'</small></td>'
+                          +'</tr>');
+                    });
+                    $('#aichat-test-results').fadeIn(120);
+                } else {
+                    $status.text(resp.data && resp.data.message ? resp.data.message : (aichat_settings_ajax.error_generic || 'Error'));
+                }
+            },
+            error: function(xhr){
+                $status.text('Error: '+xhr.status);
+            }
+        });
+        return false;
+    });
+
+    // Helper para escapar HTML (simple)
+    function escapeHtml(str){
+        return (str||'').replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]||c;});
+    }
 });

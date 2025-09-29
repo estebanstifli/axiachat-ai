@@ -64,3 +64,64 @@ function aichat_update_progress() {
         wp_send_json_error( [ 'message' => 'Context not found' ] );
     }
 }
+
+// AJAX: búsqueda semántica de prueba dentro de un contexto
+add_action( 'wp_ajax_aichat_search_context_chunks', 'aichat_search_context_chunks' );
+function aichat_search_context_chunks(){
+    check_ajax_referer( 'aichat_nonce', 'nonce' );
+    if ( ! current_user_can('manage_options') ) {
+        wp_send_json_error(['message'=>'Forbidden'], 403);
+    }
+    $context_id = isset($_POST['context_id']) ? absint($_POST['context_id']) : 0;
+    $query      = isset($_POST['q']) ? trim( sanitize_text_field( wp_unslash($_POST['q']) ) ) : '';
+    $limit      = isset($_POST['limit']) ? max(1, min(20, absint($_POST['limit']))) : 10;
+    if ($context_id <= 0) {
+        wp_send_json_error(['message'=>'Missing context_id']);
+    }
+    if ($query === '') {
+        wp_send_json_error(['message'=>'Empty query']);
+    }
+    // Generar embedding de la consulta
+    $q_embed = aichat_generate_embedding( $query );
+    if ( ! $q_embed ) {
+        wp_send_json_error(['message'=>'Embedding failed']);
+    }
+    global $wpdb; $table = $wpdb->prefix.'aichat_chunks';
+    $rows = $wpdb->get_results( $wpdb->prepare("SELECT post_id, title, content, embedding, type FROM $table WHERE id_context=%d", $context_id), ARRAY_A );
+    if ( ! $rows ) { wp_send_json_success(['results'=>[]]); }
+    $scored = [];
+    foreach($rows as $r){
+        $emb = json_decode($r['embedding'], true);
+        if (!is_array($emb)) continue;
+        $score = aichat_cosine_similarity($q_embed, $emb);
+        $snippet = mb_substr( wp_strip_all_tags($r['content']), 0, 240 );
+        $scored[] = [
+            'post_id' => (int)$r['post_id'],
+            'title'   => (string)$r['title'],
+            'type'    => isset($r['type']) ? (string)$r['type'] : '',
+            'score'   => round($score, 6),
+            'excerpt' => $snippet . (strlen($r['content'])>240 ? '…' : ''),
+        ];
+    }
+    usort($scored, function($a,$b){ return ($b['score']<=>$a['score']); });
+    $scored = array_slice($scored, 0, $limit);
+    wp_send_json_success(['results'=>$scored, 'query'=>$query]);
+}
+
+// AJAX: obtener metadatos del contexto (para panel de edición/test)
+add_action('wp_ajax_aichat_get_context_meta','aichat_get_context_meta');
+function aichat_get_context_meta(){
+    check_ajax_referer('aichat_nonce','nonce');
+    if ( ! current_user_can('manage_options') ) { wp_send_json_error(['message'=>'Forbidden'],403); }
+    $id = isset($_POST['id']) ? absint($_POST['id']) : 0;
+    if ($id<=0) { wp_send_json_error(['message'=>'Missing id']); }
+    global $wpdb; $ctx_table = $wpdb->prefix.'aichat_contexts'; $chunks_table = $wpdb->prefix.'aichat_chunks';
+    $row = $wpdb->get_row( $wpdb->prepare("SELECT id, name, context_type, remote_type, created_at, processing_status, processing_progress FROM $ctx_table WHERE id=%d", $id), ARRAY_A );
+    if ( ! $row ) { wp_send_json_error(['message'=>'Not found']); }
+    $chunk_count = (int)$wpdb->get_var( $wpdb->prepare("SELECT COUNT(*) FROM $chunks_table WHERE id_context=%d", $id) );
+    // Conteo posts únicos
+    $post_count = (int)$wpdb->get_var( $wpdb->prepare("SELECT COUNT(DISTINCT post_id) FROM $chunks_table WHERE id_context=%d", $id) );
+    $row['chunk_count'] = $chunk_count;
+    $row['post_count']  = $post_count;
+    wp_send_json_success(['context'=>$row]);
+}

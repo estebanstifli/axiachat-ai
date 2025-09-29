@@ -39,7 +39,7 @@ function aichat_contexto_create_page() {
             <div class="tab-pane fade show active" id="add-new" role="tabpanel" aria-labelledby="add-new-tab">
 
                 <!-- Card: Basic Settings -->
-                <div class="card shadow-sm mb-4">
+                <div class="card card100 shadow-sm mb-4">
                     <div class="card-body">
                         <h5 class="card-title mb-3">
                             <i class="bi bi-sliders me-2 text-secondary"></i><?php esc_html_e( 'Basic Settings', 'ai-chat' ); ?>
@@ -100,7 +100,7 @@ function aichat_contexto_create_page() {
                 </div>
 
                 <!-- Card: Sources -->
-                <div class="card shadow-sm mb-4">
+                <div class="card card100 shadow-sm mb-4">
                     <div class="card-body">
                         <h5 class="card-title mb-3">
                             <i class="bi bi-check2-square me-2 text-secondary"></i><?php esc_html_e( 'Select Sources', 'ai-chat' ); ?>

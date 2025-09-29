@@ -78,6 +78,29 @@
 .aichat-cap-card .aichat-cap-icon{font-size:22px;margin-right:6px}
 .aichat-cap-card .aichat-badge{margin-top:4px}
 
+/* Full-width cards override for context maintenance pages */
+body.admin_page_aichat-contexto-settings .wrap .card,
+body.admin_page_aichat-contexto-create .wrap .card{max-width:100%; width:100%;}
+body.admin_page_aichat-contexto-settings .wrap .card .card-body,
+body.admin_page_aichat-contexto-create .wrap .card .card-body{width:100%;}
+/* Force override in case Bootstrap or WP admin adds inline constraints */
+body.admin_page_aichat-contexto-settings .wrap .card,
+body.admin_page_aichat-contexto-create .wrap .card,
+body.admin_page_aichat-contexto-settings .wrap .card:first-of-type,
+body.admin_page_aichat-contexto-create .wrap .card:first-of-type{
+  max-width: 100% !important;
+  width: 100% !important;
+  flex: 1 1 100% !important;
+}
+
+/* Utility: force card full width regardless of inherited constraints */
+.card100{
+  max-width:100% !important;
+  width:100% !important;
+  flex:1 1 100% !important;
+}
+.card100 .card-body{width:100%;}
+
 /* ---- Generic utility ---- */
 .aichat-hidden{display:none!important}
 /* ---- Settings Page Checkbox alignment ---- */

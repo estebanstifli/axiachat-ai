@@ -39,7 +39,7 @@ function aichat_contexto_settings_page() {
             <div class="tab-pane fade show active" id="context" role="tabpanel" aria-labelledby="context-tab">
 
                 <!-- Card: Existing Contexts -->
-                <div class="card shadow-sm border-0">
+                <div class="card card100 shadow-sm border-0">
                     <div class="card-header bg-white d-flex align-items-center justify-content-between">
                         <h5 class="mb-0">
                             <i class="bi bi-layers"></i> <?php esc_html_e( 'Existing Contexts', 'ai-chat' ); ?>
@@ -70,11 +70,6 @@ function aichat_contexto_settings_page() {
                                                         <i class="bi bi-folder2"></i>
                                                         <?php echo esc_html($context['name']); ?>
                                                     </span>
-                                                    <input type="text"
-                                                           class="form-control form-control-sm edit-name mt-2"
-                                                           style="display:none;"
-                                                           data-id="<?php echo esc_attr($context['id']); ?>"
-                                                           value="<?php echo esc_attr($context['name']); ?>">
                                                 </td>
                                                 <td>
                                                     <div class="progress" style="height: 16px;">
@@ -91,7 +86,7 @@ function aichat_contexto_settings_page() {
                                                     <div class="btn-group" role="group" aria-label="Actions">
                                                         <!-- mantenemos las clases originales para no romper tu JS -->
                                                         <button type="button" class="button btn btn-sm btn-outline-secondary edit-context" data-id="<?php echo esc_attr($context['id']); ?>">
-                                                            <i class="bi bi-pencil-square"></i> <?php esc_html_e( 'Edit', 'ai-chat' ); ?>
+                                                            <i class="bi bi-pencil-square"></i> <?php esc_html_e( 'Edit/Test', 'ai-chat' ); ?>
                                                         </button>
                                                         <button type="button" class="button btn btn-sm btn-outline-danger delete-context" data-id="<?php echo esc_attr($context['id']); ?>">
                                                             <i class="bi bi-trash"></i> <?php esc_html_e( 'Delete', 'ai-chat' ); ?>
@@ -119,6 +114,71 @@ function aichat_contexto_settings_page() {
                 </div>
 
             </div><!-- /.tab-pane -->
+            
+                        <!-- Dynamic test search card (injected when editing a context) -->
+                        <div id="aichat-context-test-wrapper" class="mt-4" style="display:none;">
+                              <div class="card card100 shadow-sm border-0">
+                                <div class="card-header bg-white d-flex align-items-center justify-content-between">
+                                    <h5 class="mb-0"><i class="bi bi-search"></i> <?php esc_html_e('Semantic Context Test', 'ai-chat'); ?> <span class="small text-muted" id="aichat-test-context-label"></span></h5>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="aichat-close-test">&times;</button>
+                                </div>
+                                <div class="card-body">
+                                                    <div id="aichat-context-meta" class="mb-3" style="display:none;">
+                                                        <form id="aichat-context-rename-form" class="row g-2 align-items-end mb-3" onsubmit="return false;">
+                                                            <div class="col-md-5">
+                                                                <label class="form-label mb-1 fw-semibold"><?php esc_html_e('Context Name','ai-chat'); ?></label>
+                                                                <input type="text" id="aichat-edit-context-name" class="form-control form-control-sm" />
+                                                            </div>
+                                                            <div class="col-md-2">
+                                                                <label class="form-label mb-1 fw-semibold"><?php esc_html_e('Chunks','ai-chat'); ?></label>
+                                                                <div class="form-control form-control-sm bg-light" readonly id="aichat-meta-chunks">—</div>
+                                                            </div>
+                                                            <div class="col-md-2">
+                                                                <label class="form-label mb-1 fw-semibold"><?php esc_html_e('Posts','ai-chat'); ?></label>
+                                                                <div class="form-control form-control-sm bg-light" readonly id="aichat-meta-posts">—</div>
+                                                            </div>
+                                                            <div class="col-md-3">
+                                                                <label class="form-label mb-1 fw-semibold"><?php esc_html_e('Created / Status','ai-chat'); ?></label>
+                                                                <div class="form-control form-control-sm bg-light" readonly id="aichat-meta-created">—</div>
+                                                            </div>
+                                                            <div class="col-12 col-md-3 mt-2 mt-md-0">
+                                                                <button class="btn btn-sm btn-primary w-100" id="aichat-save-context-name"><i class="bi bi-save"></i> <?php esc_html_e('Save Name','ai-chat'); ?></button>
+                                                            </div>
+                                                        </form>
+                                                    </div>
+                                                    <p class="text-muted small mb-3"><?php esc_html_e('Write a test query to see which chunks of this context are retrieved by semantic similarity.', 'ai-chat'); ?></p>
+                                    <form id="aichat-context-test-form" class="row g-2 align-items-center mb-3" onsubmit="return false;">
+                                        <div class="col-md-8">
+                                            <input type="text" class="form-control" id="aichat-test-query" placeholder="<?php echo esc_attr(__('Example: shipping costs for returns', 'ai-chat')); ?>" />
+                                        </div>
+                                        <div class="col-md-2">
+                                            <select id="aichat-test-limit" class="form-select form-select-sm">
+                                                <option value="5">Top 5</option>
+                                                <option value="10" selected>Top 10</option>
+                                                <option value="15">Top 15</option>
+                                                <option value="20">Top 20</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2 d-grid">
+                                            <button id="aichat-run-test" class="btn btn-primary"><i class="bi bi-play"></i> <?php esc_html_e('Search', 'ai-chat'); ?></button>
+                                        </div>
+                                    </form>
+                                    <div id="aichat-test-status" class="small text-muted mb-2" style="display:none;"></div>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm align-middle mb-0" id="aichat-test-results" style="display:none;">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th style="width:70px;">Score</th>
+                                                    <th><?php esc_html_e('Title', 'ai-chat'); ?></th>
+                                                    <th><?php esc_html_e('Excerpt', 'ai-chat'); ?></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
         </div><!-- /.tab-content -->
     </div>
     <?php

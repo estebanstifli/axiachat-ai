@@ -214,7 +214,7 @@ add_action('wp_ajax_aichat_easycfg_create_context', function(){
     $ok = $wpdb->insert($table,[
         'name' => $name,
         'context_type' => 'local',
-        'processing_status' => 'completed', // we'll index directly into chunks
+        'processing_status' => 'in_progress', // changed from 'completed' so meta reflects real state
         'processing_progress' => 0,
     ], ['%s','%s','%s','%d']);
 
@@ -277,6 +277,20 @@ add_action('wp_ajax_aichat_easycfg_create_bot', function(){
         'context_id'   => $context_id,
         'updated_at'   => current_time('mysql')
     ], ['id'=>$bot['id']], ['%s','%d','%s'], ['%d']);
+
+    // Retro-fix context progress if necessary
+    // Use existing $wpdb to inspect context state and retro-fix progress
+    $ctx_table = $wpdb->prefix.'aichat_contexts';
+    $chunks_table = $wpdb->prefix.'aichat_chunks';
+    $ctx = $wpdb->get_row( $wpdb->prepare("SELECT id, processing_status, processing_progress FROM $ctx_table WHERE id=%d", $context_id), ARRAY_A );
+    if ( $ctx ) {
+        if ( ($ctx['processing_status']==='in_progress' && (int)$ctx['processing_progress'] < 100) || ($ctx['processing_status']==='completed' && (int)$ctx['processing_progress']===0) ) {
+            $chunk_count = (int)$wpdb->get_var( $wpdb->prepare("SELECT COUNT(*) FROM $chunks_table WHERE id_context=%d", $context_id) );
+            if ( $chunk_count > 0 ) {
+                $wpdb->update($ctx_table, [ 'processing_status'=>'completed', 'processing_progress'=>100 ], [ 'id'=>$context_id ], ['%s','%d'], ['%d']);
+            }
+        }
+    }
 
     update_option('aichat_easy_config_completed', 1);
 

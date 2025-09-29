@@ -409,7 +409,7 @@ function aichat_admin_menu() {
     if ( ! isset($_GET['page']) ) return;
     $page = sanitize_text_field( wp_unslash( $_GET['page'] ) );
   // Incluir también la página principal de ajustes para usar Bootstrap en el rediseño
-  $needs_bootstrap = in_array( $page, [ 'aichat-settings','aichat-bots-settings','aichat-logs','aichat-logs-detail' ], true );
+  $needs_bootstrap = in_array( $page, [ 'aichat-settings','aichat-bots-settings','aichat-logs','aichat-logs-detail','aichat-contexto-settings','aichat-contexto-create','aichat-contexto-pdf' ], true );
   // Añadir easy config a la lista que necesita bootstrap (reutilizamos estilos)
   if ( $page === 'aichat-easy-config' ) {
     $needs_bootstrap = true;
@@ -464,7 +464,7 @@ function aichat_admin_menu() {
     wp_enqueue_style('aichat-bootstrap');
     wp_enqueue_style('aichat-bootstrap-icons');
     // Nuevo: hoja de estilos admin consolidada
-    wp_enqueue_style('aichat-admin', AICHAT_PLUGIN_URL.'assets/css/aichat-admin.css', ['aichat-bootstrap'], AICHAT_VERSION);    
+  wp_enqueue_style('aichat-admin', AICHAT_PLUGIN_URL.'assets/css/aichat-admin.css', ['aichat-bootstrap'], AICHAT_VERSION);    
     wp_enqueue_script('aichat-bootstrap');
 
     // Script específico de la página de ajustes (toggle mostrar/ocultar API keys)
@@ -512,7 +512,21 @@ function aichat_admin_menu() {
         'instruction_templates' => $instruction_templates,
       ]);
     }
+
+    // Añadir cadenas para test semántico (context settings)
+    if ( $page === 'aichat-contexto-settings' || $page === 'aichat-settings' ) {
+      if ( wp_script_is('aichat-settings-js','enqueued') ) {
+        wp_localize_script('aichat-settings-js','aichat_settings_ajax', [
+          'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce'    => wp_create_nonce('aichat_nonce'),
+            'searching' => __('Searching embeddings...', 'ai-chat'),
+            'no_results' => __('No results found for that query.', 'ai-chat'),
+            'error_generic' => __('Unexpected error performing search.', 'ai-chat'),
+        ]);
+      }
+    }
   });
+
     
 
 }
