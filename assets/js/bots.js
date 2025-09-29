@@ -444,7 +444,11 @@
                     <span class="form-text-muted">(You can edit freely or load a predefined template)</span>
                   </div>
                   <div class="aichat-tpl-simple" id="tpl-panel-${bot.id}">
-                    <div class="aichat-tpl-list" id="tpl-list-${bot.id}" role="listbox" aria-label="Instruction templates">${tplItemsHTML || '<div class=\"aichat-tpl-empty\">No templates</div>'}</div>
+                    <div class="aichat-tpl-box" data-bot="${bot.id}">
+                      <button type="button" class="aichat-tpl-arrow up" data-bot="${bot.id}" aria-label="Scroll up" title="Scroll up">▲</button>
+                      <div class="aichat-tpl-list" id="tpl-list-${bot.id}" role="listbox" aria-label="Instruction templates">${tplItemsHTML || '<div class=\"aichat-tpl-empty\">No templates</div>'}</div>
+                      <button type="button" class="aichat-tpl-arrow down" data-bot="${bot.id}" aria-label="Scroll down" title="Scroll down">▼</button>
+                    </div>
                     <div class="aichat-tpl-side">
                       <div class="aichat-tpl-desc" id="tpl-desc-${bot.id}" aria-live="polite"></div>
                       <button type="button" class="button button-secondary aichat-tpl-load mt-2" data-id="${bot.id}" disabled><i class="bi bi-download"></i> Load</button>
@@ -737,7 +741,9 @@
       .off('click.aichat', '.copy-btn')
       .off('input.aichat change.aichat', '#aichat-panel .aichat-field')
   .off('change.aichat', '#aichat-panel .ctx-excl')
-  .off('change.aichat', '#aichat-panel .ctx-mode');
+      .off('change.aichat', '#aichat-panel .ctx-mode')
+      .off('click.aichat', '.aichat-tpl-arrow')
+      .off('scroll.aichat', '.aichat-tpl-list');
 
     // Añadir bot
     $(document).on('click.aichat', '#aichat-add-bot', function(e){
@@ -916,6 +922,16 @@
     $(document).on('mouseenter.aichat', '#aichat-tab-strip', function(){
       updateArrows();
     });
+
+    // Flechas plantillas
+    $(document).on('click.aichat', '.aichat-tpl-arrow', function(){
+      const botId = $(this).data('bot');
+      if($(this).hasClass('up')) scrollTpl(botId,'up'); else scrollTpl(botId,'down');
+    });
+    // Scroll manual lista plantillas
+    $(document).on('scroll.aichat', '.aichat-tpl-list', function(){
+      const m = this.id.match(/tpl-list-(\d+)/); if(m) updateTplScroll(m[1]);
+    });
   }
 
   function updateArrows(){
@@ -927,6 +943,30 @@
     const canR = (rail.scrollWidth - rail.clientWidth - rail.scrollLeft) > 5;
     $prev.toggle(canL);
     $next.toggle(canR);
+  }
+
+  // ===== Template list scroll helpers (no inline styles) =====
+  function updateTplScroll(botId){
+    const list = document.getElementById(`tpl-list-${botId}`);
+    if(!list) return;
+    const up = document.querySelector(`.aichat-tpl-arrow.up[data-bot="${botId}"]`);
+    const down = document.querySelector(`.aichat-tpl-arrow.down[data-bot="${botId}"]`);
+    if(!up||!down) return;
+    const maxScroll = list.scrollHeight - list.clientHeight;
+    const pos = list.scrollTop;
+    up.disabled = pos <= 0;
+    down.disabled = pos >= (maxScroll - 2);
+    if(maxScroll <= 0){ up.classList.add('aichat-hidden'); down.classList.add('aichat-hidden'); }
+    else { up.classList.remove('aichat-hidden'); down.classList.remove('aichat-hidden'); }
+  }
+
+  function scrollTpl(botId, dir){
+    const list = document.getElementById(`tpl-list-${botId}`);
+    if(!list) return;
+    const item = list.querySelector('.aichat-tpl-item');
+    const step = item ? (item.getBoundingClientRect().height + 4) * 2 : 100;
+    list.scrollBy({ top: (dir==='up'?-step:step), behavior:'smooth'});
+    setTimeout(()=> updateTplScroll(botId), 240);
   }
 
   // ------------- Init -------------------

@@ -9,7 +9,7 @@
 #aichat-panel .form-check-input{float:none!important}
 
 /* ---- Instruction Templates Panel ---- */
-.aichat-tpl-panel{background:#fff;border:1px solid #dee2e6;border-radius:8px;display:flex;flex-direction:column;min-height:210px;max-height:260px;position:relative;padding:0}
+.aichat-tpl-panel{background:#fff;border:1px solid #dee2e6;border-radius:8px;display:flex;flex-direction:column;min-height:190px;max-height:190px;position:relative;padding:0}
 .aichat-tpl-panel:before{content:"Templates";position:absolute;top:6px;left:12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#6c757d}
 .aichat-tpl-list{margin:0;list-style:none;padding:28px 0 8px 0;overflow-y:auto;flex:1}
 .aichat-tpl-list::-webkit-scrollbar{width:8px}
@@ -37,6 +37,25 @@
 .aichat-tpl-simple .aichat-tpl-side{flex:1;display:flex;flex-direction:column}
 .aichat-tpl-simple .aichat-tpl-desc{flex:1;border:none;background:#f8f9fa;padding:10px;border-radius:6px;font-size:12px;line-height:1.35;min-height:120px}
 .aichat-tpl-simple .aichat-tpl-load{align-self:flex-end}
+
+/* ==== Instruction Templates: Scroll + Arrows (4 visible items) ==== */
+.aichat-tpl-simple .aichat-tpl-box{display:flex;flex-direction:column;align-items:stretch;gap:4px;flex:0 0 240px;position:relative}
+.aichat-tpl-simple .aichat-tpl-list{flex:1 1 auto;max-height:150px;min-height:150px;overflow-y:auto;border:1px solid #d5d9de;border-radius:6px;padding:0;background:#fff;scrollbar-width:thin;scrollbar-color:#0d6efd #f1f5f9}
+.aichat-tpl-simple .aichat-tpl-list::-webkit-scrollbar{width:10px}
+.aichat-tpl-simple .aichat-tpl-list::-webkit-scrollbar-track{background:#f1f5f9;border-radius:6px}
+.aichat-tpl-simple .aichat-tpl-list::-webkit-scrollbar-thumb{background:#0d6efd;border-radius:6px;border:2px solid #f1f5f9}
+.aichat-tpl-arrow{background:#0d6efd;color:#fff;border:none;border-radius:6px;padding:6px 4px;font-size:11px;cursor:pointer;line-height:1;font-weight:600;letter-spacing:.5px;box-shadow:0 1px 2px rgba(0,0,0,.12);transition:background .15s,opacity .15s}
+.aichat-tpl-arrow:hover:not([disabled]){background:#0957b5}
+.aichat-tpl-arrow[disabled]{opacity:.35;cursor:default}
+.aichat-tpl-arrow.up{order:0}
+.aichat-tpl-arrow.down{order:2}
+.aichat-tpl-box .aichat-tpl-list{order:1}
+@media (max-width:900px){
+  .aichat-tpl-simple{flex-direction:column}
+  .aichat-tpl-simple .aichat-tpl-box{flex-direction:row;align-items:stretch;flex:1 1 auto}
+  .aichat-tpl-simple .aichat-tpl-arrow{height:42px;width:38px;align-self:center}
+  .aichat-tpl-simple .aichat-tpl-list{max-height:168px;min-height:168px;margin:0 6px}
+}
 
 /* ---- Logs Page ---- */
 .aichat-logs-filters .form-label{font-weight:600}
