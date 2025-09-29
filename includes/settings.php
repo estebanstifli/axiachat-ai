@@ -140,6 +140,13 @@ function aichat_register_simple_settings() {
             'default' => __( 'Daily usage limit reached. Please try again tomorrow.', 'ai-chat' ),
         ] );
         
+            // Embed allowed origins (array stored as JSON or newline string). We'll store as newline string for simplicity.
+            register_setting( $option_group, 'aichat_embed_allowed_origins', [
+                'type' => 'string',
+                'sanitize_callback' => 'aichat_sanitize_embed_origins',
+                'default' => '',
+            ] );
+        
 
 
 }
@@ -389,6 +396,39 @@ function aichat_settings_page() {
                                 </div>
                             </div>
 
+                            <!-- Embed Allowed Origins (moved before Save) -->
+                            <div class="card shadow-sm mb-4">
+                                <div class="card-header bg-success text-white d-flex align-items-center">
+                                    <i class="bi bi-globe me-2"></i><strong><?php echo esc_html__('Embed (External Sites)', 'ai-chat'); ?></strong>
+                                </div>
+                                <div class="card-body">
+                                    <?php $embed_origins_raw = (string) get_option('aichat_embed_allowed_origins',''); ?>
+                                    <p class="mb-3 text-muted" style="font-size:13px;">
+                                        <?php echo esc_html__( 'List the allowed external site origins (protocol + domain) that can embed the chat via the script loader. One per line. Example: https://example.com', 'ai-chat'); ?>
+                                    </p>
+                                    <div class="mb-3">
+                                        <label for="aichat_embed_allowed_origins" class="form-label fw-semibold"><?php echo esc_html__( 'Allowed Origins', 'ai-chat'); ?></label>
+                                        <textarea id="aichat_embed_allowed_origins" name="aichat_embed_allowed_origins" class="form-control" rows="5" placeholder="https://site1.com
+https://sub.site2.net"><?php echo esc_textarea($embed_origins_raw); ?></textarea>
+                                        <div class="form-text"><?php echo esc_html__( 'Leave empty to disallow all external script embeds (iframe method still works).', 'ai-chat'); ?></div>
+                                    </div>
+                                    <div class="mb-3 small text-secondary">
+                                        <?php echo esc_html__( 'Security: Each external request is validated against this list. Use full origin, no trailing slash.', 'ai-chat'); ?>
+                                    </div>
+                                    <div class="mb-0" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:6px;padding:14px;font-family:Consolas,Menlo,monospace;font-size:12.5px;line-height:1.5;">
+<?php $example_bot = $global_slug ? $global_slug : ( !empty($bots) ? $bots[0]['slug'] : 'default' ); ?>
+<div style="font-weight:600;margin-bottom:6px;color:#93c5fd;"><?php echo esc_html__('Example snippet to paste on an external page','ai-chat'); ?>:</div>
+&lt;!-- AI Chat Widget --&gt;<br />
+&lt;div id=&quot;aichat-embed&quot; data-bot=&quot;<?php echo esc_html( $example_bot ); ?>&quot;&gt;&lt;/div&gt;<br />
+&lt;script async src=&quot;<?php echo esc_url( site_url('/wp-content/plugins/ai-chat/assets/js/aichat-embed-loader.js') ); ?>&quot;&gt;&lt;/script&gt;<br />
+&lt;!-- /AI Chat Widget --&gt;
+<div style="margin-top:6px;font-size:11px;color:#cbd5e1;">
+<?php echo wp_kses_post( __( 'Make sure the external site origin (e.g. <code>https://example.com</code>) is present in the list above, otherwise the embed will be blocked.', 'ai-chat' ) ); ?>
+</div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Save -->
                             <div class="card shadow-sm mb-4">
                                 <div class="card-header bg-light d-flex align-items-center">
@@ -419,6 +459,29 @@ function aichat_sanitize_api_key( $value ) {
 
 function aichat_sanitize_checkbox( $value ) {
     return ( ! empty( $value ) && ( $value === '1' || $value === 1 || $value === true ) ) ? 1 : 0;
+}
+
+if ( ! function_exists('aichat_sanitize_embed_origins') ) {
+    function aichat_sanitize_embed_origins( $value ) {
+        if (! is_string($value)) return '';
+        $lines = preg_split('/\r\n|\r|\n/', trim($value));
+        $clean = [];
+        foreach($lines as $l){
+            $l = trim($l);
+            if ($l === '') continue;
+            // Must start with http or https
+            if (!preg_match('#^https?://#i',$l)) continue;
+            // Remove trailing slash
+            $l = rtrim($l,'/');
+            // Basic URL validation
+            $p = wp_parse_url($l);
+            if (empty($p['scheme']) || empty($p['host'])) continue;
+            $norm = $p['scheme'].'://'.$p['host'];
+            if (!empty($p['port'])) $norm .= ':' . (int)$p['port'];
+            if (!in_array($norm, $clean, true)) $clean[] = $norm;
+        }
+        return implode("\n", $clean);
+    }
 }
 
 // Falta sanitizer para aichat_usage_daily_total_behavior (evita fatal si WP intenta llamarlo)

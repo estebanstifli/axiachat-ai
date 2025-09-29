@@ -507,6 +507,111 @@ if ( ! function_exists('aichat_get_ip') ) {
   }
 }
 
+// ========== EMBED (Script) Nonce endpoint & origin allowlist ==========
+// Simple JSON endpoint: /?aichat_embed_nonce=1  --> { nonce:"..." }
+// Only returns nonce if HTTP_ORIGIN is empty (same-origin) or allowed in stored option list.
+add_action('init', function(){
+  if ( ! isset($_GET['aichat_embed_nonce']) ) return; // bail if not requested
+  nocache_headers();
+  header('Content-Type: application/json; charset=utf-8');
+  $origin = isset($_SERVER['HTTP_ORIGIN']) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_ORIGIN'] ) ) : '';
+  $raw_opt = get_option('aichat_embed_allowed_origins', '');
+  if (is_string($raw_opt)) { $allowed = preg_split('/\r\n|\r|\n/', $raw_opt); } else { $allowed = (array)$raw_opt; }
+  $allowed_norm = [];
+  foreach($allowed as $o){ $o = trim($o); if ($o==='') continue; $allowed_norm[] = rtrim($o,'/'); }
+  $ok = true;
+  if ($origin) { $norm_origin = rtrim($origin,'/'); if (!in_array($norm_origin,$allowed_norm,true)) { $ok = false; } }
+  if (! $ok) { echo wp_json_encode(['error'=>'origin_not_allowed']); exit; }
+  if ($origin) { header('Access-Control-Allow-Origin: '.$origin); header('Vary: Origin'); }
+
+  $nonce = wp_create_nonce('aichat_ajax');
+
+  // Optional: bots list (?bots=slug1,slug2)
+  $ui_map = [];
+  if ( isset($_GET['bots']) ) {
+    $list_raw = explode(',', sanitize_text_field( wp_unslash($_GET['bots']) ) );
+    $slugs = [];
+    foreach($list_raw as $s){ $s = sanitize_title($s); if($s!=='') $slugs[] = $s; }
+    $slugs = array_unique($slugs);
+    if ($slugs) {
+      global $wpdb; $table = aichat_bots_table();
+      // Prepare placeholders dynamically
+      $placeholders = implode(',', array_fill(0, count($slugs), '%s'));
+      $query = "SELECT slug, ui_color, ui_position, ui_avatar_enabled, ui_avatar_key, ui_icon_url, ui_start_sentence, ui_placeholder, ui_button_send, ui_closable, ui_minimizable, ui_draggable, ui_minimized_default, ui_superminimized_default FROM $table WHERE slug IN ($placeholders)";
+      $rows = $wpdb->get_results( $wpdb->prepare($query, $slugs), ARRAY_A );
+      if ($rows){
+        foreach($rows as $row){
+          $avatar_url = '';
+            if ( ! empty($row['ui_avatar_enabled']) ) {
+              if ( ! empty($row['ui_icon_url']) ) {
+                $avatar_url = esc_url_raw($row['ui_icon_url']);
+              } elseif ( ! empty($row['ui_avatar_key']) ) {
+                $k = preg_replace('/[^a-z0-9_\-]/i','', $row['ui_avatar_key']);
+                if ($k) { $avatar_url = trailingslashit( AICHAT_PLUGIN_URL ) . 'assets/images/' . $k . '.png'; }
+              }
+            }
+          $ui_map[$row['slug']] = [
+            'color' => $row['ui_color'],
+            'position' => $row['ui_position'],
+            'avatar_enabled' => (int)$row['ui_avatar_enabled'],
+            'avatar_url' => $avatar_url,
+            'start_sentence' => $row['ui_start_sentence'],
+            'placeholder' => $row['ui_placeholder'],
+            'button_send' => $row['ui_button_send'],
+            'closable' => (int)$row['ui_closable'],
+            'minimizable' => (int)$row['ui_minimizable'],
+            'draggable' => (int)$row['ui_draggable'],
+            'minimized_default' => (int)$row['ui_minimized_default'],
+            'superminimized_default' => (int)$row['ui_superminimized_default'],
+          ];
+        }
+      }
+    }
+  }
+  echo wp_json_encode(['nonce'=>$nonce,'ui'=>$ui_map]);
+  exit;
+});
+
+
+// Security filter: block unapproved external origins for main AJAX actions (defense in depth)
+add_filter('init', function(){
+  // Only apply on AJAX context after WP loaded vars
+  if ( ! defined('DOING_AJAX') || ! DOING_AJAX ) return;
+  if ( empty($_POST['action']) ) return;
+
+  $origin = isset($_SERVER['HTTP_ORIGIN']) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_ORIGIN'] ) ) : '';
+  if ( ! $origin ) {
+    // No header → same-site form/XHR (WordPress admin normal). Do not restrict.
+    return;
+  }
+
+  // Compare against site home to allow first-party even if not listed (avoid breaking admin pages served from same domain).
+  $site_base = rtrim( get_home_url(), '/' );
+  $norm_origin = rtrim( $origin, '/' );
+  if ( strtolower($norm_origin) === strtolower($site_base) ) {
+    // First-party; no need to consult embed allowlist.
+    return;
+  }
+
+  // Cross-origin: enforce allowlist
+  $raw_opt = get_option('aichat_embed_allowed_origins', '');
+  if ( is_string($raw_opt) ) {
+    $allowed = preg_split('/\r\n|\r|\n/', $raw_opt);
+  } else { $allowed = (array) $raw_opt; }
+  $allowed_norm = [];
+  foreach ( $allowed as $o ) {
+    $o = trim($o);
+    if ($o === '') continue;
+    $allowed_norm[] = rtrim($o,'/');
+  }
+  if ( ! in_array( $norm_origin, $allowed_norm, true ) ) {
+    wp_send_json_error( [ 'message' => 'Embedding origin not allowed' ], 403 );
+  }
+  // Allowed cross-origin: add CORS header
+  header( 'Access-Control-Allow-Origin: ' . $origin );
+  header( 'Vary: Origin' );
+});
+
 if ( ! function_exists('aichat_rate_limit_check') ) {
   /**
    * Devuelve WP_Error si excede límite (ráfagas + cooldown + bloqueos adaptativos)

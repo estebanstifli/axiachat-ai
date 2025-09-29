@@ -47,7 +47,29 @@
     }
 
     // ---------- 2) Localiza instancias ----------
+    // Soporte de inserciones externas vía AIChatEmbedRoots (array de nodos DOM)
+    if (Array.isArray(window.AIChatEmbedRoots) && window.AIChatEmbedRoots.length) {
+      try {
+        window.AIChatEmbedRoots.forEach(function(node){
+          if (node && node.classList && !node.classList.contains('aichat-widget')) {
+            node.classList.add('aichat-widget');
+          }
+        });
+      } catch(e){ if (DEBUG) console.warn('[AIChat] fallo al normalizar AIChatEmbedRoots', e); }
+    }
+    // Captura instancias visibles en el DOM principal
     var $instances = $('.aichat-widget');
+    // Añade explícitamente instancias creadas en Shadow DOM (no aparecen en el selector global)
+    if (Array.isArray(window.AIChatEmbedRoots) && window.AIChatEmbedRoots.length) {
+      window.AIChatEmbedRoots.forEach(function(node){
+        if (!node) return;
+        // Ya añadimos la clase antes; ahora aseguramos que se incluya en la lista a inicializar
+        if (!$instances.filter(function(){ return this === node; }).length) {
+          // Empuja el nodo manualmente a la colección de trabajo creando un wrapper jQuery
+          $instances = $instances.add(node);
+        }
+      });
+    }
     if ($instances.length === 0) {
       var $legacy = $('#aichat-widget'); // compat muy antigua
       if ($legacy.length) {
@@ -56,7 +78,7 @@
       }
     }
     if (DEBUG) console.log('[AIChat] instancias encontradas:', $instances.length);
-    if ($instances.length === 0) return;
+  if ($instances.length === 0) return;
 
     var uidCounter = 0;
 
