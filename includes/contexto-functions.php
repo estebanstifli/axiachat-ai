@@ -75,6 +75,7 @@ function aichat_admin_enqueue_scripts($hook) {
                 'delete_confirm' => __('Are you sure you want to delete this context?', 'ai-chat'),
                 'updated_text' => __('Context name updated.', 'ai-chat'),
                 'deleted_text' => __('Context deleted.', 'ai-chat')
+                ,'run_autosync' => __('Run AutoSync','ai-chat')
             )
         );
     }

@@ -69,6 +69,10 @@ jQuery(document).ready(function($) {
                     $.each(list, function(i,context){
                         var progress = parseInt(context.processing_progress || 0,10);
                         var createdStatus = (context.created_at ? context.created_at : '') + ' / ' + (context.processing_status || '');
+                        var isPending = (context.processing_status === 'pending' || context.processing_status === 'processing' || context.processing_status === 'in_progress');
+                        var runLabel = (aichat_settings_ajax.run_autosync || 'Run AutoSync');
+                        var disabledAttr = isPending ? ' disabled="disabled"' : '';
+                        var pendingHint = isPending ? ' data-bs-toggle="tooltip" title="Processing in progress"' : '';
                         tbody.append(
                             '<tr>'+
                               '<td class="text-muted small">'+context.id+'</td>'+
@@ -79,6 +83,7 @@ jQuery(document).ready(function($) {
                               '<td><div class="progress" style="height:14px;"><div class="progress-bar" role="progressbar" style="width:'+progress+'%;" aria-valuenow="'+progress+'" aria-valuemin="0" aria-valuemax="100">'+progress+'%</div></div></td>'+
                               '<td class="text-end"><div class="btn-group" role="group">'+
                                   '<button class="button btn btn-sm btn-outline-secondary edit-context" data-id="'+context.id+'"><i class="bi bi-pencil-square"></i> '+(aichat_settings_ajax.edit_test || 'Edit/Test')+'</button> '+
+                                  '<button type="button" class="button btn btn-sm btn-outline-info run-autosync-now"'+disabledAttr+pendingHint+' data-id="'+context.id+'"><i class="bi bi-arrow-repeat"></i> '+runLabel+'</button> '+
                                   '<button class="button btn btn-sm btn-outline-danger delete-context" data-id="'+context.id+'"><i class="bi bi-trash"></i> '+aichat_settings_ajax.delete_text+'</button>'+
                               '</div></td>'+
                             '</tr>'
@@ -331,4 +336,79 @@ jQuery(document).ready(function($) {
     function escapeHtml(str){
         return (str||'').replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]||c;});
     }
+
+    // =====================
+    // Run AutoSync Now
+    // =====================
+    $(document).on('click','.run-autosync-now', function(){
+        var ctxId = $(this).data('id');
+        $('#aichat-autosync-modal-context-id').val(ctxId);
+        // Reset radios
+        $('#aichat-autosync-radio-modified').prop('checked', true);
+        $('#aichat-autosync-radio-full').prop('checked', false);
+        $('#aichat-autosync-radio-modified-new').prop('checked', false).prop('disabled', false);
+        $('#aichat-autosync-limited-note').addClass('d-none');
+        // Fetch meta to know if LIMITED or mode
+        $.ajax({
+            url: aichat_settings_ajax.ajax_url,
+            method: 'POST',
+            data: { action:'aichat_get_context_meta', nonce: aichat_settings_ajax.nonce, id: ctxId },
+            success: function(resp){
+                if(resp.success){
+                    var c = resp.data.context;
+                    var limited = (c.autosync_post_types && c.autosync_post_types === 'LIMITED');
+                    var canAdd = (!limited && c.autosync_mode === 'updates_and_new');
+                    if(!canAdd){
+                        $('#aichat-autosync-radio-modified-new').prop('disabled', true);
+                        $('#aichat-autosync-limited-note').removeClass('d-none');
+                    }
+                }
+                var modalEl = document.getElementById('aichat-autosync-modal');
+                if(window.bootstrap && bootstrap.Modal){
+                    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+                } else {
+                    // Fallback simple display
+                    $('#aichat-autosync-modal').show();
+                }
+            },
+            error: function(){
+                alert('Failed to load context meta');
+            }
+        });
+    });
+
+    $(document).on('click','#aichat-autosync-run-confirm', function(){
+        var btn = $(this).prop('disabled', true);
+        var ctxId = $('#aichat-autosync-modal-context-id').val();
+        var mode = $('input[name="aichat-autosync-mode-radio"]:checked').val();
+        $.ajax({
+            url: aichat_settings_ajax.ajax_url,
+            method: 'POST',
+            data: { action:'aichat_autosync_run_now', nonce: aichat_settings_ajax.nonce, context_id: ctxId, mode: mode },
+            success: function(r){
+                if(r.success){
+                    $('#aichat-message').text('Autosync queued: '+r.data.added_to_queue+' new item(s).').css('color','green').show().fadeOut(6000);
+                    // Disable button immediately in current table (if present)
+                    $('.run-autosync-now[data-id="'+ctxId+'"]').prop('disabled', true);
+                    // Force a refresh soon to reflect pending state & progress reset
+                    setTimeout(loadContexts, 500);
+                } else {
+                    alert(r.data && r.data.message ? r.data.message : 'Error');
+                }
+            },
+            error: function(){ alert('Request failed'); },
+            complete: function(){ btn.prop('disabled', false); }
+        });
+        // Close modal
+        var modalEl = document.getElementById('aichat-autosync-modal');
+        if(window.bootstrap && bootstrap.Modal){
+            var inst = bootstrap.Modal.getInstance(modalEl); if(inst) inst.hide();
+        } else { $('#aichat-autosync-modal').hide(); }
+    });
+
+    // Periodic contexts refresh (status + ability to re-enable button after completion)
+    setInterval(function(){
+        // If edit panel open we may still want status updates in main table
+        loadContexts();
+    }, 30000); // every 30s
 });

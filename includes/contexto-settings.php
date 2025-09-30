@@ -88,6 +88,9 @@ function aichat_contexto_settings_page() {
                                             <button type="button" class="button btn btn-sm btn-outline-secondary edit-context" data-id="<?php echo esc_attr($context['id']); ?>">
                                                 <i class="bi bi-pencil-square"></i> <?php esc_html_e('Edit/Test','ai-chat'); ?>
                                             </button>
+                                            <button type="button" class="button btn btn-sm btn-outline-info run-autosync-now" data-id="<?php echo esc_attr($context['id']); ?>">
+                                                <i class="bi bi-arrow-repeat"></i> <?php esc_html_e('Run AutoSync','ai-chat'); ?>
+                                            </button>
                                             <button type="button" class="button btn btn-sm btn-outline-danger delete-context" data-id="<?php echo esc_attr($context['id']); ?>">
                                                 <i class="bi bi-trash"></i> <?php esc_html_e('Delete','ai-chat'); ?>
                                             </button>
@@ -197,5 +200,38 @@ function aichat_contexto_settings_page() {
                         </div>
         </div><!-- /.tab-content -->
     </div>
+
+        <!-- Modal Run AutoSync Now -->
+        <div class="modal fade" id="aichat-autosync-modal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-arrow-repeat"></i> <?php esc_html_e('Run AutoSync Now','ai-chat'); ?></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="small text-muted mb-2"><?php esc_html_e('Choose what to sync. "Update + add new" only available if context scope allows discovering new items.','ai-chat'); ?></p>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="aichat-autosync-mode-radio" id="aichat-autosync-radio-modified" value="modified" checked>
+                            <label class="form-check-label" for="aichat-autosync-radio-modified"><?php esc_html_e('Modified only (fast)','ai-chat'); ?></label>
+                        </div>
+                        <div class="form-check mb-2" id="aichat-autosync-radio-new-wrapper">
+                            <input class="form-check-input" type="radio" name="aichat-autosync-mode-radio" id="aichat-autosync-radio-modified-new" value="modified_and_new">
+                            <label class="form-check-label" for="aichat-autosync-radio-modified-new"><?php esc_html_e('Modified + discover new','ai-chat'); ?></label>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="radio" name="aichat-autosync-mode-radio" id="aichat-autosync-radio-full" value="full">
+                            <label class="form-check-label" for="aichat-autosync-radio-full"><?php esc_html_e('Full rebuild (slow)','ai-chat'); ?></label>
+                        </div>
+                        <div class="alert alert-warning py-2 small d-none" id="aichat-autosync-limited-note"><i class="bi bi-exclamation-triangle me-1"></i><?php esc_html_e('This is a LIMITED scope context; discovering new items is disabled.','ai-chat'); ?></div>
+                        <input type="hidden" id="aichat-autosync-modal-context-id" value="" />
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal"><?php esc_html_e('Cancel','ai-chat'); ?></button>
+                        <button type="button" class="btn btn-primary btn-sm" id="aichat-autosync-run-confirm"><i class="bi bi-play-circle"></i> <?php esc_html_e('Run','ai-chat'); ?></button>
+                    </div>
+                </div>
+            </div>
+        </div>
     <?php
 }

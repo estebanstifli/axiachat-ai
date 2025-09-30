@@ -151,3 +151,133 @@ function aichat_get_context_meta(){
     $row['post_count']  = $post_count;
     wp_send_json_success(['context'=>$row]);
 }
+
+// AJAX: Run AutoSync Now (manual trigger)
+add_action('wp_ajax_aichat_autosync_run_now','aichat_autosync_run_now');
+function aichat_autosync_run_now(){
+    check_ajax_referer('aichat_nonce','nonce');
+    if ( ! current_user_can('manage_options') ) { wp_send_json_error(['message'=>'Forbidden'],403); }
+    global $wpdb;
+    $ctx_id = isset($_POST['context_id']) ? absint($_POST['context_id']) : 0;
+    $mode_req = isset($_POST['mode']) ? sanitize_text_field($_POST['mode']) : 'modified';
+    if ($ctx_id<=0) { wp_send_json_error(['message'=>'Missing context_id']); }
+    $table_ctx = $wpdb->prefix.'aichat_contexts';
+    $row = $wpdb->get_row($wpdb->prepare("SELECT id, context_type, autosync, autosync_mode, autosync_post_types, items_to_process, processing_status FROM $table_ctx WHERE id=%d", $ctx_id), ARRAY_A);
+    if(!$row){ wp_send_json_error(['message'=>'Context not found']); }
+    if($row['context_type'] !== 'local'){ wp_send_json_error(['message'=>'Only local contexts supported']); }
+
+    $types_csv = trim((string)$row['autosync_post_types']);
+    $post_types = [];
+    if($types_csv!==''){
+        foreach(explode(',',$types_csv) as $t){ $t=trim($t); if($t!=='') $post_types[]=$t; }
+    }
+    if(empty($post_types)){ $post_types=['ALL_POSTS']; }
+    $limited = ($types_csv==='LIMITED');
+
+    // Effective mode resolution
+    $effective = 'modified';
+    if($mode_req==='full') { $effective='full'; }
+    elseif($mode_req==='modified_and_new' && !$limited && $row['autosync_mode']==='updates_and_new'){ $effective='modified_and_new'; }
+
+    $current_queue = maybe_unserialize($row['items_to_process']);
+    if(!is_array($current_queue)) $current_queue=[];
+
+    $modified=[]; $new=[]; $orphans=[]; $full_ids=[];
+    $added_ids=[];
+
+    // Build actual WP post_types list for queries
+    $wp_types=[]; // map ALL_* tokens to real post_types
+    foreach($post_types as $tk){
+        switch($tk){
+            case 'ALL_POSTS': $wp_types[]='post'; break;
+            case 'ALL_PAGES': $wp_types[]='page'; break;
+            case 'ALL_PRODUCTS': $wp_types[]='product'; break;
+            case 'ALL_UPLOADED': /* handled specially below for uploads converted to chunks already*/ break;
+        }
+    }
+    if(empty($wp_types)) { $wp_types=['post']; }
+    $in_types = "'".implode("','", array_map('esc_sql',$wp_types))."'";
+
+    // Queries similar to cron
+    // Modified
+    $modified_sql = $wpdb->prepare("SELECT p.ID
+            FROM {$wpdb->posts} p
+            JOIN {$wpdb->prefix}aichat_chunks c ON c.post_id=p.ID AND c.id_context=%d
+            WHERE p.post_status='publish' AND p.post_type IN ($in_types)
+            GROUP BY p.ID
+            HAVING TIMESTAMP(MAX(COALESCE(c.updated_at,c.created_at))) < TIMESTAMP(MAX(p.post_modified_gmt))
+            LIMIT 500", $ctx_id);
+    $modified = $wpdb->get_col($modified_sql);
+
+    if($effective==='modified_and_new'){
+        $new_sql = $wpdb->prepare("SELECT p.ID
+                FROM {$wpdb->posts} p
+                LEFT JOIN {$wpdb->prefix}aichat_chunks c ON c.post_id=p.ID AND c.id_context=%d
+                WHERE c.post_id IS NULL AND p.post_status='publish' AND p.post_type IN ($in_types)
+                ORDER BY p.ID DESC
+                LIMIT 500", $ctx_id);
+        $new = $wpdb->get_col($new_sql);
+    }
+
+    // Orphans
+    $orphans_sql = $wpdb->prepare("SELECT DISTINCT c.post_id
+            FROM {$wpdb->prefix}aichat_chunks c
+            LEFT JOIN {$wpdb->posts} p ON p.ID = c.post_id
+            WHERE c.id_context=%d AND (p.ID IS NULL OR p.post_status <> 'publish')
+            LIMIT 500", $ctx_id);
+    $orphans = $wpdb->get_col($orphans_sql);
+
+    if($effective==='full'){
+        // FULL rebuild semantics:
+        // - If context scope is LIMITED (no ALL_* tokens) we ONLY rebuild the existing indexed items (from chunks table).
+        // - If scope includes ALL_* tokens, we re-scan full post lists for those types.
+        $full_ids=[];
+        if($limited){
+            $full_ids = $wpdb->get_col( $wpdb->prepare("SELECT DISTINCT post_id FROM {$wpdb->prefix}aichat_chunks WHERE id_context=%d", $ctx_id) );
+        } else {
+            foreach($wp_types as $pt){
+                $ids = get_posts(['post_type'=>$pt,'post_status'=>'publish','numberposts'=>-1,'fields'=>'ids']);
+                if($ids) $full_ids = array_merge($full_ids,$ids);
+            }
+            // NOTE: ALL_UPLOADED omitted for now (uploaded chunks already expanded at creation time)
+        }
+        $full_ids = aichat_stable_unique_ids($full_ids);
+    }
+
+    // Build queue merge
+    if($effective==='full'){
+        $added_ids = $full_ids; // replace queue entirely
+        $new_queue = $full_ids; // full rebuild
+    } else {
+        $merge_ids = array_merge($modified,$new);
+        $new_queue = array_merge($current_queue, $merge_ids);
+        $new_queue = aichat_stable_unique_ids($new_queue);
+        $added_ids = array_diff($new_queue, $current_queue);
+    }
+
+    // Update context row
+    $wpdb->update($table_ctx,[
+        'items_to_process' => maybe_serialize($new_queue),
+        'processing_status'=> 'pending',
+        'processing_progress'=> 0
+    ],['id'=>$ctx_id]);
+
+    // Delete orphan chunks
+    $deleted_orphans=0;
+    if(!empty($orphans)){
+        $ids_del = implode(',', array_map('intval',$orphans));
+        $wpdb->query("DELETE FROM {$wpdb->prefix}aichat_chunks WHERE id_context=".(int)$ctx_id." AND post_id IN ($ids_del)");
+        $deleted_orphans = count($orphans);
+    }
+
+    wp_send_json_success([
+        'context_id' => $ctx_id,
+        'mode_requested' => $mode_req,
+        'mode_effective' => $effective,
+        'modified_count' => count($modified),
+        'new_count' => count($new),
+        'orphans_deleted' => $deleted_orphans,
+        'queued_total' => count($new_queue),
+        'added_to_queue' => count($added_ids)
+    ]);
+}
