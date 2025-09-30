@@ -469,7 +469,13 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 return [ 'error' => __( 'Empty response from OpenAI.', 'ai-chat' ) ];
             }
 
-            return [ 'message' => $text ];
+            $usage = [];
+            if(isset($body['usage'])){
+                $usage['prompt_tokens'] = isset($body['usage']['prompt_tokens']) ? (int)$body['usage']['prompt_tokens'] : null;
+                $usage['completion_tokens'] = isset($body['usage']['completion_tokens']) ? (int)$body['usage']['completion_tokens'] : null;
+                $usage['total_tokens'] = isset($body['usage']['total_tokens']) ? (int)$body['usage']['total_tokens'] : ( ($usage['prompt_tokens']!==null && $usage['completion_tokens']!==null)? $usage['prompt_tokens']+$usage['completion_tokens']: null );
+            }
+            return [ 'message' => $text, 'usage'=>$usage ];
         }
 
         /**
@@ -625,7 +631,14 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 if ($mdl_try !== $primary) {
                     aichat_log_debug('[AIChat Claude] Fallback model used: '.$mdl_try.' (original='.$primary.')');
                 }
-                return ['message'=>$text];
+                // Claude usage structure: usage: { input_tokens:X, output_tokens:Y }
+                $usage = [];
+                if(isset($data['usage'])){
+                    $usage['prompt_tokens'] = isset($data['usage']['input_tokens']) ? (int)$data['usage']['input_tokens'] : null;
+                    $usage['completion_tokens'] = isset($data['usage']['output_tokens']) ? (int)$data['usage']['output_tokens'] : null;
+                    $usage['total_tokens'] = ($usage['prompt_tokens']!==null && $usage['completion_tokens']!==null)? ($usage['prompt_tokens']+$usage['completion_tokens']): null;
+                }
+                return ['message'=>$text, 'usage'=>$usage];
             }
             return ['error'=> $last_error ?: 'Error desconocido Claude'];
         }
@@ -1043,7 +1056,15 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             if ($text === '') {
                 return [ 'error' => __( 'Empty response from OpenAI (Responses).', 'ai-chat' ) ];
             }
-            return [ 'message' => (string)$text ];
+            // Usage: Responses API (experimental formatting may vary)
+            $usage = [];
+            if(isset($body['usage'])){
+                // Some variants: usage = { "prompt_tokens":X, "completion_tokens":Y, "total_tokens":Z }
+                $usage['prompt_tokens'] = isset($body['usage']['prompt_tokens']) ? (int)$body['usage']['prompt_tokens'] : null;
+                $usage['completion_tokens'] = isset($body['usage']['completion_tokens']) ? (int)$body['usage']['completion_tokens'] : null;
+                $usage['total_tokens'] = isset($body['usage']['total_tokens']) ? (int)$body['usage']['total_tokens'] : ( ($usage['prompt_tokens']!==null && $usage['completion_tokens']!==null)? $usage['prompt_tokens']+$usage['completion_tokens']: null );
+            }
+            return [ 'message' => (string)$text, 'usage'=>$usage ];
         }
 
         /** Chat Completions clásico para GPT‑4* (versión router) */
@@ -1072,7 +1093,13 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             }
             $text = $body['choices'][0]['message']['content'] ?? '';
             if ($text === '') return [ 'error' => __('Respuesta vacía de OpenAI.','ai-chat') ];
-            return [ 'message' => (string)$text ];
+            $usage = [];
+            if(isset($body['usage'])){
+                $usage['prompt_tokens'] = isset($body['usage']['prompt_tokens']) ? (int)$body['usage']['prompt_tokens'] : null;
+                $usage['completion_tokens'] = isset($body['usage']['completion_tokens']) ? (int)$body['usage']['completion_tokens'] : null;
+                $usage['total_tokens'] = isset($body['usage']['total_tokens']) ? (int)$body['usage']['total_tokens'] : ( ($usage['prompt_tokens']!==null && $usage['completion_tokens']!==null)? $usage['prompt_tokens']+$usage['completion_tokens']: null );
+            }
+            return [ 'message' => (string)$text, 'usage'=>$usage ];
         }
 
         /**
