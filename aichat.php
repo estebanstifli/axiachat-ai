@@ -93,6 +93,16 @@ require_once AICHAT_PLUGIN_DIR . 'includes/bots.php'; // Nuevo archivo para la l
 require_once AICHAT_PLUGIN_DIR . 'includes/bots_ajax.php'; // Nuevo archivo para la lógica AJAX de los bots
 
 require_once AICHAT_PLUGIN_DIR . 'includes/moderation.php';
+// Usage / cost tracking (added 1.2.0 dev)
+if ( file_exists( AICHAT_PLUGIN_DIR . 'includes/usage-functions.php') ) {
+  require_once AICHAT_PLUGIN_DIR . 'includes/usage-functions.php';
+}
+if ( file_exists( AICHAT_PLUGIN_DIR . 'includes/usage-ajax.php') ) {
+  require_once AICHAT_PLUGIN_DIR . 'includes/usage-ajax.php';
+}
+if ( file_exists( AICHAT_PLUGIN_DIR . 'includes/usage.php') ) {
+  require_once AICHAT_PLUGIN_DIR . 'includes/usage.php';
+}
 
 // Páginas de logs (listado y detalle)
 require_once AICHAT_PLUGIN_DIR . 'includes/logs.php';
@@ -153,19 +163,27 @@ function aichat_activation() {
     dbDelta( $sql_contexts );
 
     // Crear tabla wp_aichat_conversations
-    $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+  $sql = "CREATE TABLE IF NOT EXISTS $table_name (
         id BIGINT(20) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         user_id BIGINT(20) UNSIGNED DEFAULT 0,
         session_id VARCHAR(64) NOT NULL DEFAULT '',
         bot_slug VARCHAR(100) NOT NULL DEFAULT '',
+    model VARCHAR(100) NULL,
+    provider VARCHAR(40) NULL,
         page_id BIGINT(20) UNSIGNED DEFAULT 0,
     ip_address VARBINARY(16) NULL,
         message LONGTEXT NOT NULL,
         response LONGTEXT NOT NULL,
+    prompt_tokens INT UNSIGNED NULL,
+    completion_tokens INT UNSIGNED NULL,
+    total_tokens INT UNSIGNED NULL,
+    cost_micros BIGINT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         KEY idx_session_bot (session_id, bot_slug, id),
         KEY idx_user (user_id),
-        KEY idx_page (page_id)
+    KEY idx_page (page_id),
+    KEY idx_model (model),
+    KEY idx_created_at (created_at)
     ) $charset_collate;";
 
     require_once ABSPATH . 'wp-admin/includes/upgrade.php';
@@ -191,6 +209,21 @@ function aichat_activation() {
   ) $charset_collate;";
 
     dbDelta( $chunks_sql );
+
+    // Tabla agregada diaria de uso/coste
+    $usage_daily = $wpdb->prefix.'aichat_usage_daily';
+    $usage_sql = "CREATE TABLE IF NOT EXISTS $usage_daily (
+      date DATE NOT NULL,
+      provider VARCHAR(40) NOT NULL DEFAULT 'openai',
+      model VARCHAR(100) NOT NULL DEFAULT '',
+      prompt_tokens BIGINT UNSIGNED NOT NULL DEFAULT 0,
+      completion_tokens BIGINT UNSIGNED NOT NULL DEFAULT 0,
+      total_tokens BIGINT UNSIGNED NOT NULL DEFAULT 0,
+      cost_micros BIGINT UNSIGNED NOT NULL DEFAULT 0,
+      conversations BIGINT UNSIGNED NOT NULL DEFAULT 0,
+      PRIMARY KEY(date, provider, model)
+    ) $charset_collate;";
+    dbDelta($usage_sql);
 
     // tabla de bots
     aichat_bots_maybe_create();
@@ -219,6 +252,42 @@ function aichat_activation() {
     add_option( 'aichat_easy_config_do_redirect', 1 );
   }
 }
+
+// Upgrade silencioso para añadir columnas si plugin ya estaba activado previamente.
+add_action('plugins_loaded', function(){
+  global $wpdb; $t = $wpdb->prefix.'aichat_conversations';
+  $cols = $wpdb->get_col("SHOW COLUMNS FROM $t",0);
+  if($cols){
+    $alter = [];
+    if(!in_array('model',$cols)) $alter[] = 'ADD COLUMN model VARCHAR(100) NULL AFTER bot_slug';
+    if(!in_array('provider',$cols)) $alter[] = 'ADD COLUMN provider VARCHAR(40) NULL AFTER model';
+    if(!in_array('prompt_tokens',$cols)) $alter[] = 'ADD COLUMN prompt_tokens INT UNSIGNED NULL AFTER response';
+    if(!in_array('completion_tokens',$cols)) $alter[] = 'ADD COLUMN completion_tokens INT UNSIGNED NULL AFTER prompt_tokens';
+    if(!in_array('total_tokens',$cols)) $alter[] = 'ADD COLUMN total_tokens INT UNSIGNED NULL AFTER completion_tokens';
+    if(!in_array('cost_micros',$cols)) $alter[] = 'ADD COLUMN cost_micros BIGINT NULL AFTER total_tokens';
+    if($alter){
+      $sql = 'ALTER TABLE '.$t.' '.implode(', ',$alter);
+      $wpdb->query($sql);
+    }
+  }
+  // Ensure daily usage table exists
+  $usage_daily = $wpdb->prefix.'aichat_usage_daily';
+  $exists = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name=%s", $usage_daily));
+  if(!$exists){
+    $charset = $wpdb->get_charset_collate();
+    $wpdb->query("CREATE TABLE $usage_daily (
+      date DATE NOT NULL,
+      provider VARCHAR(40) NOT NULL DEFAULT 'openai',
+      model VARCHAR(100) NOT NULL DEFAULT '',
+      prompt_tokens BIGINT UNSIGNED NOT NULL DEFAULT 0,
+      completion_tokens BIGINT UNSIGNED NOT NULL DEFAULT 0,
+      total_tokens BIGINT UNSIGNED NOT NULL DEFAULT 0,
+      cost_micros BIGINT UNSIGNED NOT NULL DEFAULT 0,
+      conversations BIGINT UNSIGNED NOT NULL DEFAULT 0,
+      PRIMARY KEY(date, provider, model)
+    ) $charset");
+  }
+});
 
 
 function aichat_bots_maybe_create(){

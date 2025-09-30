@@ -708,9 +708,16 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             if ($answer === '') return new WP_Error('aichat_empty_answer','Empty answer');
             $answer = aichat_replace_link_placeholder( $answer );
             $answer = $this->sanitize_answer_html( $answer );
-
+            // Extraer usage tokens si están presentes en $result
+            $prompt_tokens = isset($result['usage']['prompt_tokens']) ? (int)$result['usage']['prompt_tokens'] : null;
+            $completion_tokens = isset($result['usage']['completion_tokens']) ? (int)$result['usage']['completion_tokens'] : null;
+            $total_tokens = isset($result['usage']['total_tokens']) ? (int)$result['usage']['total_tokens'] : ( ($prompt_tokens!==null && $completion_tokens!==null) ? ($prompt_tokens+$completion_tokens) : null );
+            $cost_micros = null;
+            if ( function_exists('aichat_calc_cost_micros') && $prompt_tokens !== null ) {
+                $cost_micros = aichat_calc_cost_micros($provider,$model,$prompt_tokens,$completion_tokens ?: 0);
+            }
             if ( get_option( 'aichat_logging_enabled', 1 ) ) {
-                $this->maybe_log_conversation( get_current_user_id(), $session_id, $bot['slug'], $page_id, $message, $answer );
+                $this->maybe_log_conversation( get_current_user_id(), $session_id, $bot['slug'], $page_id, $message, $answer, $model, $provider, $prompt_tokens, $completion_tokens, $total_tokens, $cost_micros );
             }
 
             do_action( 'aichat_after_response', [
@@ -737,7 +744,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
         /**
          * Guarda conversación si la tabla existe.
          */
-        protected function maybe_log_conversation( $user_id, $session_id, $bot_slug, $page_id, $q, $a ) {
+    protected function maybe_log_conversation( $user_id, $session_id, $bot_slug, $page_id, $q, $a, $model = null, $provider = null, $prompt_tokens = null, $completion_tokens = null, $total_tokens = null, $cost_micros = null ) {
             if ( ! get_option( 'aichat_logging_enabled', 1 ) ) {
                 return;
             }
@@ -772,19 +779,34 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 'user_id'    => intval( $user_id ),
                 'session_id' => $session_id,
                 'bot_slug'   => sanitize_title($bot_slug),
+                'model'      => $model ? substr(sanitize_text_field($model),0,100) : null,
+                'provider'   => $provider ? substr(sanitize_text_field($provider),0,40) : null,
                 'page_id'    => absint($page_id),
                 'message'    => wp_kses_post( $q ),
                 'response'   => wp_kses_post( $a ),
+                'prompt_tokens' => $prompt_tokens,
+                'completion_tokens' => $completion_tokens,
+                'total_tokens' => $total_tokens,
+                'cost_micros' => $cost_micros,
                 'created_at' => current_time( 'mysql' ),
             ];
-            $formats = [ '%d','%s','%s','%d','%s','%s','%s' ];
+            $formats = [ '%d','%s','%s','%s','%s','%d','%s','%s','%d','%d','%d','%d','%s' ];
             // Sólo añadimos ip_address si la columna existe
             $has_ip = $wpdb->get_var( $wpdb->prepare("SHOW COLUMNS FROM `$table` LIKE %s", 'ip_address') );
             if ( $has_ip ) {
                 $data['ip_address'] = $ip_binary; // puede ser null
-                $formats[] = '%s'; // WordPress no tiene formato binario específico; %s funciona para VARBINARY
+                // ip_address ya considerado en order actual: reordenar arrays si hiciera falta
             }
-            $wpdb->insert( $table, $data, $formats );
+            // Ajustar formatos a columnas realmente presentes
+            $insert_cols = array_keys($data);
+            $adj_formats = [];
+            foreach($insert_cols as $col){
+                switch($col){
+                    case 'user_id': case 'page_id': case 'prompt_tokens': case 'completion_tokens': case 'total_tokens': case 'cost_micros': $adj_formats[]='%d'; break;
+                    default: $adj_formats[]='%s';
+                }
+            }
+            $wpdb->insert( $table, $data, $adj_formats );
 
             // Hook after insert
             if ( ! empty( $wpdb->insert_id ) ) {
@@ -795,6 +817,11 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 'user_id'   => $user_id,
                 'page_id'   => $page_id
             ]);
+            }
+
+            // Update daily usage aggregate
+            if ( function_exists('aichat_update_daily_usage_row') && $model && $provider && $total_tokens !== null && $prompt_tokens !== null ) {
+                aichat_update_daily_usage_row($provider,$model,(int)$prompt_tokens,(int)$completion_tokens,(int)$total_tokens,(int)$cost_micros);
             }
 
         }
