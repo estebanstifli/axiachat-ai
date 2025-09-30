@@ -469,6 +469,14 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 return [ 'error' => __( 'Empty response from OpenAI.', 'ai-chat' ) ];
             }
 
+            if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+                if ( isset($body['usage']) ) {
+                    aichat_log_debug('OpenAI chat usage', ['usage'=>$body['usage'], 'model'=>$model]);
+                } else {
+                    aichat_log_debug('OpenAI chat no usage field', ['model'=>$model]);
+                }
+            }
+
             $usage = [];
             if(isset($body['usage'])){
                 $usage['prompt_tokens'] = isset($body['usage']['prompt_tokens']) ? (int)$body['usage']['prompt_tokens'] : null;

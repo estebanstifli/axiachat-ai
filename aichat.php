@@ -468,6 +468,11 @@ function aichat_admin_menu() {
         'aichat_contexto_pdf_page' // Función de callback
     );
 
+  add_submenu_page(
+    'aichat-settings',
+    'Usage / Cost','Usage / Cost','manage_options','aichat-usage','aichat_usage_admin_page',50
+  );
+
   
   // Página oculta para detalle de conversación
   add_submenu_page(

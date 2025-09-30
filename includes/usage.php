@@ -1,12 +1,7 @@
 <?php
 if(!defined('ABSPATH')) exit;
 
-add_action('admin_menu', function(){
-  add_submenu_page(
-    'aichat',
-    'Usage / Cost','Usage / Cost','manage_options','aichat-usage','aichat_usage_admin_page',50
-  );
-});
+/** Admin page: usage and cost */
 
 function aichat_usage_admin_page(){
   if(!current_user_can('manage_options')) return;
