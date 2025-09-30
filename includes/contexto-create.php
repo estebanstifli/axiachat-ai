@@ -416,6 +416,37 @@ function aichat_contexto_create_page() {
                     </div>
                 </div>
 
+                <!-- Card: Autosync Content (shown only if any ALL_* source selected) -->
+                <div class="card card100 shadow-sm mb-4" id="aichat-autosync-card">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">
+                            <i class="bi bi-arrow-repeat me-2 text-secondary"></i><?php esc_html_e('Autosync Content','ai-chat'); ?>
+                        </h5>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold d-block" for="aichat-create-autosync">
+                                <?php esc_html_e('Enable Autosync','ai-chat'); ?>
+                            </label>
+                            <input type="checkbox" id="aichat-create-autosync" />
+                            <div class="form-text">
+                                <?php esc_html_e('When enabled, the system will periodically detect modified content and re-embed it so your context stays fresh.','ai-chat'); ?>
+                            </div>
+                        </div>
+                        <div class="mb-3" id="aichat-create-autosync-mode-wrapper" style="display:none;">
+                            <label class="form-label fw-semibold" for="aichat-create-autosync-mode"><?php esc_html_e('Autosync Mode','ai-chat'); ?></label>
+                            <select id="aichat-create-autosync-mode" class="form-select form-select-sm">
+                                <option value="updates"><?php esc_html_e('Only update existing','ai-chat'); ?></option>
+                                <option value="updates_and_new"><?php esc_html_e('Update + add new','ai-chat'); ?></option>
+                            </select>
+                            <div class="form-text" id="aichat-create-autosync-help-general">
+                                <?php esc_html_e('Only update existing: re-embeds items already in the context. Update + add new: also discovers and indexes newly published items of the selected ALL sources.','ai-chat'); ?>
+                            </div>
+                            <div class="form-text text-warning" id="aichat-create-autosync-help-limited" style="display:none;">
+                                <?php esc_html_e('This selection is limited (no ALL source), so only updating existing items is available.','ai-chat'); ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Card: Process -->
                 <div class="card shadow-sm">
                     <div class="card-body">

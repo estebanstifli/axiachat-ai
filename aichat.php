@@ -141,7 +141,12 @@ function aichat_activation() {
                     remote_endpoint VARCHAR(255) DEFAULT NULL,
                     processing_status VARCHAR(20) DEFAULT 'pending',
                     processing_progress INT DEFAULT 0,
-                    items_to_process LONGTEXT NULL
+          items_to_process LONGTEXT NULL,
+          /* === AutoSync columnas (nuevas) === */
+          autosync TINYINT(1) NOT NULL DEFAULT 0,
+          autosync_mode ENUM('updates','updates_and_new') NOT NULL DEFAULT 'updates',
+          autosync_post_types VARCHAR(255) DEFAULT NULL,
+          autosync_last_scan DATETIME NULL
                 ) $charset_collate;";
 
     require_once ABSPATH . 'wp-admin/includes/upgrade.php';

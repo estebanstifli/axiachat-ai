@@ -134,6 +134,10 @@ function aichat_process_context() {
     $selected_items  = isset($_POST['selected']) ? array_map('absint',(array)$_POST['selected']) : [];
     $all_selected    = isset($_POST['all_selected']) ? array_map('sanitize_text_field',(array)$_POST['all_selected']) : [];
     $batch           = isset($_POST['batch']) ? absint($_POST['batch']) : 0;
+    // New autosync related fields
+    $autosync        = isset($_POST['autosync']) ? ( (int)$_POST['autosync'] ? 1 : 0 ) : 0;
+    $autosync_mode   = isset($_POST['autosync_mode']) ? sanitize_text_field($_POST['autosync_mode']) : 'updates';
+    if (!in_array($autosync_mode, ['updates','updates_and_new'], true)) { $autosync_mode = 'updates'; }
 
     $AJAX_BATCH_SIZE = 10;
 
@@ -191,6 +195,21 @@ function aichat_process_context() {
         $after  = count($items_unique);
         aichat_log($rid, "LIST build: before=$before after_dedup=$after");
 
+        // Derive autosync_post_types string (store ALL_* even if autosync disabled to know origin scope)
+        $all_keys = [];
+        foreach ($all_selected as $all_type) {
+            if (in_array($all_type, ['all_posts','all_pages','all_products','all_uploaded'], true)) {
+                $all_keys[] = strtoupper($all_type); // e.g. ALL_PAGES
+            }
+        }
+        if (!empty($all_keys)) {
+            $autosync_post_types = implode(',', $all_keys);
+        } else {
+            $autosync_post_types = 'LIMITED';
+            if ($autosync) { $autosync_mode = 'updates'; }
+        }
+        aichat_log($rid, "AUTOSYNC scope: autosync=$autosync mode=$autosync_mode post_types='$autosync_post_types'");
+
         if ( ! $existing ) {
             $wpdb->insert( $wpdb->prefix.'aichat_contexts', [
                 'name'                => $context_name,
@@ -200,12 +219,16 @@ function aichat_process_context() {
                 'remote_endpoint'     => $endpoint_key,
                 'processing_status'   => 'in_progress',
                 'processing_progress' => 0,
-                'items_to_process'    => maybe_serialize($items_unique)
+                'items_to_process'    => maybe_serialize($items_unique),
+                'autosync'            => $autosync,
+                'autosync_mode'       => $autosync_mode,
+                'autosync_post_types' => $autosync_post_types,
+                'autosync_last_scan'  => null,
             ] );
             $context_id = (int)$wpdb->insert_id;
             aichat_log($rid, "CONTEXT created id=$context_id");
         } else {
-            $wpdb->update( $wpdb->prefix.'aichat_contexts', [
+            $update_data = [
                 'context_type'        => $context_type,
                 'remote_type'         => $remote_type,
                 'remote_api_key'      => $remote_api_key,
@@ -213,7 +236,14 @@ function aichat_process_context() {
                 'processing_status'   => 'in_progress',
                 'processing_progress' => 0,
                 'items_to_process'    => maybe_serialize($items_unique)
-            ], [ 'id'=>$context_id ] );
+            ];
+            // Only override autosync config on reset if explicitly passed in first batch (batch===0)
+            if ($batch === 0) {
+                $update_data['autosync']            = $autosync;
+                $update_data['autosync_mode']       = $autosync_mode;
+                $update_data['autosync_post_types'] = $autosync_post_types;
+            }
+            $wpdb->update( $wpdb->prefix.'aichat_contexts', $update_data, [ 'id'=>$context_id ] );
             aichat_log($rid, "CONTEXT reset id=$context_id");
         }
         update_option( aichat_total_items_key($context_id), $after, false );

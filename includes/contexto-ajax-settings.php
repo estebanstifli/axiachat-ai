@@ -10,8 +10,19 @@ require_once plugin_dir_path(__FILE__) . 'contexto-functions.php';
 add_action( 'wp_ajax_aichat_load_contexts', 'aichat_load_contexts' );
 function aichat_load_contexts() {
     check_ajax_referer( 'aichat_nonce', 'nonce' );
+    if ( ! current_user_can('manage_options') ) {
+        wp_send_json_error(['message'=>'Forbidden'],403);
+    }
     global $wpdb;
-    $contexts = $wpdb->get_results( "SELECT id, name, processing_progress FROM {$wpdb->prefix}aichat_contexts", ARRAY_A );
+    $table_ctx = $wpdb->prefix . 'aichat_contexts';
+    $table_chunks = $wpdb->prefix . 'aichat_chunks';
+    // Traer todos los campos necesarios para reconstruir la tabla en JS
+    $sql = "SELECT c.id, c.name, c.processing_progress, c.processing_status, c.created_at, c.autosync, c.autosync_mode,
+                   (SELECT COUNT(*) FROM $table_chunks ch WHERE ch.id_context = c.id) AS chunk_count,
+                   (SELECT COUNT(DISTINCT post_id) FROM $table_chunks ch2 WHERE ch2.id_context = c.id) AS post_count
+            FROM $table_ctx c ORDER BY c.id ASC";
+    $contexts = $wpdb->get_results( $sql, ARRAY_A );
+    if ( ! $contexts ) { $contexts = []; }
     wp_send_json_success( [ 'contexts' => $contexts ] );
 }
 
@@ -22,11 +33,26 @@ function aichat_update_context_name() {
     global $wpdb;
     $id = absint( $_POST['id'] );
     $name = sanitize_text_field( $_POST['name'] );
+    $data = [ 'name' => $name ];
+    $formats = [ '%s' ];
+
+    // Opcionales: autosync settings si vienen en la petición
+    if ( isset($_POST['autosync']) ) {
+        $autosync = (int)$_POST['autosync'] ? 1 : 0;
+        $data['autosync'] = $autosync; $formats[] = '%d';
+    }
+    if ( isset($_POST['autosync_mode']) ) {
+        $mode = sanitize_text_field($_POST['autosync_mode']);
+        if (! in_array($mode, ['updates','updates_and_new'], true) ) {
+            $mode = 'updates';
+        }
+        $data['autosync_mode'] = $mode; $formats[] = '%s';
+    }
     $result = $wpdb->update(
         $wpdb->prefix . 'aichat_contexts',
-        [ 'name' => $name ],
+        $data,
         [ 'id' => $id ],
-        [ '%s' ],
+        $formats,
         [ '%d' ]
     );
     if ( $result !== false ) {
@@ -116,7 +142,7 @@ function aichat_get_context_meta(){
     $id = isset($_POST['id']) ? absint($_POST['id']) : 0;
     if ($id<=0) { wp_send_json_error(['message'=>'Missing id']); }
     global $wpdb; $ctx_table = $wpdb->prefix.'aichat_contexts'; $chunks_table = $wpdb->prefix.'aichat_chunks';
-    $row = $wpdb->get_row( $wpdb->prepare("SELECT id, name, context_type, remote_type, created_at, processing_status, processing_progress FROM $ctx_table WHERE id=%d", $id), ARRAY_A );
+    $row = $wpdb->get_row( $wpdb->prepare("SELECT id, name, context_type, remote_type, created_at, processing_status, processing_progress, autosync, autosync_mode, autosync_post_types FROM $ctx_table WHERE id=%d", $id), ARRAY_A );
     if ( ! $row ) { wp_send_json_error(['message'=>'Not found']); }
     $chunk_count = (int)$wpdb->get_var( $wpdb->prepare("SELECT COUNT(*) FROM $chunks_table WHERE id_context=%d", $id) );
     // Conteo posts únicos

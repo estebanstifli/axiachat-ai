@@ -44,14 +44,9 @@ function aichat_mark_completed( $context_id ){
 }
 
 function aichat_schedule_single( $timestamp, $hook, array $args=[], $group='aichat' ){
-    if ( class_exists('Action_Scheduler') && function_exists('as_schedule_single_action') ) {
-        if ( ! as_next_scheduled_action($hook,$args,$group) ) {
-            as_schedule_single_action($timestamp,$hook,$args,$group);
-        }
-    } else {
-        if ( ! wp_next_scheduled($hook,$args) ) {
-            wp_schedule_single_event($timestamp,$hook,$args);
-        }
+    $has_as = class_exists('Action_Scheduler') && function_exists('as_schedule_single_action') && function_exists('as_next_scheduled_action');
+    if ( ! wp_next_scheduled($hook,$args) ) {
+        wp_schedule_single_event($timestamp,$hook,$args);
     }
 }
 
@@ -351,12 +346,9 @@ function aichat_cron_process_contexts(){
         $batch_number = (int) floor( $cursor / AICHAT_BATCH_SIZE );
 
         // Si ya hay tarea para ese (ctx,batch), no reprogramar
-        $has_as = class_exists('Action_Scheduler') && function_exists('as_next_scheduled_action')
-                  ? as_next_scheduled_action('aichat_process_embeddings_batch', [$id,$batch_number], 'aichat')
-                  : false;
         $has_wp = wp_next_scheduled('aichat_process_embeddings_batch', [$id,$batch_number]);
 
-        if ( ! $has_as && ! $has_wp ) {
+        if ( ! $has_wp ) {
             aichat_schedule_single( time(), 'aichat_process_embeddings_batch', [ $id, $batch_number ], 'aichat' );
             aichat_log_debug("Cron scheduled batch", ['ctx'=>$id,'batch'=>$batch_number,'cursor'=>$cursor]);
         } else {
@@ -372,3 +364,97 @@ add_action( 'aichat_cron_process_contexts', 'aichat_cron_process_contexts' );
 if ( ! wp_next_scheduled( 'aichat_cron_process_contexts' ) ) {
     wp_schedule_event( time(), 'oneminute', 'aichat_cron_process_contexts' );
 }
+
+/* ==============================
+   AutoSync (hourly) - Esqueleto
+   Detecta candidatos y rellena cola (items_to_process) según modo.
+   NOTA: Asume contexto recién creado (sin migraciones viejas).
+============================== */
+add_filter( 'cron_schedules', function( $schedules ) {
+    if ( empty( $schedules['aichat_hourly'] ) ) {
+        $schedules['aichat_hourly'] = [ 'interval' => HOUR_IN_SECONDS, 'display' => __( 'AIChat Hourly', 'ai-chat' ) ];
+    }
+    return $schedules;
+});
+
+if ( ! wp_next_scheduled( 'aichat_autosync_hourly' ) ) {
+    wp_schedule_event( time() + 120, 'aichat_hourly', 'aichat_autosync_hourly' );
+}
+
+function aichat_autosync_hourly_handler(){
+    global $wpdb; 
+    $table = $wpdb->prefix.'aichat_contexts';
+    // Seleccionar contextos locales con autosync activo
+    $contexts = $wpdb->get_results("SELECT id, autosync_mode, autosync_post_types FROM $table WHERE context_type='local' AND autosync=1", ARRAY_A);
+    if ( empty($contexts) ) { aichat_log_debug('AutoSync: no active contexts'); return; }
+
+    foreach( $contexts as $ctx ){
+        $context_id = (int)$ctx['id'];
+        $mode       = $ctx['autosync_mode'];
+        $types_csv  = trim( (string)$ctx['autosync_post_types'] );
+        $post_types = [];
+        if ( $types_csv !== '' ) {
+            foreach( explode(',', $types_csv) as $pt ){ $pt = trim($pt); if($pt!=='') $post_types[] = esc_sql($pt); }
+        }
+        if ( empty($post_types) ) { $post_types = ['post']; }
+
+        // Construir IN() seguro
+        $in_types = "'" . implode("','", array_map('esc_sql',$post_types)) . "'";
+
+        // 1. Modificados: posts publicados cuyo post_modified_gmt > max(updated_at/created_at) de su set de chunks
+        $modified_sql = $wpdb->prepare("SELECT p.ID
+            FROM {$wpdb->posts} p
+            JOIN {$wpdb->prefix}aichat_chunks c ON c.post_id=p.ID AND c.id_context=%d
+            WHERE p.post_status='publish' AND p.post_type IN ($in_types)
+            GROUP BY p.ID
+            HAVING TIMESTAMP(MAX(COALESCE(c.updated_at,c.created_at))) < TIMESTAMP(MAX(p.post_modified_gmt))
+            LIMIT 100", $context_id);
+        $modified = $wpdb->get_col( $modified_sql );
+
+        // 2. Nuevos (solo si updates_and_new): posts sin chunks
+        $new = [];
+        if ( $mode === 'updates_and_new' ) {
+            $new_sql = $wpdb->prepare("SELECT p.ID
+                FROM {$wpdb->posts} p
+                LEFT JOIN {$wpdb->prefix}aichat_chunks c ON c.post_id=p.ID AND c.id_context=%d
+                WHERE c.post_id IS NULL AND p.post_status='publish' AND p.post_type IN ($in_types)
+                ORDER BY p.ID DESC
+                LIMIT 100", $context_id);
+            $new = $wpdb->get_col( $new_sql );
+        }
+
+        // 3. Huérfanos (deleted/unpublished)
+        $orphans_sql = $wpdb->prepare("SELECT DISTINCT c.post_id
+            FROM {$wpdb->prefix}aichat_chunks c
+            LEFT JOIN {$wpdb->posts} p ON p.ID = c.post_id
+            WHERE c.id_context=%d AND (p.ID IS NULL OR p.post_status <> 'publish')
+            LIMIT 100", $context_id);
+        $orphans = $wpdb->get_col( $orphans_sql );
+
+        if ( empty($modified) && empty($new) && empty($orphans) ) {
+            aichat_log_debug('AutoSync: no diffs', ['ctx'=>$context_id]);
+            continue;
+        }
+
+        // Cargar items_to_process actual y añadir nuevos IDs (sin duplicar) – por ahora solo reindex (modify/new). Borrados se gestionarán después.
+        $row = $wpdb->get_row( $wpdb->prepare("SELECT items_to_process FROM $table WHERE id=%d", $context_id), ARRAY_A );
+        $current = maybe_unserialize( $row['items_to_process'] ?? '' );
+        if ( ! is_array($current) ) { $current = []; }
+
+        $queue_ids = $current;
+        foreach ( array_merge($modified,$new) as $pid ) { $queue_ids[] = (int)$pid; }
+        // Nota: huérfanos los trataremos con borrado directo aquí (sin cola) por simplicidad inicial
+        $queue_ids = aichat_stable_unique_ids( $queue_ids );
+
+        $wpdb->update( $table, [ 'items_to_process' => maybe_serialize($queue_ids), 'processing_status' => 'pending' ], [ 'id' => $context_id ] );
+        aichat_log_debug('AutoSync queued', ['ctx'=>$context_id,'modified'=>count($modified),'new'=>count($new),'queue_total'=>count($queue_ids),'orphans'=>count($orphans)]);
+
+        // Borrado chunks huérfanos (lote pequeño)
+        if ( $orphans ) {
+            $ids_del = implode(',', array_map('intval',$orphans));
+            $wpdb->query("DELETE FROM {$wpdb->prefix}aichat_chunks WHERE id_context=".(int)$context_id." AND post_id IN ($ids_del)");
+            aichat_log_debug('AutoSync deleted orphan chunks', ['ctx'=>$context_id,'deleted'=>count($orphans)]);
+        }
+    }
+}
+add_action('aichat_autosync_hourly','aichat_autosync_hourly_handler');

@@ -132,11 +132,13 @@ jQuery(document).ready(function ($) {
   // =========================
   function updateSelectionSummary() {
     const lines = [];
+  let anyAll = false; // track if any ALL_* selected
 
     // Posts
     const postsMode = $('input[name="aichat_select_posts_mode"]:checked').val();
     if (postsMode === 'all') {
       lines.push('Posts: ALL');
+      anyAll = true;
     } else if (postsMode === 'custom') {
       const n = $('#aichat-post-accordion .aichat-items input[type="checkbox"]:checked').length;
       if (n > 0) lines.push('Posts: ' + n);
@@ -146,6 +148,7 @@ jQuery(document).ready(function ($) {
     const pagesMode = $('input[name="aichat_select_pages_mode"]:checked').val();
     if (pagesMode === 'all') {
       lines.push('Pages: ALL');
+      anyAll = true;
     } else if (pagesMode === 'custom') {
       const n = $('#aichat-page-accordion .aichat-items input[type="checkbox"]:checked').length;
       if (n > 0) lines.push('Pages: ' + n);
@@ -156,6 +159,7 @@ jQuery(document).ready(function ($) {
       const productsMode = $('input[name="aichat_select_products_mode"]:checked').val();
       if (productsMode === 'all') {
         lines.push('Products: ALL');
+        anyAll = true;
       } else if (productsMode === 'custom') {
         const n = $('#aichat-product-accordion .aichat-items input[type="checkbox"]:checked').length;
         if (n > 0) lines.push('Products: ' + n);
@@ -166,12 +170,33 @@ jQuery(document).ready(function ($) {
     const uploadedMode = $('input[name="aichat_select_uploaded_mode"]:checked').val();
     if (uploadedMode === 'all') {
       lines.push('Uploaded Files: ALL');
+      anyAll = true;
     } else if (uploadedMode === 'custom') {
       const n = $('#aichat-uploaded-accordion .aichat-items input[type="checkbox"]:checked').length;
       if (n > 0) lines.push('Uploaded Files: ' + n);
     }
 
     $('#aichat-selection-summary').html(lines.length ? lines.join('<br>') : 'No selections yet.');
+
+    // Autosync card always visible now. Only adjust mode availability.
+    if (anyAll) {
+      $('#aichat-create-autosync-mode option[value="updates_and_new"]').prop('disabled', false);
+      if($('#aichat-create-autosync').is(':checked')){
+        $('#aichat-create-autosync-mode-wrapper').show();
+      }
+      $('#aichat-create-autosync-help-limited').hide();
+    } else {
+      // No ALL source: restrict to updates only when autosync active
+      $('#aichat-create-autosync-mode').val('updates');
+      $('#aichat-create-autosync-mode option[value="updates_and_new"]').prop('disabled', true);
+      if($('#aichat-create-autosync').is(':checked')){
+        $('#aichat-create-autosync-mode-wrapper').show();
+        $('#aichat-create-autosync-help-limited').show();
+      } else {
+        $('#aichat-create-autosync-help-limited').hide();
+        $('#aichat-create-autosync-mode-wrapper').hide();
+      }
+    }
   }
 
   // =========================
@@ -190,7 +215,9 @@ jQuery(document).ready(function ($) {
       context_type: contextType,
       remote_type: remoteType,
       remote_api_key: remoteApiKey,
-      remote_endpoint: remoteEndpoint
+      remote_endpoint: remoteEndpoint,
+      autosync: $('#aichat-create-autosync').is(':checked') ? 1 : 0,
+      autosync_mode: $('#aichat-create-autosync-mode').val()
     };
 
     const t0 = performance.now();
@@ -527,5 +554,23 @@ jQuery(document).ready(function ($) {
   // Inicialización
   updateAccordions();
   updateSelectionSummary();
+
+  // Autosync checkbox behaviour
+  $(document).on('change', '#aichat-create-autosync', function(){
+    const summaryHasAll = $('#aichat-selection-summary').html().match(/ALL/);
+    if($(this).is(':checked')){
+      $('#aichat-create-autosync-mode-wrapper').show();
+      if(!summaryHasAll){
+        $('#aichat-create-autosync-mode').val('updates');
+        $('#aichat-create-autosync-mode option[value="updates_and_new"]').prop('disabled', true);
+        $('#aichat-create-autosync-help-limited').show();
+      } else {
+        $('#aichat-create-autosync-mode option[value="updates_and_new"]').prop('disabled', false);
+        $('#aichat-create-autosync-help-limited').hide();
+      }
+    } else {
+      $('#aichat-create-autosync-mode-wrapper').hide();
+    }
+  });
 });
 
