@@ -344,9 +344,33 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             // 6.1) Sanitizar HTML permitido (permitimos <a>, <strong>, <em>, listas, etc.)
             $answer = $this->sanitize_answer_html( $answer );
 
-            // 7) Guardar conversación             
+            // Extraer usage si viene (token counts) y log debug
+            $prompt_tokens = null; $completion_tokens = null; $total_tokens = null; $cost_micros = null;
+            if (is_array($result) && isset($result['usage']) && is_array($result['usage'])) {
+                $prompt_tokens = isset($result['usage']['prompt_tokens']) ? (int)$result['usage']['prompt_tokens'] : null;
+                $completion_tokens = isset($result['usage']['completion_tokens']) ? (int)$result['usage']['completion_tokens'] : null;
+                $total_tokens = isset($result['usage']['total_tokens']) ? (int)$result['usage']['total_tokens'] : (($prompt_tokens!==null && $completion_tokens!==null)? $prompt_tokens+$completion_tokens : null);
+                if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+                    aichat_log_debug('[AIChat AJAX]['.$uid.'] usage tokens', [
+                        'prompt'=>$prompt_tokens,
+                        'completion'=>$completion_tokens,
+                        'total'=>$total_tokens,
+                        'model'=>$model,
+                        'provider'=>$provider
+                    ]);
+                }
+                if ( function_exists('aichat_calc_cost_micros') && $prompt_tokens !== null ) {
+                    $cost_micros = aichat_calc_cost_micros($provider,$model,$prompt_tokens,$completion_tokens?:0);
+                }
+            } else {
+                if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+                    aichat_log_debug('[AIChat AJAX]['.$uid.'] usage tokens not present', ['model'=>$model,'provider'=>$provider]);
+                }
+            }
+
+            // 7) Guardar conversación con tokens/coste si procede
             if ( get_option( 'aichat_logging_enabled', 1 ) ) {
-                $this->maybe_log_conversation( get_current_user_id(), $session, $bot_slug, $page_id, $message, $answer );
+                $this->maybe_log_conversation( get_current_user_id(), $session, $bot_slug, $page_id, $message, $answer, $model, $provider, $prompt_tokens, $completion_tokens, $total_tokens, $cost_micros );
             }
 
             // 8) Respuesta (con debug opcional)
