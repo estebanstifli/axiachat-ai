@@ -4,7 +4,7 @@ Tags: chatbot, ai, openai, chat, assistant
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.1.2
+Stable tag: 1.1.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 A customizable AI chatbot plugin for WordPress powered by OpenAI. Create multiple bots, embed them via shortcode or a global floating widget, and optionally enhance answers with your own contextual content (RAG).
@@ -169,6 +169,17 @@ Planned (see roadmap).
 3. Context ingestion interface
 
 == Changelog ==
+= 1.1.3 =
+* AutoSync system: background cron diff detection (modified/new/orphans) with queue merging.
+* Manual "Run AutoSync Now" modal (modes: modified, modified + new, full rebuild) with progress & disabling while pending/in_progress.
+* Browse Chunks tab (local contexts only): paginated, filtered listing (q, type, per page) to inspect stored chunks.
+* Split previous combined Edit/Test button into separate Settings and Similarity buttons + direct tab navigation.
+* LIMITED context full rebuild fix (rebuild only existing post IDs; no unintended additions).
+* Improved UX: persistent Run AutoSync button across AJAX reloads, tooltips, immediate progress refresh, buttons disabled during processing.
+* Internationalization: added keys for new buttons, modal labels, browse UI (loading, no chunks messages).
+* Internal refactors: normalized autosync_post_types storage (ALL_* markers vs LIMITED), enforced mode restrictions when not ALL_*.
+* Mini-tab context sync fix (Browse tab now updates when switching context via Settings/Similarity buttons).
+
 = 1.1.2 =
 * Added Easy Config wizard (activation redirect, guided context + default bot linking)
 * Instruction template selector UI: fixed height with scrollbar + navigation arrows

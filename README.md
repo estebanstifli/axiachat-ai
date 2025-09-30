@@ -1,5 +1,9 @@
 # AI Chat (WordPress Plugin)
 
+> Update 1.1.3 (EN): Added AutoSync cron + manual trigger modal, Browse Chunks tab (local contexts), split Settings/Similarity buttons, LIMITED full rebuild fix, improved UX (persistent Run AutoSync button, disabled states), extra i18n keys, mini-tab context sync fix.
+>
+> Actualización 1.1.3 (ES): Nuevo sistema AutoSync (cron + ejecución manual), pestaña Browse Chunks para contextos locales, separación botones Settings/Similarity, corrección rebuild en contextos LIMITED, mejoras UX (botón persistente y estados deshabilitados), nuevas claves i18n y fix de sincronización en mini-tabs.
+
 Un chatbot de IA personalizable para WordPress que utiliza modelos OpenAI (y soporte inicial para Claude) con recuperación opcional de contexto (RAG) mediante embeddings locales o Pinecone. Incluye interfaz flotante / inline vía shortcode, administración de múltiples bots, moderación, límites de uso, y logging de conversaciones. Integra además (de forma opcional) un flujo externo tipo WhatsApp reutilizando la misma tabla de conversaciones sin nuevos esquemas.
 
 > Idioma: Este README está en Español con notas técnicas en Inglés cuando aporta claridad. El código ya incluye internacionalización (text‑domain `ai-chat`).
@@ -183,6 +187,7 @@ Filtros / acciones (principales) recomendados (si aún no los ves, puedes añadi
 
 ---
 ## Changelog (Breve)
+- 1.1.3: Nuevo sistema AutoSync (cron + ejecución manual), pestaña Browse Chunks para contextos locales, separación botones Settings/Similarity, corrección rebuild en contextos LIMITED, mejoras UX (botón persistente y estados deshabilitados), nuevas claves i18n y fix de sincronización en mini-tabs.
 - 1.1.2: Prefijo WhatsApp `wha` (compatibilidad `wha_`), wrapper externo teléfono, mejoras logs.
 - 1.1.x: Gestión bots, RAG local/Pinecone, logs detallados, moderación, UI flotante.
 

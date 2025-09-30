@@ -17,7 +17,7 @@ function aichat_load_contexts() {
     $table_ctx = $wpdb->prefix . 'aichat_contexts';
     $table_chunks = $wpdb->prefix . 'aichat_chunks';
     // Traer todos los campos necesarios para reconstruir la tabla en JS
-    $sql = "SELECT c.id, c.name, c.processing_progress, c.processing_status, c.created_at, c.autosync, c.autosync_mode,
+    $sql = "SELECT c.id, c.name, c.context_type, c.processing_progress, c.processing_status, c.created_at, c.autosync, c.autosync_mode,
                    (SELECT COUNT(*) FROM $table_chunks ch WHERE ch.id_context = c.id) AS chunk_count,
                    (SELECT COUNT(DISTINCT post_id) FROM $table_chunks ch2 WHERE ch2.id_context = c.id) AS post_count
             FROM $table_ctx c ORDER BY c.id ASC";
@@ -279,5 +279,85 @@ function aichat_autosync_run_now(){
         'orphans_deleted' => $deleted_orphans,
         'queued_total' => count($new_queue),
         'added_to_queue' => count($added_ids)
+    ]);
+}
+
+// AJAX: Browse chunks (paginated) for local contexts only
+add_action('wp_ajax_aichat_browse_context_chunks','aichat_browse_context_chunks');
+function aichat_browse_context_chunks(){
+    check_ajax_referer('aichat_nonce','nonce');
+    if ( ! current_user_can('manage_options') ) { wp_send_json_error(['message'=>'Forbidden'],403); }
+    global $wpdb; $ctx_table = $wpdb->prefix.'aichat_contexts'; $chunks_table = $wpdb->prefix.'aichat_chunks';
+    $ctx_id = isset($_POST['context_id']) ? absint($_POST['context_id']) : 0;
+    if($ctx_id<=0){ wp_send_json_error(['message'=>'Missing context_id']); }
+    $context = $wpdb->get_row($wpdb->prepare("SELECT id, context_type FROM $ctx_table WHERE id=%d", $ctx_id), ARRAY_A);
+    if(!$context){ wp_send_json_error(['message'=>'Context not found']); }
+    if($context['context_type']!=='local'){ wp_send_json_error(['message'=>'Browse not available for remote contexts']); }
+
+    $page = isset($_POST['page']) ? max(1, absint($_POST['page'])) : 1;
+    $per_page = isset($_POST['per_page']) ? absint($_POST['per_page']) : 25;
+    if($per_page <=0) $per_page=25; if($per_page>50) $per_page=50;
+    $offset = ($page-1)*$per_page;
+    $q = isset($_POST['q']) ? trim(wp_unslash($_POST['q'])) : '';
+    if(strlen($q)>80) $q = substr($q,0,80);
+    // Escape LIKE wildcards
+    $q_like = $q!=='' ? '%' . $wpdb->esc_like($q) . '%' : '';
+    $filter_type = isset($_POST['type']) ? sanitize_key($_POST['type']) : '';
+    $allowed_types = ['post','page','product','upload'];
+    if($filter_type && !in_array($filter_type,$allowed_types,true)) $filter_type='';
+
+    $where = $wpdb->prepare("c.id_context=%d", $ctx_id);
+    if($filter_type){
+        $where .= $wpdb->prepare(" AND c.type=%s", $filter_type);
+    }
+    if($q_like){
+        // Search in title or content (content truncated by LIKE may be heavy; add LIMIT already)
+        $where .= $wpdb->prepare(" AND (c.title LIKE %s OR c.content LIKE %s)", $q_like, $q_like);
+    }
+
+    // Count total
+    $total = (int)$wpdb->get_var("SELECT COUNT(*) FROM $chunks_table c WHERE $where");
+    if($total===0){
+        wp_send_json_success([
+            'context_id'=>$ctx_id,
+            'rows'=>[],
+            'total'=>0,
+            'total_pages'=>0,
+            'page'=>$page,
+            'per_page'=>$per_page
+        ]);
+    }
+
+    // Fetch rows
+    $sql = "SELECT c.post_id, c.type, c.title, c.updated_at, c.created_at, c.chunk_index, LENGTH(c.content) AS size, c.content
+            FROM $chunks_table c
+            WHERE $where
+            ORDER BY COALESCE(c.updated_at,c.created_at) DESC, c.id DESC
+            LIMIT %d OFFSET %d";
+    $prepared = $wpdb->prepare($sql, $per_page, $offset);
+    $rows_raw = $wpdb->get_results($prepared, ARRAY_A);
+    $rows = [];
+    foreach($rows_raw as $r){
+        $content_plain = wp_strip_all_tags($r['content']);
+        $excerpt = mb_substr($content_plain,0,140);
+        if(mb_strlen($content_plain)>140) $excerpt .= '…';
+        $rows[] = [
+            'post_id' => (int)$r['post_id'],
+            'type' => (string)$r['type'],
+            'title' => (string)$r['title'],
+            'updated_at' => $r['updated_at'] ?: $r['created_at'],
+            'chunk_index' => (int)$r['chunk_index'],
+            'size' => (int)$r['size'],
+            'excerpt' => $excerpt
+        ];
+    }
+    $total_pages = (int)ceil($total / $per_page);
+    wp_send_json_success([
+        'context_id'=>$ctx_id,
+        'rows'=>$rows,
+        'total'=>$total,
+        'total_pages'=>$total_pages,
+        'page'=>$page,
+        'per_page'=>$per_page
     ]);
 }

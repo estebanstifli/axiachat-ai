@@ -73,6 +73,8 @@ jQuery(document).ready(function($) {
                         var runLabel = (aichat_settings_ajax.run_autosync || 'Run AutoSync');
                         var disabledAttr = isPending ? ' disabled="disabled"' : '';
                         var pendingHint = isPending ? ' data-bs-toggle="tooltip" title="Processing in progress"' : '';
+                        // For Browse button we need context_type; fallback local if not provided
+                        var isLocal = (context.context_type ? context.context_type === 'local' : true);
                         tbody.append(
                             '<tr>'+
                               '<td class="text-muted small">'+context.id+'</td>'+
@@ -82,7 +84,9 @@ jQuery(document).ready(function($) {
                               '<td class="text-muted small">'+escapeHtml(createdStatus)+'</td>'+
                               '<td><div class="progress" style="height:14px;"><div class="progress-bar" role="progressbar" style="width:'+progress+'%;" aria-valuenow="'+progress+'" aria-valuemin="0" aria-valuemax="100">'+progress+'%</div></div></td>'+
                               '<td class="text-end"><div class="btn-group" role="group">'+
-                                  '<button class="button btn btn-sm btn-outline-secondary edit-context" data-id="'+context.id+'"><i class="bi bi-pencil-square"></i> '+(aichat_settings_ajax.edit_test || 'Edit/Test')+'</button> '+
+                                  '<button class="button btn btn-sm btn-outline-secondary edit-context-settings" data-id="'+context.id+'"><i class="bi bi-gear"></i> '+(aichat_settings_ajax.settings_label || 'Settings')+'</button> '+
+                                  '<button class="button btn btn-sm btn-outline-secondary edit-context-simtest" data-id="'+context.id+'"><i class="bi bi-search"></i> '+(aichat_settings_ajax.similarity_label || 'Similarity')+'</button> '+
+                                  (isLocal ? '<button type="button" class="button btn btn-sm btn-outline-dark browse-context" data-id="'+context.id+'"><i class="bi bi-list-ul"></i> '+(aichat_settings_ajax.browse_label||'Browse')+'</button> ' : '')+
                                   '<button type="button" class="button btn btn-sm btn-outline-info run-autosync-now"'+disabledAttr+pendingHint+' data-id="'+context.id+'"><i class="bi bi-arrow-repeat"></i> '+runLabel+'</button> '+
                                   '<button class="button btn btn-sm btn-outline-danger delete-context" data-id="'+context.id+'"><i class="bi bi-trash"></i> '+aichat_settings_ajax.delete_text+'</button>'+
                               '</div></td>'+
@@ -139,17 +143,40 @@ jQuery(document).ready(function($) {
     // Cargar contextos al iniciar
     loadContexts();
 
-    // Edit/Test: abrir panel meta + búsqueda
-    $(document).on('click', '.edit-context', function() {
-        var id = $(this).data('id');
+    function openInnerTab(tabBtnId){
+        var btn = document.getElementById(tabBtnId);
+        if(btn && window.bootstrap && bootstrap.Tab){
+            bootstrap.Tab.getOrCreateInstance(btn).show();
+        } else {
+            $('#aichat-inner-tabs button').removeClass('active');
+            $('#'+tabBtnId).addClass('active');
+            $('.tab-pane','#aichat-inner-tabcontent').removeClass('show active');
+            var target = $('#'+tabBtnId).data('bs-target');
+            if(target){ $(target).addClass('show active'); }
+        }
+    }
+
+    function openContextPanel(id){
         $('#aichat-context-test-wrapper').data('context-id', id);
-        // Título provisional mientras llega meta
         $('#aichat-context-panel-name').text('#'+id);
         $('#aichat-test-results').hide();
         $('#aichat-test-status').hide();
         $('#aichat-context-meta').hide();
-        $('#aichat-context-test-wrapper').slideDown(150);
+        if($('#aichat-context-test-wrapper').is(':hidden')){
+            $('#aichat-context-test-wrapper').slideDown(150);
+        }
         fetchContextMeta(id);
+    }
+
+    $(document).on('click','.edit-context-settings', function(){
+        var id = $(this).data('id');
+        openContextPanel(id);
+        openInnerTab('aichat-tab-settings');
+    });
+    $(document).on('click','.edit-context-simtest', function(){
+        var id = $(this).data('id');
+        openContextPanel(id);
+        openInnerTab('aichat-tab-simtest');
     });
 
     // Guardar nombre (botón dentro del panel)
@@ -411,4 +438,123 @@ jQuery(document).ready(function($) {
         // If edit panel open we may still want status updates in main table
         loadContexts();
     }, 30000); // every 30s
+
+    // =====================
+    // Browse Chunks Feature
+    // =====================
+    var browseState = { page:1, total_pages:0, ctx:0, timer:null, lastQuery:'' };
+
+    function openBrowseTab(){
+        var tabBtn = document.getElementById('aichat-tab-browse');
+        if(tabBtn && window.bootstrap && bootstrap.Tab){
+            bootstrap.Tab.getOrCreateInstance(tabBtn).show();
+        } else {
+            // fallback: add classes manually
+            $('#aichat-inner-tabs button').removeClass('active');
+            $('#aichat-tab-browse').addClass('active');
+            $('.tab-pane','#aichat-inner-tabcontent').removeClass('show active');
+            $('#aichat-pane-browse').addClass('show active');
+        }
+    }
+
+    function fetchBrowse(){
+        var ctxId = browseState.ctx;
+        if(!ctxId) return;
+        var q = $('#aichat-browse-q').val().trim();
+        var type = $('#aichat-browse-type').val();
+        var per = $('#aichat-browse-perpage').val();
+        $('#aichat-browse-status').text(aichat_settings_ajax.loading || 'Loading...').show();
+        $('#aichat-browse-results').hide();
+        $.ajax({
+            url: aichat_settings_ajax.ajax_url,
+            method: 'POST',
+            data: { action:'aichat_browse_context_chunks', nonce:aichat_settings_ajax.nonce, context_id: ctxId, page: browseState.page, per_page: per, q: q, type: type },
+            success: function(r){
+                if(!r.success){
+                    $('#aichat-browse-status').text(r.data && r.data.message ? r.data.message : 'Error');
+                    return;
+                }
+                var rows = r.data.rows || [];
+                var tbody = $('#aichat-browse-results tbody').empty();
+                if(rows.length===0){
+                    tbody.append('<tr><td colspan="7" class="text-center text-muted small py-3">'+(aichat_settings_ajax.no_chunks || 'No chunks found')+'</td></tr>');
+                } else {
+                    $.each(rows,function(i,row){
+                        tbody.append('<tr>'+
+                            '<td><code>'+(row.chunk_index)+'</code></td>'+
+                            '<td>'+(row.post_id)+'</td>'+
+                            '<td>'+escapeHtml(row.type||'')+'</td>'+
+                            '<td>'+escapeHtml(row.title||'')+'</td>'+
+                            '<td><small>'+(row.updated_at||'')+'</small></td>'+
+                            '<td>'+(row.size||'')+'</td>'+
+                            '<td><small>'+escapeHtml(row.excerpt||'')+'</small></td>'+
+                        '</tr>');
+                    });
+                }
+                $('#aichat-browse-results').show();
+                browseState.total_pages = r.data.total_pages || 0;
+                var page = r.data.page || 1;
+                var info = 'Page '+page+' / '+(browseState.total_pages||0)+' — '+r.data.total+' item(s)';
+                $('#aichat-browse-pageinfo').text(info);
+                $('#aichat-browse-pager').show();
+                $('#aichat-browse-prev').prop('disabled', page<=1);
+                $('#aichat-browse-next').prop('disabled', page>=browseState.total_pages);
+                $('#aichat-browse-status').hide();
+            },
+            error: function(){ $('#aichat-browse-status').text('Error'); }
+        });
+    }
+
+    function scheduleBrowse(){
+        if(browseState.timer) clearTimeout(browseState.timer);
+        browseState.timer = setTimeout(function(){ browseState.page=1; fetchBrowse(); }, 400);
+    }
+
+    // Ensure that when the user clicks the inner Browse tab (without using the row Browse button)
+    // the browse context is updated to the currently opened context (set by Settings/Similarity buttons)
+    function ensureBrowseContextSynced(){
+        var currentCtx = $('#aichat-context-test-wrapper').data('context-id');
+        if(!currentCtx) return;
+        if(browseState.ctx !== currentCtx){
+            browseState.ctx = currentCtx;
+            browseState.page = 1;
+            fetchBrowse();
+        } else {
+            // If no rows loaded yet (e.g., first manual tab click) trigger initial fetch
+            if($('#aichat-browse-results tbody').children().length === 0){
+                browseState.page = 1;
+                fetchBrowse();
+            }
+        }
+    }
+
+    // Click fallback (non-Bootstrap or before shown.bs.tab fires)
+    $(document).on('click', '#aichat-tab-browse', function(){
+        ensureBrowseContextSynced();
+    });
+
+    // Bootstrap tab event (more reliable when using keyboard navigation)
+    $(document).on('shown.bs.tab', '#aichat-tab-browse', function(){
+        ensureBrowseContextSynced();
+    });
+
+    $(document).on('click','.browse-context', function(){
+        var id = $(this).data('id');
+        $('#aichat-context-test-wrapper').data('context-id', id);
+        // Ensure panel open
+        if($('#aichat-context-test-wrapper').is(':hidden')){
+            $('#aichat-context-test-wrapper').slideDown(150);
+        }
+        // Load meta (will set name etc.)
+        fetchContextMeta(id);
+        browseState.ctx = id; browseState.page=1;
+        openBrowseTab();
+        fetchBrowse();
+    });
+
+    $(document).on('click','#aichat-browse-run', function(){ browseState.page=1; fetchBrowse(); });
+    $(document).on('input','#aichat-browse-q', scheduleBrowse);
+    $(document).on('change','#aichat-browse-type,#aichat-browse-perpage', function(){ browseState.page=1; fetchBrowse(); });
+    $(document).on('click','#aichat-browse-prev', function(){ if(browseState.page>1){ browseState.page--; fetchBrowse(); } });
+    $(document).on('click','#aichat-browse-next', function(){ if(browseState.page < browseState.total_pages){ browseState.page++; fetchBrowse(); } });
 });

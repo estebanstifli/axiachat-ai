@@ -76,6 +76,11 @@ function aichat_admin_enqueue_scripts($hook) {
                 'updated_text' => __('Context name updated.', 'ai-chat'),
                 'deleted_text' => __('Context deleted.', 'ai-chat')
                 ,'run_autosync' => __('Run AutoSync','ai-chat')
+                ,'settings_label' => __('Settings','ai-chat')
+                ,'similarity_label' => __('Similarity','ai-chat')
+                ,'browse_label' => __('Browse','ai-chat')
+                ,'loading' => __('Loading...','ai-chat')
+                ,'no_chunks' => __('No chunks found','ai-chat')
             )
         );
     }

@@ -3,7 +3,7 @@
  * Plugin Name:       AI Chat
  * Plugin URI:        https://wpbotwriter.com/ai-chat
  * Description:       A customizable AI chatbot for WordPress using OpenAI.
- * Version:           1.1.2
+ * Version:           1.1.3
  * Requires at least: 5.0
  * Requires PHP:      7.4
  * Author:            estebandezafra
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Definir constantes del plugin
-define( 'AICHAT_VERSION', '1.1.2' );
+define( 'AICHAT_VERSION', '1.1.3' );
 define( 'AICHAT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AICHAT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define('AICHAT_DEBUG', true);

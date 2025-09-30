@@ -85,9 +85,17 @@ function aichat_contexto_settings_page() {
                                     </td>
                                     <td class="text-end">
                                         <div class="btn-group" role="group">
-                                            <button type="button" class="button btn btn-sm btn-outline-secondary edit-context" data-id="<?php echo esc_attr($context['id']); ?>">
-                                                <i class="bi bi-pencil-square"></i> <?php esc_html_e('Edit/Test','ai-chat'); ?>
+                                            <button type="button" class="button btn btn-sm btn-outline-secondary edit-context-settings" data-id="<?php echo esc_attr($context['id']); ?>">
+                                                <i class="bi bi-gear"></i> <?php esc_html_e('Settings','ai-chat'); ?>
                                             </button>
+                                            <button type="button" class="button btn btn-sm btn-outline-secondary edit-context-simtest" data-id="<?php echo esc_attr($context['id']); ?>">
+                                                <i class="bi bi-search"></i> <?php esc_html_e('Similarity','ai-chat'); ?>
+                                            </button>
+                                            <?php if(isset($context['context_type']) ? $context['context_type']==='local' : true): ?>
+                                            <button type="button" class="button btn btn-sm btn-outline-dark browse-context" data-id="<?php echo esc_attr($context['id']); ?>">
+                                                <i class="bi bi-list-ul"></i> <?php esc_html_e('Browse','ai-chat'); ?>
+                                            </button>
+                                            <?php endif; ?>
                                             <button type="button" class="button btn btn-sm btn-outline-info run-autosync-now" data-id="<?php echo esc_attr($context['id']); ?>">
                                                 <i class="bi bi-arrow-repeat"></i> <?php esc_html_e('Run AutoSync','ai-chat'); ?>
                                             </button>
@@ -119,6 +127,20 @@ function aichat_contexto_settings_page() {
                                     <button type="button" class="btn btn-sm btn-outline-secondary" id="aichat-close-test" aria-label="Close">&times;</button>
                                 </div>
                                 <div class="card-body">
+                                    <!-- Inner tabs for Settings / Similarity / Browse -->
+                                    <ul class="nav nav-pills mb-3" id="aichat-inner-tabs" role="tablist">
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link active" id="aichat-tab-settings" data-bs-toggle="tab" data-bs-target="#aichat-pane-settings" type="button" role="tab"><?php esc_html_e('Settings','ai-chat'); ?></button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="aichat-tab-simtest" data-bs-toggle="tab" data-bs-target="#aichat-pane-simtest" type="button" role="tab"><?php esc_html_e('Similarity Test','ai-chat'); ?></button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="aichat-tab-browse" data-bs-toggle="tab" data-bs-target="#aichat-pane-browse" type="button" role="tab"><?php esc_html_e('Browse Chunks','ai-chat'); ?></button>
+                                        </li>
+                                    </ul>
+                                    <div class="tab-content" id="aichat-inner-tabcontent">
+                                        <div class="tab-pane fade show active" id="aichat-pane-settings" role="tabpanel" aria-labelledby="aichat-tab-settings">
                                     <!-- Settings Section -->
                                     <div id="aichat-context-meta" class="mb-3" style="display:none;">
                                         <form id="aichat-context-rename-form" onsubmit="return false;">
@@ -160,12 +182,14 @@ function aichat_contexto_settings_page() {
                                             </div>
                                         </form>
                                     </div>
-                                    <hr class="my-4" />
-                                    <!-- Semantic Test Section -->
-                                    <div class="d-flex align-items-center mb-2">
+                                    </div><!-- /settings pane -->
+                                    <div class="tab-pane fade" id="aichat-pane-simtest" role="tabpanel" aria-labelledby="aichat-tab-simtest">
+                                        <hr class="my-4" />
+                                        <!-- Semantic Test Section -->
+                                        <div class="d-flex align-items-center mb-2">
                                         <h6 class="mb-0 me-2"><i class="bi bi-search"></i> <?php esc_html_e('Similarity Test','ai-chat'); ?></h6>
                                         <span class="small text-muted"><?php esc_html_e('Run a query to inspect top matching chunks.','ai-chat'); ?></span>
-                                    </div>
+                                        </div>
                                     <form id="aichat-context-test-form" class="row g-2 align-items-center mb-3" onsubmit="return false;">
                                         <div class="col-md-7">
                                             <input type="text" class="form-control" id="aichat-test-query" placeholder="<?php echo esc_attr(__('Example: shipping costs for returns', 'ai-chat')); ?>" />
@@ -183,7 +207,7 @@ function aichat_contexto_settings_page() {
                                         </div>
                                     </form>
                                     <div id="aichat-test-status" class="small text-muted mb-2" style="display:none;"></div>
-                                    <div class="table-responsive">
+                                        <div class="table-responsive">
                                         <table class="table table-sm align-middle mb-0" id="aichat-test-results" style="display:none;">
                                             <thead class="table-light">
                                                 <tr>
@@ -194,7 +218,62 @@ function aichat_contexto_settings_page() {
                                             </thead>
                                             <tbody></tbody>
                                         </table>
-                                    </div>
+                                        </div>
+                                    </div><!-- /simtest pane -->
+                                    <div class="tab-pane fade" id="aichat-pane-browse" role="tabpanel" aria-labelledby="aichat-tab-browse">
+                                        <hr class="my-4" />
+                                        <div class="d-flex align-items-center mb-2">
+                                            <h6 class="mb-0 me-2"><i class="bi bi-list-ul"></i> <?php esc_html_e('Browse Chunks','ai-chat'); ?></h6>
+                                            <span class="small text-muted"><?php esc_html_e('Inspect stored chunks with filters.','ai-chat'); ?></span>
+                                        </div>
+                                        <form id="aichat-browse-form" class="row g-2 align-items-center mb-3" onsubmit="return false;">
+                                            <div class="col-md-4"><input type="text" class="form-control form-control-sm" id="aichat-browse-q" placeholder="<?php echo esc_attr(__('Search text','ai-chat')); ?>" /></div>
+                                            <div class="col-md-2">
+                                                <select id="aichat-browse-type" class="form-select form-select-sm">
+                                                    <option value=""><?php esc_html_e('All types','ai-chat'); ?></option>
+                                                    <option value="post">Post</option>
+                                                    <option value="page">Page</option>
+                                                    <option value="product">Product</option>
+                                                    <option value="upload">Upload</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <select id="aichat-browse-perpage" class="form-select form-select-sm">
+                                                    <option value="10">10</option>
+                                                    <option value="25" selected>25</option>
+                                                    <option value="50">50</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-2 d-grid">
+                                                <button id="aichat-browse-run" class="btn btn-outline-primary btn-sm"><i class="bi bi-search"></i> <?php esc_html_e('Run','ai-chat'); ?></button>
+                                            </div>
+                                            <div class="col-md-2 small text-muted" id="aichat-browse-status" style="display:none;"></div>
+                                        </form>
+                                        <div class="table-responsive mb-2">
+                                            <table class="table table-sm table-striped align-middle mb-0" id="aichat-browse-results" style="display:none;">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th><?php esc_html_e('Chunk','ai-chat'); ?></th>
+                                                        <th><?php esc_html_e('Post ID','ai-chat'); ?></th>
+                                                        <th><?php esc_html_e('Type','ai-chat'); ?></th>
+                                                        <th><?php esc_html_e('Title','ai-chat'); ?></th>
+                                                        <th><?php esc_html_e('Updated','ai-chat'); ?></th>
+                                                        <th><?php esc_html_e('Size','ai-chat'); ?></th>
+                                                        <th><?php esc_html_e('Excerpt','ai-chat'); ?></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody></tbody>
+                                            </table>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center" id="aichat-browse-pager" style="display:none;">
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <button type="button" class="btn btn-outline-secondary" id="aichat-browse-prev" disabled>&laquo; <?php esc_html_e('Prev','ai-chat'); ?></button>
+                                                <button type="button" class="btn btn-outline-secondary" id="aichat-browse-next" disabled><?php esc_html_e('Next','ai-chat'); ?> &raquo;</button>
+                                            </div>
+                                            <div class="small text-muted" id="aichat-browse-pageinfo"></div>
+                                        </div>
+                                    </div><!-- /browse pane -->
+                                    </div><!-- /tab-content -->
                                 </div>
                             </div>
                         </div>
