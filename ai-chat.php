@@ -24,10 +24,6 @@ define( 'AICHAT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AICHAT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define('AICHAT_DEBUG', true);
 
-// Cargar el dominio de traducción (nuevo dominio canónico 'ai-chat')
-add_action('init', function(){
-  load_plugin_textdomain('ai-chat', false, dirname(plugin_basename(__FILE__)).'/languages');
-}, 1);
 
 // Debug helper: log only if AICHAT_DEBUG is defined and true.
 if ( ! function_exists( 'aichat_log_debug' ) ) {

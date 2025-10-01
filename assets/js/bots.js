@@ -177,7 +177,7 @@
     instructions: 'Respond like a website support agent—friendly and creative. Use the page the customer is currently browsing as context.',
 
     provider: 'openai',
-    model: 'gpt-4o',
+    model: 'gpt-5-nano',
     temperature: 0.7,
     max_tokens: 2048,
     reasoning: 'off',     // off|fast|accurate

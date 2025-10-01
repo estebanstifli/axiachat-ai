@@ -296,3 +296,20 @@ add_action('wp_ajax_aichat_easycfg_create_bot', function(){
 
     wp_send_json_success(['bot_id'=>(int)$bot['id'],'context_id'=>$context_id]);
 });
+
+// Save global bot settings automatically after wizard completes linking
+add_action('wp_ajax_aichat_easycfg_save_global_bot', function(){
+    aichat_easycfg_require_cap();
+    check_ajax_referer('aichat_easycfg','nonce');
+    $slug = isset($_POST['bot_slug']) ? sanitize_title($_POST['bot_slug']) : '';
+    if($slug===''){
+        wp_send_json_error(['message'=>'missing_slug'],400);
+    }
+    update_option('aichat_global_bot_enabled', 1 );
+    update_option('aichat_global_bot_slug', $slug );
+    // Ensure logging stays on by default (matches initial defaults)
+    if(get_option('aichat_logging_enabled', null) === null){
+        update_option('aichat_logging_enabled', 1 );
+    }
+    wp_send_json_success(['saved'=>1,'slug'=>$slug]);
+});

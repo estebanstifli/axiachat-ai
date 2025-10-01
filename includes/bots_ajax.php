@@ -53,8 +53,8 @@ function aichat_bots_insert_default(){
 function aichat_bots_defaults($over=[]){
   $now = current_time('mysql');
   $d = [
-  'name' => 'Default', 'slug'=>'default', 'type'=>'text', 'instructions'=>"Act as a Customer Service Specialist:\n- Respond promptly to user questions.\n- Resolve issues efficiently and accurately.\n- Provide helpful and clear solutions.\n- Maintain a friendly and professional demeanor at all times.\n- Use a professional tone and give detailed, well-structured explanations.",
-    'provider'=>'openai','model'=>'gpt-4o','temperature'=>0.70,'max_tokens'=>2048,'reasoning'=>'off','verbosity'=>'medium',
+  'name' => 'Default', 'slug'=>'default', 'type'=>'text', 'instructions'=>"Act as a Customer Service Specialist:\n- Respond promptly to user questions.\n- Resolve issues efficiently and accurately.\n- Provide helpful and clear solutions.\n- Maintain a friendly and professional demeanor at all times.\n- Use a professional tone and give detailed, well-structured explanations.\n\nTry to answer briefly, ideally in one or two concise sentences. If the user asks for more detail, then elaborate.",
+    'provider'=>'openai','model'=>'gpt-5-nano','temperature'=>0.70,'max_tokens'=>2048,'reasoning'=>'off','verbosity'=>'medium',
   'context_mode'=>'page','context_id'=>0,
     'input_max_length'=>512,'max_messages'=>20,'context_max_length'=>4096,
   'ui_color'=>'#1a73e8','ui_position'=>'br','ui_avatar_enabled'=>1,'ui_avatar_key'=>'avatar7','ui_icon_url'=>'','ui_start_sentence'=>'Hi! How can I help you?',

@@ -73,9 +73,10 @@
     return '<h2>Congratulations!</h2>'+
       '<p>Your AI Chat bot is now installed and linked to your indexed content.</p>'+
       '<p>You can fine‑tune advanced settings anytime in: <strong>Settings</strong>, <strong>Contexts</strong>, and <strong>Bots</strong>.</p>'+
-      '<p><a class="button button-primary" href="admin.php?page=aichat-bots-settings">Go to Bots</a> '+
-      '<a class="button" href="admin.php?page=aichat-settings">Settings</a> '+
-      '<a class="button" href="admin.php?page=aichat-contexts">Contexts</a></p>';
+  '<p><a class="button button-primary" href="admin.php?page=aichat-bots-settings">Go to Bots</a> '+
+  '<a class="button" href="admin.php?page=aichat-settings">Settings</a> '+
+  // Corrected contexts settings link slug to actual submenu slug 'aichat-contexto-settings'
+  '<a class="button" href="admin.php?page=aichat-contexto-settings">Contexts</a></p>';
   }
   function esc(s){return (''+s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
 
@@ -172,7 +173,19 @@
     if(state.botLinked){ if(typeof cb==='function') cb(); return; }
     if(!state.contextId){ if(typeof cb==='function') cb(); return; }
     $.post(aichat_easycfg_ajax.ajax_url,{action:'aichat_easycfg_create_bot',nonce:getNonce(),context_id:state.contextId},function(r){
-      if(r && r.success){ state.botLinked=true; }
+      if(r && r.success){
+        state.botLinked=true;
+        // Auto-save global settings so user doesn't need to visit the Settings screen.
+        // We rely on existing options names: aichat_global_bot_enabled, aichat_global_bot_slug
+        // Silent post; no UI blocking.
+        if(!state.globalSaved){
+          $.post(aichat_easycfg_ajax.ajax_url, {
+            action: 'aichat_easycfg_save_global_bot',
+            nonce: getNonce(),
+            bot_slug: 'default'
+          }, function(resp){ state.globalSaved = true; });
+        }
+      }
       if(typeof cb==='function') cb();
     });
   }
