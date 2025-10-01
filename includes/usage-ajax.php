@@ -9,6 +9,8 @@ function aichat_usage_cap_check(){
 }
 
 function aichat_get_usage_summary(){
+  // CSRF protection: usage dashboard requests must include nonce generated in includes/usage.php
+  check_ajax_referer('aichat_usage','nonce');
   aichat_usage_cap_check();
   global $wpdb; $conv = $wpdb->prefix.'aichat_conversations';
   // Use wp_date + current_time('timestamp') to avoid mixing PHP date() (server TZ) with WP timezone.
@@ -55,6 +57,8 @@ function aichat_get_usage_summary(){
 }
 
 function aichat_get_usage_timeseries(){
+  // CSRF protection
+  check_ajax_referer('aichat_usage','nonce');
   aichat_usage_cap_check();
   global $wpdb; $conv = $wpdb->prefix.'aichat_conversations';
   $date_from = isset($_POST['date_from']) ? sanitize_text_field($_POST['date_from']) : '';

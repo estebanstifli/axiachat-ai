@@ -267,7 +267,7 @@ function aichat_bot_update(){
 
   aichat_bots_log('UPDATE', ['id'=>$id,'fields'=>array_keys($data)]);
   $ok = $wpdb->update($t, $data, ['id'=>$id]);
-  if ($ok===false) { aichat_bots_log('UPDATE error',['db_error'=>$wpdb->last_error]); wp_send_json_error( [ 'message' => __( 'Database update error.', 'ai-chat' ) ], 500 ); }
+  if ($ok===false) { aichat_bots_log('UPDATE error',['db_error'=>$wpdb->last_error]); wp_send_json_error( [ 'message' => __( 'Database update error.', 'axiachat-ai' ) ], 500 ); }
 
   $r = $wpdb->get_row( $wpdb->prepare("SELECT * FROM $t WHERE id=%d",$id), ARRAY_A );
   $r = aichat_bots_cast_row($r);

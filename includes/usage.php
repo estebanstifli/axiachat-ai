@@ -5,19 +5,19 @@ if(!defined('ABSPATH')) exit;
 
 function aichat_usage_admin_page(){
   if(!current_user_can('manage_options')) return;
-  echo '<div class="wrap"><h1>'.esc_html__('AI Chat – Usage / Cost','ai-chat').'</h1>';
-  echo '<p class="description">'.esc_html__('Token & cost metrics (chat). Costs are approximate based on configured pricing.','ai-chat').'</p>';
+  echo '<div class="wrap"><h1>'.esc_html__('AI Chat – Usage / Cost','axiachat-ai').'</h1>';
+  echo '<p class="description">'.esc_html__('Token & cost metrics (chat). Costs are approximate based on configured pricing.','axiachat-ai').'</p>';
   echo '<div id="aichat-usage-kpis" class="aichat-usage-grid" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px;">'
-      .'<div class="usage-box" style="flex:1;min-width:180px;background:#fff;border:1px solid #ddd;padding:12px;border-radius:6px;"><strong>'.esc_html__('Today','ai-chat').'</strong><br><span data-kpi="today-cost">-</span><br><small><span data-kpi="today-tokens">-</span> '.esc_html__('tokens','ai-chat').'</small></div>'
-      .'<div class="usage-box" style="flex:1;min-width:180px;background:#fff;border:1px solid #ddd;padding:12px;border-radius:6px;"><strong>'.esc_html__('Last 7 days','ai-chat').'</strong><br><span data-kpi="last7-cost">-</span><br><small><span data-kpi="last7-tokens">-</span> '.esc_html__('tokens','ai-chat').'</small></div>'
-      .'<div class="usage-box" style="flex:1;min-width:180px;background:#fff;border:1px solid #ddd;padding:12px;border-radius:6px;"><strong>'.esc_html__('Last 30 days','ai-chat').'</strong><br><span data-kpi="last30-cost">-</span><br><small><span data-kpi="last30-tokens">-</span> '.esc_html__('tokens','ai-chat').'</small></div>'
+  .'<div class="usage-box" style="flex:1;min-width:180px;background:#fff;border:1px solid #ddd;padding:12px;border-radius:6px;"><strong>'.esc_html__('Today','axiachat-ai').'</strong><br><span data-kpi="today-cost">-</span><br><small><span data-kpi="today-tokens">-</span> '.esc_html__('tokens','axiachat-ai').'</small></div>'
+  .'<div class="usage-box" style="flex:1;min-width:180px;background:#fff;border:1px solid #ddd;padding:12px;border-radius:6px;"><strong>'.esc_html__('Last 7 days','axiachat-ai').'</strong><br><span data-kpi="last7-cost">-</span><br><small><span data-kpi="last7-tokens">-</span> '.esc_html__('tokens','axiachat-ai').'</small></div>'
+  .'<div class="usage-box" style="flex:1;min-width:180px;background:#fff;border:1px solid #ddd;padding:12px;border-radius:6px;"><strong>'.esc_html__('Last 30 days','axiachat-ai').'</strong><br><span data-kpi="last30-cost">-</span><br><small><span data-kpi="last30-tokens">-</span> '.esc_html__('tokens','axiachat-ai').'</small></div>'
       .'</div>';
-  echo '<h2 style="margin-top:30px;">'.esc_html__('Timeseries (Last 30 days)','ai-chat').'</h2>';
+  echo '<h2 style="margin-top:30px;">'.esc_html__('Timeseries (Last 30 days)','axiachat-ai').'</h2>';
   echo '<div style="max-width:100%;max-height:400px;overflow:hidden;">'
      .'<canvas id="aichat-usage-chart" style="max-height:400px;width:100%;"></canvas>'
-     .'</div><div id="aichat-usage-nodata" style="margin-top:8px;color:#666;display:none;">'.esc_html__('No data','ai-chat').'</div>';
-  echo '<h2 style="margin-top:30px;">'.esc_html__('Top Models (30d)','ai-chat').'</h2>';
-  echo '<table class="widefat" id="aichat-usage-topmodels"><thead><tr><th>'.esc_html__('Model','ai-chat').'</th><th>'.esc_html__('Provider','ai-chat').'</th><th>'.esc_html__('Cost (USD)','ai-chat').'</th></tr></thead><tbody><tr><td colspan="3">'.esc_html__('Loading...','ai-chat').'</td></tr></tbody></table>';
+  .'</div><div id="aichat-usage-nodata" style="margin-top:8px;color:#666;display:none;">'.esc_html__('No data','axiachat-ai').'</div>';
+  echo '<h2 style="margin-top:30px;">'.esc_html__('Top Models (30d)','axiachat-ai').'</h2>';
+  echo '<table class="widefat" id="aichat-usage-topmodels"><thead><tr><th>'.esc_html__('Model','axiachat-ai').'</th><th>'.esc_html__('Provider','axiachat-ai').'</th><th>'.esc_html__('Cost (USD)','axiachat-ai').'</th></tr></thead><tbody><tr><td colspan="3">'.esc_html__('Loading...','axiachat-ai').'</td></tr></tbody></table>';
   echo '</div>';
 }
 
@@ -57,10 +57,11 @@ add_action('admin_enqueue_scripts', function($hook){
   wp_enqueue_script($usage_handle, $usage_url, ['jquery','aichat-chartjs'], $ver_usage, true);
   wp_localize_script($usage_handle,'AIChatUsageAjax',[
     'ajax_url'=>admin_url('admin-ajax.php'),
-    'nonce'=>wp_create_nonce('aichat_ajax'),
+    // Dedicated nonce for usage endpoints (see usage-ajax.php)
+    'nonce'=>wp_create_nonce('aichat_usage'),
     'strings'=>[
-      'totalTokens'=>esc_html__('Total Tokens','ai-chat'),
-      'costLabel'=>esc_html__('Cost','ai-chat'),
+  'totalTokens'=>esc_html__('Total Tokens','axiachat-ai'),
+  'costLabel'=>esc_html__('Cost','axiachat-ai'),
     ],
   ]);
 });

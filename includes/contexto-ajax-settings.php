@@ -196,26 +196,29 @@ function aichat_autosync_run_now(){
         }
     }
     if(empty($wp_types)) { $wp_types=['post']; }
-    $in_types = "'".implode("','", array_map('esc_sql',$wp_types))."'";
+    // Construir lista de placeholders segura para post_type IN()
+    $placeholders_types = implode(',', array_fill(0, count($wp_types), '%s'));
 
     // Queries similar to cron
     // Modified
+    $modified_params = array_merge([$ctx_id], $wp_types);
     $modified_sql = $wpdb->prepare("SELECT p.ID
-            FROM {$wpdb->posts} p
-            JOIN {$wpdb->prefix}aichat_chunks c ON c.post_id=p.ID AND c.id_context=%d
-            WHERE p.post_status='publish' AND p.post_type IN ($in_types)
-            GROUP BY p.ID
-            HAVING TIMESTAMP(MAX(COALESCE(c.updated_at,c.created_at))) < TIMESTAMP(MAX(p.post_modified_gmt))
-            LIMIT 500", $ctx_id);
+        FROM {$wpdb->posts} p
+        JOIN {$wpdb->prefix}aichat_chunks c ON c.post_id=p.ID AND c.id_context=%d
+        WHERE p.post_status='publish' AND p.post_type IN ($placeholders_types)
+        GROUP BY p.ID
+        HAVING TIMESTAMP(MAX(COALESCE(c.updated_at,c.created_at))) < TIMESTAMP(MAX(p.post_modified_gmt))
+        LIMIT 500", $modified_params);
     $modified = $wpdb->get_col($modified_sql);
 
     if($effective==='modified_and_new'){
-        $new_sql = $wpdb->prepare("SELECT p.ID
-                FROM {$wpdb->posts} p
-                LEFT JOIN {$wpdb->prefix}aichat_chunks c ON c.post_id=p.ID AND c.id_context=%d
-                WHERE c.post_id IS NULL AND p.post_status='publish' AND p.post_type IN ($in_types)
-                ORDER BY p.ID DESC
-                LIMIT 500", $ctx_id);
+    $new_params = array_merge([$ctx_id], $wp_types);
+    $new_sql = $wpdb->prepare("SELECT p.ID
+        FROM {$wpdb->posts} p
+        LEFT JOIN {$wpdb->prefix}aichat_chunks c ON c.post_id=p.ID AND c.id_context=%d
+        WHERE c.post_id IS NULL AND p.post_status='publish' AND p.post_type IN ($placeholders_types)
+        ORDER BY p.ID DESC
+        LIMIT 500", $new_params);
         $new = $wpdb->get_col($new_sql);
     }
 
@@ -265,8 +268,10 @@ function aichat_autosync_run_now(){
     // Delete orphan chunks
     $deleted_orphans=0;
     if(!empty($orphans)){
-        $ids_del = implode(',', array_map('intval',$orphans));
-        $wpdb->query("DELETE FROM {$wpdb->prefix}aichat_chunks WHERE id_context=".(int)$ctx_id." AND post_id IN ($ids_del)");
+        $orph_placeholders = implode(',', array_fill(0, count($orphans), '%d'));
+        $del_params = array_merge([$ctx_id], array_map('intval',$orphans));
+        $delete_sql = $wpdb->prepare("DELETE FROM {$wpdb->prefix}aichat_chunks WHERE id_context=%d AND post_id IN ($orph_placeholders)", $del_params);
+        $wpdb->query($delete_sql);
         $deleted_orphans = count($orphans);
     }
 

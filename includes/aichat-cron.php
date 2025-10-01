@@ -8,7 +8,7 @@ if ( ! defined( 'AICHAT_BATCH_SIZE' ) ) define( 'AICHAT_BATCH_SIZE', 40 );
 if ( ! defined( 'AICHAT_LOCK_TTL' ) )   define( 'AICHAT_LOCK_TTL', 300 ); // 5 min
 
 add_filter( 'cron_schedules', function( $schedules ) {
-    $schedules['oneminute'] = ['interval'=>60,'display'=>__('Every 1 Minute','ai-chat')];
+    $schedules['oneminute'] = ['interval'=>60,'display'=>__('Every 1 Minute','axiachat-ai')];
     return $schedules;
 });
 
@@ -372,7 +372,7 @@ if ( ! wp_next_scheduled( 'aichat_cron_process_contexts' ) ) {
 ============================== */
 add_filter( 'cron_schedules', function( $schedules ) {
     if ( empty( $schedules['aichat_hourly'] ) ) {
-        $schedules['aichat_hourly'] = [ 'interval' => HOUR_IN_SECONDS, 'display' => __( 'AIChat Hourly', 'ai-chat' ) ];
+    $schedules['aichat_hourly'] = [ 'interval' => HOUR_IN_SECONDS, 'display' => __( 'AIChat Hourly', 'axiachat-ai' ) ];
     }
     return $schedules;
 });
@@ -384,8 +384,11 @@ if ( ! wp_next_scheduled( 'aichat_autosync_hourly' ) ) {
 function aichat_autosync_hourly_handler(){
     global $wpdb; 
     $table = $wpdb->prefix.'aichat_contexts';
-    // Seleccionar contextos locales con autosync activo
-    $contexts = $wpdb->get_results("SELECT id, autosync_mode, autosync_post_types FROM $table WHERE context_type='local' AND autosync=1", ARRAY_A);
+    // Seleccionar contextos locales con autosync activo (tabla conocida -> concatenación segura del nombre de tabla)
+    $contexts = $wpdb->get_results(
+        $wpdb->prepare("SELECT id, autosync_mode, autosync_post_types FROM $table WHERE context_type=%s AND autosync=%d", 'local', 1),
+        ARRAY_A
+    );
     if ( empty($contexts) ) { aichat_log_debug('AutoSync: no active contexts'); return; }
 
     foreach( $contexts as $ctx ){
@@ -398,38 +401,45 @@ function aichat_autosync_hourly_handler(){
         }
         if ( empty($post_types) ) { $post_types = ['post']; }
 
-        // Construir IN() seguro
-        $in_types = "'" . implode("','", array_map('esc_sql',$post_types)) . "'";
+        // Construir placeholders dinámicos para IN()
+        $placeholders_types = implode(',', array_fill(0, count($post_types), '%s'));
+        $base_params = array_merge([$context_id], $post_types);
 
         // 1. Modificados: posts publicados cuyo post_modified_gmt > max(updated_at/created_at) de su set de chunks
-        $modified_sql = $wpdb->prepare("SELECT p.ID
-            FROM {$wpdb->posts} p
-            JOIN {$wpdb->prefix}aichat_chunks c ON c.post_id=p.ID AND c.id_context=%d
-            WHERE p.post_status='publish' AND p.post_type IN ($in_types)
-            GROUP BY p.ID
-            HAVING TIMESTAMP(MAX(COALESCE(c.updated_at,c.created_at))) < TIMESTAMP(MAX(p.post_modified_gmt))
-            LIMIT 100", $context_id);
-        $modified = $wpdb->get_col( $modified_sql );
+        $modified = $wpdb->get_col( $wpdb->prepare(
+            "SELECT p.ID
+             FROM {$wpdb->posts} p
+             JOIN {$wpdb->prefix}aichat_chunks c ON c.post_id=p.ID AND c.id_context=%d
+             WHERE p.post_status='publish' AND p.post_type IN ($placeholders_types)
+             GROUP BY p.ID
+             HAVING TIMESTAMP(MAX(COALESCE(c.updated_at,c.created_at))) < TIMESTAMP(MAX(p.post_modified_gmt))
+             LIMIT 100",
+            $base_params
+        ) );
 
         // 2. Nuevos (solo si updates_and_new): posts sin chunks
         $new = [];
         if ( $mode === 'updates_and_new' ) {
-            $new_sql = $wpdb->prepare("SELECT p.ID
-                FROM {$wpdb->posts} p
-                LEFT JOIN {$wpdb->prefix}aichat_chunks c ON c.post_id=p.ID AND c.id_context=%d
-                WHERE c.post_id IS NULL AND p.post_status='publish' AND p.post_type IN ($in_types)
-                ORDER BY p.ID DESC
-                LIMIT 100", $context_id);
-            $new = $wpdb->get_col( $new_sql );
+            $new = $wpdb->get_col( $wpdb->prepare(
+                "SELECT p.ID
+                 FROM {$wpdb->posts} p
+                 LEFT JOIN {$wpdb->prefix}aichat_chunks c ON c.post_id=p.ID AND c.id_context=%d
+                 WHERE c.post_id IS NULL AND p.post_status='publish' AND p.post_type IN ($placeholders_types)
+                 ORDER BY p.ID DESC
+                 LIMIT 100",
+                $base_params
+            ) );
         }
 
         // 3. Huérfanos (deleted/unpublished)
-        $orphans_sql = $wpdb->prepare("SELECT DISTINCT c.post_id
-            FROM {$wpdb->prefix}aichat_chunks c
-            LEFT JOIN {$wpdb->posts} p ON p.ID = c.post_id
-            WHERE c.id_context=%d AND (p.ID IS NULL OR p.post_status <> 'publish')
-            LIMIT 100", $context_id);
-        $orphans = $wpdb->get_col( $orphans_sql );
+        $orphans = $wpdb->get_col( $wpdb->prepare(
+            "SELECT DISTINCT c.post_id
+             FROM {$wpdb->prefix}aichat_chunks c
+             LEFT JOIN {$wpdb->posts} p ON p.ID = c.post_id
+             WHERE c.id_context=%d AND (p.ID IS NULL OR p.post_status <> 'publish')
+             LIMIT 100",
+            $context_id
+        ) );
 
         if ( empty($modified) && empty($new) && empty($orphans) ) {
             aichat_log_debug('AutoSync: no diffs', ['ctx'=>$context_id]);
@@ -451,8 +461,12 @@ function aichat_autosync_hourly_handler(){
 
         // Borrado chunks huérfanos (lote pequeño)
         if ( $orphans ) {
-            $ids_del = implode(',', array_map('intval',$orphans));
-            $wpdb->query("DELETE FROM {$wpdb->prefix}aichat_chunks WHERE id_context=".(int)$context_id." AND post_id IN ($ids_del)");
+            $orph_placeholders = implode(',', array_fill(0, count($orphans), '%d'));
+            $del_params = array_merge([$context_id], array_map('intval',$orphans));
+            $wpdb->query( $wpdb->prepare(
+                "DELETE FROM {$wpdb->prefix}aichat_chunks WHERE id_context=%d AND post_id IN ($orph_placeholders)",
+                $del_params
+            ) );
             aichat_log_debug('AutoSync deleted orphan chunks', ['ctx'=>$context_id,'deleted'=>count($orphans)]);
         }
     }

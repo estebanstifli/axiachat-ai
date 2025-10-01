@@ -1,16 +1,16 @@
 <?php
 /**
- * Plugin Name:       AI Chat
- * Plugin URI:        https://wpbotwriter.com/ai-chat
- * Description:       A customizable AI chatbot for WordPress using OpenAI.
- * Version:           1.1.3
+ * Plugin Name:       AxiaChat AI
+ * Plugin URI:        https://wpbotwriter.com/axiachat-ai
+ * Description:       A customizable AI chatbot for WordPress with contextual embeddings, multi‑provider support and upcoming action rules.
+ * Version:           1.1.4
  * Requires at least: 5.0
  * Requires PHP:      7.4
  * Author:            estebandezafra
  * Author URI:        https://wpbotwriter.com
  * License:           GPL-2.0+
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.txt
- * Text Domain:       ai-chat
+ * Text Domain:       axiachat-ai
  * Domain Path:       /languages
  */
 
@@ -19,11 +19,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Definir constantes del plugin
-define( 'AICHAT_VERSION', '1.1.3' );
+define( 'AICHAT_VERSION', '1.1.4' );
 define( 'AICHAT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AICHAT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define('AICHAT_DEBUG', true);
 
+// Nota: Eliminado load_plugin_textdomain manual.
+// Para WordPress.org, las traducciones de 'axiachat-ai' se cargarán automáticamente
+// desde wp-content/languages/plugins/ según el encabezado Text Domain.
 
 // Debug helper: log only if AICHAT_DEBUG is defined and true.
 if ( ! function_exists( 'aichat_log_debug' ) ) {
@@ -374,9 +377,9 @@ function aichat_uninstall() {
 // Agregar menús y páginas
 add_action( 'admin_menu', 'aichat_admin_menu' );
 function aichat_admin_menu() {
-    add_menu_page(
-  __( 'AI Chat Settings', 'ai-chat' ), // Título de la página
-        'AI Chat',          // Título del menú, no tiene sentido traducirlo
+  add_menu_page(
+	__( 'AixaChat AI Settings', 'axiachat-ai' ), // Título de la página
+        'AixaChat AI',          // Título del menú, no tiene sentido traducirlo
         'manage_options',                   // Capacidad requerida
         'aichat-settings',                  // Slug del menú
         'aichat_settings_page',             // Función de callback
@@ -387,8 +390,8 @@ function aichat_admin_menu() {
   // Submenú Settings (primero) - evita que WP genere uno por defecto con el título original
   add_submenu_page(
     'aichat-settings',
-  __( 'Settings', 'ai-chat' ),
-  __( 'Settings', 'ai-chat' ),
+  __( 'Settings', 'axiachat-ai' ),
+  __( 'Settings', 'axiachat-ai' ),
     'manage_options',
     'aichat-settings',
     'aichat_settings_page'
@@ -398,8 +401,8 @@ function aichat_admin_menu() {
     // Submenú para Contexto 
     add_submenu_page(
         'aichat-settings', // Parent slug
-  __( 'Context', 'ai-chat' ), // Título de la página
-  __( 'Context', 'ai-chat' ), // Título del submenú
+  __( 'Context', 'axiachat-ai' ), // Título de la página
+  __( 'Context', 'axiachat-ai' ), // Título del submenú
         'manage_options', // Capacidad
         'aichat-contexto-settings', // Slug
         'aichat_contexto_settings_page' // Callback for the page
@@ -408,8 +411,8 @@ function aichat_admin_menu() {
     // Submenú para bots
     add_submenu_page(
         'aichat-settings', // Parent slug
-  __( 'Bots', 'ai-chat' ), // Título de la página
-  __( 'Bots', 'ai-chat' ), // Título del submenú
+  __( 'Bots', 'axiachat-ai' ), // Título de la página
+  __( 'Bots', 'axiachat-ai' ), // Título del submenú
         'manage_options', // Capacidad
         'aichat-bots-settings', // Slug
         'aichat_bots_settings_page' // Callback for the page
@@ -420,8 +423,8 @@ function aichat_admin_menu() {
   if ( $show_easy ) {
     add_submenu_page(
       'aichat-settings',
-      __( 'Easy Config', 'ai-chat' ),
-      __( 'Easy Config', 'ai-chat' ),
+  __( 'Easy Config', 'axiachat-ai' ),
+  __( 'Easy Config', 'axiachat-ai' ),
       'manage_options',
       'aichat-easy-config',
       function(){
@@ -437,8 +440,8 @@ function aichat_admin_menu() {
   // Submenú para logs (listado principal)
   add_submenu_page(
     'aichat-settings',
-  __( 'Logs', 'ai-chat' ),
-  __( 'Logs', 'ai-chat' ),
+  __( 'Logs', 'axiachat-ai' ),
+  __( 'Logs', 'axiachat-ai' ),
     'manage_options',
     'aichat-logs',
     'aichat_logs_page'
@@ -448,7 +451,7 @@ function aichat_admin_menu() {
 
     add_submenu_page(
         null, // Sin menú padre
-  __('Create Context', 'ai-chat'), // Título de la página
+  __('Create Context', 'axiachat-ai'), // Título de la página
         '', // Título del menú (vacío)
         'manage_options', // Capacidad
         'aichat-contexto-create', // Slug de la página
@@ -457,7 +460,7 @@ function aichat_admin_menu() {
 
     add_submenu_page(
         null, // Sin menú padre
-  __('Import PDF/Data', 'ai-chat'), // Título de la página
+  __('Import PDF/Data', 'axiachat-ai'), // Título de la página
         '', // Título del menú (vacío)
         'manage_options', // Capacidad
         'aichat-contexto-pdf', // Slug de la página
@@ -473,7 +476,7 @@ function aichat_admin_menu() {
   // Página oculta para detalle de conversación
   add_submenu_page(
     null,
-  __( 'Conversation Detail', 'ai-chat' ),
+  __( 'Conversation Detail', 'axiachat-ai' ),
     '',
     'manage_options',
     'aichat-logs-detail',
@@ -501,11 +504,11 @@ function aichat_admin_menu() {
         'ajax_url' => admin_url('admin-ajax.php'),
         'nonce'    => wp_create_nonce('aichat_easycfg'),
         'i18n' => [
-          'discovering' => __('Scanning site content...', 'ai-chat'),
-          'indexing'    => __('Indexing content...', 'ai-chat'),
-          'creating_bot'=> __('Creating bot...', 'ai-chat'),
-          'done'        => __('Completed', 'ai-chat'),
-          'error'       => __('Error', 'ai-chat'),
+          'discovering' => __('Scanning site content...', 'axiachat-ai'),
+          'indexing'    => __('Indexing content...', 'axiachat-ai'),
+          'creating_bot'=> __('Creating bot...', 'axiachat-ai'),
+          'done'        => __('Completed', 'axiachat-ai'),
+          'error'       => __('Error', 'axiachat-ai'),
         ]
       ]);
     }
@@ -594,9 +597,9 @@ function aichat_admin_menu() {
         wp_localize_script('aichat-settings-js','aichat_settings_ajax', [
           'ajax_url' => admin_url('admin-ajax.php'),
             'nonce'    => wp_create_nonce('aichat_nonce'),
-            'searching' => __('Searching embeddings...', 'ai-chat'),
-            'no_results' => __('No results found for that query.', 'ai-chat'),
-            'error_generic' => __('Unexpected error performing search.', 'ai-chat'),
+            'searching' => __('Searching embeddings...', 'axiachat-ai'),
+            'no_results' => __('No results found for that query.', 'axiachat-ai'),
+            'error_generic' => __('Unexpected error performing search.', 'axiachat-ai'),
         ]);
       }
     }
@@ -648,7 +651,7 @@ add_action('admin_init', function(){
 add_action( 'admin_post_aichat_delete_conversation', 'aichat_handle_delete_conversation' );
 function aichat_handle_delete_conversation() {
   if ( ! current_user_can('manage_options') ) {
-  wp_die( esc_html__( 'Unauthorized', 'ai-chat' ) );
+  wp_die( esc_html__( 'Unauthorized', 'axiachat-ai' ) );
   }
   check_admin_referer( 'aichat_delete_conversation' );
 
@@ -803,7 +806,7 @@ if ( ! function_exists('aichat_rate_limit_check') ) {
 
     // Bloqueo adaptativo (transient separado si IP fue castigada)
     if ( get_transient( 'aichat_block_'.$ip ) ) {
-  return new WP_Error( 'aichat_blocked_ip_temp', __( 'Too many requests. Try later.', 'ai-chat' ) );
+  return new WP_Error( 'aichat_blocked_ip_temp', __( 'Too many requests. Try later.', 'axiachat-ai' ) );
     }
 
     // Reinicia ventana
@@ -813,7 +816,7 @@ if ( ! function_exists('aichat_rate_limit_check') ) {
 
     // Cooldown
     if ( $data['last'] && ($now - $data['last']) < $cooldown ) {
-  return new WP_Error( 'aichat_cooldown', __( 'Please slow down.', 'ai-chat' ) );
+  return new WP_Error( 'aichat_cooldown', __( 'Please slow down.', 'axiachat-ai' ) );
     }
 
     $data['hits']++;
@@ -822,7 +825,7 @@ if ( ! function_exists('aichat_rate_limit_check') ) {
     if ( $data['hits'] > $max_hits ) {
       // castigo temporal 15 min
       set_transient( 'aichat_block_'.$ip, 1, 15 * MINUTE_IN_SECONDS );
-  return new WP_Error( 'aichat_rate_limited', __( 'Rate limit reached. Try again later.', 'ai-chat' ) );
+  return new WP_Error( 'aichat_rate_limited', __( 'Rate limit reached. Try again later.', 'axiachat-ai' ) );
     }
 
     set_transient( $key, $data, $window );
@@ -840,11 +843,11 @@ if ( ! function_exists('aichat_spam_signature_check') ) {
 
     // URLs excesivas
     if ( substr_count($plain,'http://') + substr_count($plain,'https://') > 3 ) {
-  return new WP_Error('aichat_spam_links', __( 'Too many links.', 'ai-chat' ) );
+  return new WP_Error('aichat_spam_links', __( 'Too many links.', 'axiachat-ai' ) );
     }
     // Repetición de mismo caracter
     if ( preg_match('/(.)\\1{20,}/u', $plain) ) {
-  return new WP_Error('aichat_spam_repeat', __( 'Invalid pattern.', 'ai-chat' ) );
+  return new WP_Error('aichat_spam_repeat', __( 'Invalid pattern.', 'axiachat-ai' ) );
     }
     // Mensaje idéntico repetido (almacenamos hash breve)
     $hash = substr( md5( $plain ), 0, 12 );
@@ -852,7 +855,7 @@ if ( ! function_exists('aichat_spam_signature_check') ) {
     $last = get_transient($k);
     set_transient($k, $hash, 10 * MINUTE_IN_SECONDS);
     if ( $last && $last === $hash ) {
-  return new WP_Error('aichat_dup', __( 'Duplicate message detected.', 'ai-chat' ) );
+  return new WP_Error('aichat_dup', __( 'Duplicate message detected.', 'axiachat-ai' ) );
     }
     return true;
   }

@@ -3,7 +3,7 @@ if ( ! defined('ABSPATH') ) { exit; }
 
 function aichat_logs_detail_page() {
     if ( ! current_user_can('manage_options') ) {
-    wp_die( esc_html__('Unauthorized','ai-chat') );
+    wp_die( esc_html__('Unauthorized','axiachat-ai') );
     }
     global $wpdb;
     $table = $wpdb->prefix.'aichat_conversations';
@@ -12,7 +12,7 @@ function aichat_logs_detail_page() {
     $bot     = isset($_GET['bot']) ? sanitize_title($_GET['bot']) : '';
 
     if ( ! $session || ! $bot ) {
-    echo '<div class="wrap"><h1>'.esc_html__('Conversation Detail','ai-chat').'</h1><p>'.esc_html__('Missing parameters.','ai-chat').'</p></div>';
+    echo '<div class="wrap"><h1>'.esc_html__('Conversation Detail','axiachat-ai').'</h1><p>'.esc_html__('Missing parameters.','axiachat-ai').'</p></div>';
         return;
     }
 
@@ -71,21 +71,21 @@ function aichat_logs_detail_page() {
     ?>
     <div class="wrap">
         <h1 class="mb-3 d-flex align-items-center gap-2">
-            <i class="bi bi-chat-square-text"></i> <?php esc_html_e('Conversation Detail','ai-chat'); ?>
+            <i class="bi bi-chat-square-text"></i> <?php esc_html_e('Conversation Detail','axiachat-ai'); ?>
         </h1>
 
         <div class="card mb-4 shadow-sm">
             <div class="card-body row g-4">
                 <div class="col-md-3">
-                    <div class="small text-muted"><?php esc_html_e('Session ID','ai-chat'); ?></div>
+                    <div class="small text-muted"><?php esc_html_e('Session ID','axiachat-ai'); ?></div>
                     <code><?php echo esc_html($session); ?></code>
                 </div>
                 <div class="col-md-2">
-                    <div class="small text-muted"><?php esc_html_e('Bot','ai-chat'); ?></div>
+                    <div class="small text-muted"><?php esc_html_e('Bot','axiachat-ai'); ?></div>
                     <code><?php echo esc_html($bot); ?></code>
                 </div>
                 <div class="col-md-2">
-                    <div class="small text-muted"><?php esc_html_e('User','ai-chat'); ?></div>
+                    <div class="small text-muted"><?php esc_html_e('User','axiachat-ai'); ?></div>
                     <span>
                         <?php
                         if ( $wh_label ) {
@@ -99,20 +99,20 @@ function aichat_logs_detail_page() {
                     </span>
                 </div>
                 <div class="col-md-2">
-                    <div class="small text-muted"><?php esc_html_e('Messages','ai-chat'); ?></div>
+                    <div class="small text-muted"><?php esc_html_e('Messages','axiachat-ai'); ?></div>
                     <span class="fw-semibold"><?php echo (int)$total; ?></span>
                 </div>
                 <div class="col-md-3 d-flex align-items-start gap-2 justify-content-end">
                     <a href="<?php echo esc_url( $back_url ); ?>" class="button">
-                        <i class="bi bi-arrow-left-circle"></i> <?php esc_html_e('Back','ai-chat'); ?>
+                        <i class="bi bi-arrow-left-circle"></i> <?php esc_html_e('Back','axiachat-ai'); ?>
                     </a>
-                    <form method="post" action="<?php echo esc_url( admin_url('admin-post.php') ); ?>" onsubmit="return confirm('<?php echo esc_attr__('Delete this entire conversation?','ai-chat'); ?>');">
+                    <form method="post" action="<?php echo esc_url( admin_url('admin-post.php') ); ?>" onsubmit="return confirm('<?php echo esc_attr__('Delete this entire conversation?','axiachat-ai'); ?>');">
                         <?php wp_nonce_field('aichat_delete_conversation'); ?>
                         <input type="hidden" name="action" value="aichat_delete_conversation" />
                         <input type="hidden" name="session_id" value="<?php echo esc_attr($session); ?>" />
                         <input type="hidden" name="bot_slug" value="<?php echo esc_attr($bot); ?>" />
                         <button type="submit" class="button button-danger">
-                            <i class="bi bi-trash"></i> <?php esc_html_e('Delete','ai-chat'); ?>
+                            <i class="bi bi-trash"></i> <?php esc_html_e('Delete','axiachat-ai'); ?>
                         </button>
                     </form>
                 </div>
@@ -123,15 +123,15 @@ function aichat_logs_detail_page() {
             <table class="table table-striped align-middle">
                 <thead class="table-light">
                     <tr>
-                        <th style="width:140px;"><?php esc_html_e('Time','ai-chat'); ?></th>
-                        <th style="width:110px;"><?php esc_html_e('Role','ai-chat'); ?></th>
-                        <th><?php esc_html_e('Text','ai-chat'); ?></th>
+                        <th style="width:140px;"><?php esc_html_e('Time','axiachat-ai'); ?></th>
+                        <th style="width:110px;"><?php esc_html_e('Role','axiachat-ai'); ?></th>
+                        <th><?php esc_html_e('Text','axiachat-ai'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
                 <?php if ( $messages ) : ?>
                     <?php foreach( $messages as $m ): 
-                        $role_label = $m['role']==='user' ? __('User','ai-chat') : __('Assistant','ai-chat');
+                        $role_label = $m['role']==='user' ? __('User','axiachat-ai') : __('Assistant','axiachat-ai');
                         ?>
                         <tr>
                             <td class="small text-muted"><?php echo esc_html($m['at']); ?></td>
@@ -154,7 +154,7 @@ function aichat_logs_detail_page() {
                     <?php endforeach; ?>
                 <?php else: ?>
                     <tr><td colspan="3" class="text-center text-muted py-4">
-                        <i class="bi bi-info-circle"></i> <?php esc_html_e('No messages in this conversation.','ai-chat'); ?>
+                        <i class="bi bi-info-circle"></i> <?php esc_html_e('No messages in this conversation.','axiachat-ai'); ?>
                     </td></tr>
                 <?php endif; ?>
                 </tbody>

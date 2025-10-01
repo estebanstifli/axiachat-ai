@@ -3,7 +3,7 @@ if ( ! defined('ABSPATH') ) { exit; }
 
 function aichat_logs_page() {
     if ( ! current_user_can('manage_options') ) {
-    wp_die( esc_html__('Unauthorized','ai-chat') );
+    wp_die( esc_html__('Unauthorized','axiachat-ai') );
     }
 
     $logging_enabled = (bool) get_option('aichat_logging_enabled', 1);
@@ -20,7 +20,7 @@ function aichat_logs_page() {
         }
     }
     if ( ! $nonce_valid ) {
-    echo '<div class="wrap"><h1>'.esc_html__('Conversation Logs','ai-chat').'</h1><div class="notice notice-error"><p>'.esc_html__('Security check failed. Reload the page and try again.','ai-chat').'</p></div></div>';
+    echo '<div class="wrap"><h1>'.esc_html__('Conversation Logs','axiachat-ai').'</h1><div class="notice notice-error"><p>'.esc_html__('Security check failed. Reload the page and try again.','axiachat-ai').'</p></div></div>';
         return;
     }
 
@@ -128,17 +128,17 @@ function aichat_logs_page() {
     ?>
     <div class="wrap">
         <h1 class="mb-3 d-flex align-items-center gap-2">
-            <i class="bi bi-chat-dots"></i> <?php echo esc_html__('Conversation Logs','ai-chat'); ?>
+            <i class="bi bi-chat-dots"></i> <?php echo esc_html__('Conversation Logs','axiachat-ai'); ?>
         </h1>
 
         <?php if ( ! $logging_enabled ) : ?>
             <div class="notice notice-warning">
-                <p><?php echo esc_html__('Conversation logging is currently disabled. No new entries are being stored.', 'ai-chat'); ?></p>
+                <p><?php echo esc_html__('Conversation logging is currently disabled. No new entries are being stored.', 'axiachat-ai'); ?></p>
             </div>
         <?php endif; ?>
 
         <?php if ( isset($_GET['deleted']) ) : ?>
-            <div class="notice notice-success is-dismissible"><p><?php echo esc_html__('Conversation deleted.', 'ai-chat'); ?></p></div>
+            <div class="notice notice-success is-dismissible"><p><?php echo esc_html__('Conversation deleted.', 'axiachat-ai'); ?></p></div>
         <?php endif; ?>
 
         <style>
@@ -153,26 +153,26 @@ function aichat_logs_page() {
             <?php wp_nonce_field('aichat_logs_filter','aichat_logs_nonce'); ?>
             <div class="row g-3 align-items-end">
                 <div class="col-md-2 col-sm-6">
-                    <label class="form-label"><?php esc_html_e('Date From','ai-chat'); ?></label>
+                    <label class="form-label"><?php esc_html_e('Date From','axiachat-ai'); ?></label>
                     <input type="date" name="date_from" value="<?php echo esc_attr($date_from); ?>" class="form-control" />
                 </div>
                 <div class="col-md-2 col-sm-6">
-                    <label class="form-label"><?php esc_html_e('Date To','ai-chat'); ?></label>
+                    <label class="form-label"><?php esc_html_e('Date To','axiachat-ai'); ?></label>
                     <input type="date" name="date_to" value="<?php echo esc_attr($date_to); ?>" class="form-control" />
                 </div>
                 <div class="col-md-2 col-sm-6">
-                    <label class="form-label"><?php esc_html_e('User ID','ai-chat'); ?></label>
+                    <label class="form-label"><?php esc_html_e('User ID','axiachat-ai'); ?></label>
                     <select name="user_id" class="form-select">
-                        <option value="0">— <?php esc_html_e('All','ai-chat'); ?> —</option>
+                        <option value="0">— <?php esc_html_e('All','axiachat-ai'); ?> —</option>
                         <?php foreach($users as $u): ?>
                             <option value="<?php echo (int)$u; ?>" <?php selected($user_id,$u); ?>><?php echo (int)$u; ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
                 <div class="col-md-2 col-sm-6">
-                    <label class="form-label"><?php esc_html_e('Bot','ai-chat'); ?></label>
+                    <label class="form-label"><?php esc_html_e('Bot','axiachat-ai'); ?></label>
                     <select name="bot_slug" class="form-select">
-                        <option value="">— <?php esc_html_e('All','ai-chat'); ?> —</option>
+                        <option value="">— <?php esc_html_e('All','axiachat-ai'); ?> —</option>
                         <?php foreach($bots as $b): ?>
                             <option value="<?php echo esc_attr($b); ?>" <?php selected($bot_slug,$b); ?>><?php echo esc_html($b); ?></option>
                         <?php endforeach; ?>
@@ -180,10 +180,10 @@ function aichat_logs_page() {
                 </div>
                 <div class="col-md-4 col-sm-12 d-flex flex-wrap gap-2">
                     <button type="submit" class="button button-primary">
-                        <i class="bi bi-funnel"></i> <?php esc_html_e('Filter','ai-chat'); ?>
+                        <i class="bi bi-funnel"></i> <?php esc_html_e('Filter','axiachat-ai'); ?>
                     </button>
                     <a href="<?php echo esc_url( admin_url('admin.php?page=aichat-logs') ); ?>" class="button button-secondary">
-                        <i class="bi bi-x-circle"></i> <?php esc_html_e('Reset','ai-chat'); ?>
+                        <i class="bi bi-x-circle"></i> <?php esc_html_e('Reset','axiachat-ai'); ?>
                     </a>
                 </div>
             </div>
@@ -193,12 +193,12 @@ function aichat_logs_page() {
             <table class="table table-hover align-middle">
                 <thead class="table-light">
                     <tr>
-                        <th><?php esc_html_e('Date','ai-chat'); ?></th>
-                        <th><?php esc_html_e('User','ai-chat'); ?></th>
-                        <th><?php esc_html_e('Bot','ai-chat'); ?></th>
-                        <th><?php esc_html_e('Messages','ai-chat'); ?></th>
-                        <th><?php esc_html_e('Last Snippet','ai-chat'); ?></th>
-                        <th><?php esc_html_e('Detail','ai-chat'); ?></th>
+                        <th><?php esc_html_e('Date','axiachat-ai'); ?></th>
+                        <th><?php esc_html_e('User','axiachat-ai'); ?></th>
+                        <th><?php esc_html_e('Bot','axiachat-ai'); ?></th>
+                        <th><?php esc_html_e('Messages','axiachat-ai'); ?></th>
+                        <th><?php esc_html_e('Last Snippet','axiachat-ai'); ?></th>
+                        <th><?php esc_html_e('Detail','axiachat-ai'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -241,14 +241,14 @@ function aichat_logs_page() {
                             <td class="small"><?php echo esc_html($snippet); ?></td>
                             <td>
                                 <a class="button button-small" href="<?php echo esc_url($detail_url); ?>">
-                                    <i class="bi bi-box-arrow-in-right"></i> <?php esc_html_e('Open','ai-chat'); ?>
+                                    <i class="bi bi-box-arrow-in-right"></i> <?php esc_html_e('Open','axiachat-ai'); ?>
                                 </a>
                             </td>
                         </tr>
                     <?php endforeach; ?>
                 <?php else: ?>
                     <tr><td colspan="6" class="text-center text-muted py-4">
-                        <i class="bi bi-info-circle"></i> <?php esc_html_e('No conversations found.','ai-chat'); ?>
+                        <i class="bi bi-info-circle"></i> <?php esc_html_e('No conversations found.','axiachat-ai'); ?>
                     </td></tr>
                 <?php endif; ?>
                 </tbody>

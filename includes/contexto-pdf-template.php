@@ -65,15 +65,15 @@ add_action('admin_enqueue_scripts', function( $hook ){
         'allowed_exts'=>array('pdf','txt'),
         'caps'=>$caps,
         'i18n'=>array(
-            'drop_here'=>__('Drop PDF/TXT files here or click to select','ai-chat'),
-            'uploading'=>__('Uploading…','ai-chat'),
-            'parsing'=>__('Parsing…','ai-chat'),
-            'chunking'=>__('Chunking…','ai-chat'),
-            'ready'=>__('Ready','ai-chat'),
-            'error'=>__('Error','ai-chat'),
-            'delete_q'=>__('Delete this file and its chunks?','ai-chat'),
-            'reparse_q'=>__('Re-parse this file?','ai-chat'),
-            'add_ctx_q'=>__('Add all chunks to the current context selection?','ai-chat'),
+            'drop_here'=>__('Drop PDF/TXT files here or click to select','axiachat-ai'),
+            'uploading'=>__('Uploading…','axiachat-ai'),
+            'parsing'=>__('Parsing…','axiachat-ai'),
+            'chunking'=>__('Chunking…','axiachat-ai'),
+            'ready'=>__('Ready','axiachat-ai'),
+            'error'=>__('Error','axiachat-ai'),
+            'delete_q'=>__('Delete this file and its chunks?','axiachat-ai'),
+            'reparse_q'=>__('Re-parse this file?','axiachat-ai'),
+            'add_ctx_q'=>__('Add all chunks to the current context selection?','axiachat-ai'),
         ),
     ));
 });
@@ -111,17 +111,17 @@ function aichat_contexto_pdf_page(){
         <ul class="nav nav-tabs mb-3" role="tablist">
             <li class="nav-item" role="presentation">
                 <a class="nav-link" href="<?php echo esc_url(admin_url('admin.php?page=aichat-contexto-settings')); ?>">
-                    <i class="bi bi-gear me-1"></i><?php echo esc_html__('Context','ai-chat'); ?>
+                    <i class="bi bi-gear me-1"></i><?php echo esc_html__('Context','axiachat-ai'); ?>
                 </a>
             </li>
             <li class="nav-item" role="presentation">
                 <a class="nav-link" href="<?php echo esc_url(admin_url('admin.php?page=aichat-contexto-create')); ?>">
-                    <i class="bi bi-plus-circle me-1"></i><?php echo esc_html__('Add New','ai-chat'); ?>
+                    <i class="bi bi-plus-circle me-1"></i><?php echo esc_html__('Add New','axiachat-ai'); ?>
                 </a>
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link active" type="button">
-                    <i class="bi bi-filetype-pdf me-1"></i><?php echo esc_html__('Import PDF/Data','ai-chat'); ?>
+                    <i class="bi bi-filetype-pdf me-1"></i><?php echo esc_html__('Import PDF/Data','axiachat-ai'); ?>
                 </button>
             </li>
         </ul>
@@ -129,10 +129,10 @@ function aichat_contexto_pdf_page(){
         <!-- Header -->
         <div class="d-flex align-items-center mb-3">
             <i class="bi bi-filetype-pdf fs-3 me-2 text-danger"></i>
-            <h1 class="m-0"><?php echo esc_html__('Import PDF/Data','ai-chat'); ?></h1>
+            <h1 class="m-0"><?php echo esc_html__('Import PDF/Data','axiachat-ai'); ?></h1>
         </div>
         <p class="text-muted">
-            <?php echo esc_html__('Upload PDF or TXT files, extract and split them into chunks. Chunks are saved as private CPT posts to reuse the current indexing pipeline.','ai-chat'); ?>
+            <?php echo esc_html__('Upload PDF or TXT files, extract and split them into chunks. Chunks are saved as private CPT posts to reuse the current indexing pipeline.','axiachat-ai'); ?>
         </p>
 
         <!-- Dropzone -->
@@ -141,16 +141,16 @@ function aichat_contexto_pdf_page(){
                 <div id="aichat-pdf-dropzone" class="aichat-drop" tabindex="0">
                     <div class="aichat-drop-inner">
                         <div class="mb-2"><i class="bi bi-cloud-arrow-up big-icon text-primary"></i></div>
-                        <p class="mb-1 fw-semibold"><?php echo esc_html__('Drop PDF/TXT files here or click to select','ai-chat'); ?></p>
+                        <p class="mb-1 fw-semibold"><?php echo esc_html__('Drop PDF/TXT files here or click to select','axiachat-ai'); ?></p>
                         <p class="aichat-mono text-muted mb-3">
                             <?php
                             /* translators: %d: maximum file size in megabytes */
-                            echo sprintf( esc_html__( 'Allowed: .pdf, .txt — Max %d MB / file', 'ai-chat' ), intval( $max_mb ) );
+                            echo sprintf( esc_html__( 'Allowed: .pdf, .txt — Max %d MB / file', 'axiachat-ai' ), intval( $max_mb ) );
                             ?>
                         </p>
                         <input id="aichat-file-input" type="file" accept=".pdf,.txt" multiple style="display:none;">
                         <button type="button" class="button button-secondary btn btn-outline-primary" id="aichat-file-select" data-no-propagate="true">
-                            <i class="bi bi-folder2-open me-1"></i><?php echo esc_html__('Select files','ai-chat'); ?>
+                            <i class="bi bi-folder2-open me-1"></i><?php echo esc_html__('Select files','axiachat-ai'); ?>
                         </button>
                     </div>
                 </div>
@@ -163,15 +163,15 @@ function aichat_contexto_pdf_page(){
                 <div class="card-body">
                     <div class="d-flex align-items-center justify-content-between mb-3">
                         <h5 class="card-title m-0">
-                            <i class="bi bi-collection me-2 text-secondary"></i><?php echo esc_html__('Your Uploads','ai-chat'); ?>
+                            <i class="bi bi-collection me-2 text-secondary"></i><?php echo esc_html__('Your Uploads','axiachat-ai'); ?>
                         </h5>
                         <div class="d-flex gap-2">
                             <div class="input-group">
                                 <span class="input-group-text"><i class="bi bi-search"></i></span>
-                                <input type="text" id="aichat-upload-search" class="form-control" placeholder="<?php echo esc_attr__('Search by filename…','ai-chat'); ?>">
+                                <input type="text" id="aichat-upload-search" class="form-control" placeholder="<?php echo esc_attr__('Search by filename…','axiachat-ai'); ?>">
                             </div>
                             <button type="button" class="button btn btn-outline-secondary" id="aichat-refresh-uploads">
-                                <i class="bi bi-arrow-clockwise me-1"></i><?php echo esc_html__('Refresh','ai-chat'); ?>
+                                <i class="bi bi-arrow-clockwise me-1"></i><?php echo esc_html__('Refresh','axiachat-ai'); ?>
                             </button>
                         </div>
                     </div>
@@ -180,17 +180,17 @@ function aichat_contexto_pdf_page(){
                         <table class="table table-hover align-middle wp-list-table widefat striped">
                             <thead class="table-light">
                                 <tr>
-                                    <th><i class="bi bi-file-earmark-text me-1"></i><?php echo esc_html__('File','ai-chat'); ?></th>
-                                    <th><i class="bi bi-type me-1"></i><?php echo esc_html__('Type','ai-chat'); ?></th>
-                                    <th><i class="bi bi-hdd me-1"></i><?php echo esc_html__('Size','ai-chat'); ?></th>
-                                    <th><i class="bi bi-bar-chart-line me-1"></i><?php echo esc_html__('Status','ai-chat'); ?></th>
-                                    <th><i class="bi bi-diagram-3 me-1"></i><?php echo esc_html__('Chunks','ai-chat'); ?></th>
-                                    <th><i class="bi bi-clock-history me-1"></i><?php echo esc_html__('Updated','ai-chat'); ?></th>
-                                    <th><i class="bi bi-tools me-1"></i><?php echo esc_html__('Actions','ai-chat'); ?></th>
+                                    <th><i class="bi bi-file-earmark-text me-1"></i><?php echo esc_html__('File','axiachat-ai'); ?></th>
+                                    <th><i class="bi bi-type me-1"></i><?php echo esc_html__('Type','axiachat-ai'); ?></th>
+                                    <th><i class="bi bi-hdd me-1"></i><?php echo esc_html__('Size','axiachat-ai'); ?></th>
+                                    <th><i class="bi bi-bar-chart-line me-1"></i><?php echo esc_html__('Status','axiachat-ai'); ?></th>
+                                    <th><i class="bi bi-diagram-3 me-1"></i><?php echo esc_html__('Chunks','axiachat-ai'); ?></th>
+                                    <th><i class="bi bi-clock-history me-1"></i><?php echo esc_html__('Updated','axiachat-ai'); ?></th>
+                                    <th><i class="bi bi-tools me-1"></i><?php echo esc_html__('Actions','axiachat-ai'); ?></th>
                                 </tr>
                             </thead>
                             <tbody id="aichat-upload-list">
-                                <tr><td colspan="7" class="text-muted"><?php echo esc_html__('No files yet. Upload some to get started.','ai-chat'); ?></td></tr>
+                                <tr><td colspan="7" class="text-muted"><?php echo esc_html__('No files yet. Upload some to get started.','axiachat-ai'); ?></td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -203,7 +203,7 @@ function aichat_contexto_pdf_page(){
         <!-- Capacidades técnicas (abajo, discretas) -->
         <div class="aichat-cap-wrap">
             <div class="text-muted aichat-cap-muted mb-2">
-                <i class="bi bi-info-circle me-1"></i><?php echo esc_html__('Processing capabilities (technical details)','ai-chat'); ?>
+                <i class="bi bi-info-circle me-1"></i><?php echo esc_html__('Processing capabilities (technical details)','axiachat-ai'); ?>
             </div>
             <div class="aichat-cap-grid">
                 <div class="card aichat-cap-card"><div class="card-body">
@@ -211,7 +211,7 @@ function aichat_contexto_pdf_page(){
                     <div><div class="fw-semibold">pdftotext</div>
                         <div class="aichat-badge <?php echo $caps['pdftotext']?'ok':'no'; ?>">
                             <i class="bi <?php echo $caps['pdftotext']?'bi-check-circle':'bi-x-circle'; ?>"></i>
-                            <?php echo $caps['pdftotext']?esc_html__('Available','ai-chat'):esc_html__('Unavailable','ai-chat'); ?>
+                            <?php echo $caps['pdftotext']?esc_html__('Available','axiachat-ai'):esc_html__('Unavailable','axiachat-ai'); ?>
                         </div>
                     </div>
                 </div></div>
@@ -220,7 +220,7 @@ function aichat_contexto_pdf_page(){
                     <div><div class="fw-semibold">pdftoppm</div>
                         <div class="aichat-badge <?php echo $caps['pdftoppm']?'ok':'no'; ?>">
                             <i class="bi <?php echo $caps['pdftoppm']?'bi-check-circle':'bi-x-circle'; ?>"></i>
-                            <?php echo $caps['pdftoppm']?esc_html__('Available','ai-chat'):esc_html__('Unavailable','ai-chat'); ?>
+                            <?php echo $caps['pdftoppm']?esc_html__('Available','axiachat-ai'):esc_html__('Unavailable','axiachat-ai'); ?>
                         </div>
                     </div>
                 </div></div>
@@ -229,7 +229,7 @@ function aichat_contexto_pdf_page(){
                     <div><div class="fw-semibold">Tesseract OCR</div>
                         <div class="aichat-badge <?php echo $caps['tesseract']?'ok':'no'; ?>">
                             <i class="bi <?php echo $caps['tesseract']?'bi-check-circle':'bi-x-circle'; ?>"></i>
-                            <?php echo $caps['tesseract']?esc_html__('Available','ai-chat'):esc_html__('Unavailable','ai-chat'); ?>
+                            <?php echo $caps['tesseract']?esc_html__('Available','axiachat-ai'):esc_html__('Unavailable','axiachat-ai'); ?>
                         </div>
                     </div>
                 </div></div>
@@ -238,7 +238,7 @@ function aichat_contexto_pdf_page(){
                     <div><div class="fw-semibold">PHP Fallback</div>
                         <div class="aichat-badge <?php echo $caps['php_fallback']?'ok':'no'; ?>">
                             <i class="bi <?php echo $caps['php_fallback']?'bi-check-circle':'bi-x-circle'; ?>"></i>
-                            <?php echo $caps['php_fallback']?esc_html__('Enabled','ai-chat'):esc_html__('Disabled','ai-chat'); ?>
+                            <?php echo $caps['php_fallback']?esc_html__('Enabled','axiachat-ai'):esc_html__('Disabled','axiachat-ai'); ?>
                         </div>
                     </div>
                 </div></div>

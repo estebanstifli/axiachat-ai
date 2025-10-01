@@ -48,7 +48,7 @@ function aichat_render_shortcode( $atts, $content = null, $tag = 'aichat' ) {
     // Si seguimos sin slug, avisa (solo admin)
     if ( empty( $slug ) ) {
         if ( current_user_can('manage_options') ) {
-            return '<div class="aichat-widget"><em style="color:#b00">' . esc_html__( '[AIChat] No bots configured.', 'ai-chat' ) . '</em></div>';
+            return '<div class="aichat-widget"><em style="color:#b00">' . esc_html__( '[AIChat] No bots configured.', 'axiachat-ai' ) . '</em></div>';
         }
         return '<div class="aichat-widget"></div>';
     }
@@ -60,7 +60,7 @@ function aichat_render_shortcode( $atts, $content = null, $tag = 'aichat' ) {
     if ( ! $bot ) {
         if ( current_user_can('manage_options') ) {
             /* translators: %s: bot slug that was not found */
-            return '<div class="aichat-widget"><em style="color:#b00">[AIChat] ' . sprintf( esc_html__( 'Bot not found: %s', 'ai-chat' ), esc_html( $slug ) ) . '</em></div>';
+            return '<div class="aichat-widget"><em style="color:#b00">[AIChat] ' . sprintf( esc_html__( 'Bot not found: %s', 'axiachat-ai' ), esc_html( $slug ) ) . '</em></div>';
         }
         return '<div class="aichat-widget"></div>';
     }
@@ -145,10 +145,10 @@ function aichat_render_shortcode( $atts, $content = null, $tag = 'aichat' ) {
         // En frontend (no admin_init) los defaults de register_setting no están cargados.
         // Si vienen vacíos, aplicamos los textos por defecto traducibles.
         if ($gdpr_text_raw === '' || $gdpr_text_raw === null || $gdpr_text_raw === false || trim((string)$gdpr_text_raw) === '') {
-            $gdpr_text_raw = __( 'By using this chatbot, you agree to the recording and processing of your data for improving our services.', 'ai-chat' );
+            $gdpr_text_raw = __( 'By using this chatbot, you agree to the recording and processing of your data for improving our services.', 'axiachat-ai' );
         }
         if ($gdpr_button_raw === '' || $gdpr_button_raw === null || $gdpr_button_raw === false || trim((string)$gdpr_button_raw) === '') {
-            $gdpr_button_raw = __( 'I understand', 'ai-chat' );
+            $gdpr_button_raw = __( 'I understand', 'axiachat-ai' );
         }
         // Sanitizamos para salida JS (el texto permite HTML básico, el botón solo texto plano)
         $gdpr_text    = wp_kses_post( (string) $gdpr_text_raw );

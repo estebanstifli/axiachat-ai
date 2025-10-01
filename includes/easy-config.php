@@ -9,9 +9,9 @@ function aichat_easy_config_page(){
     if ( ! current_user_can('manage_options') ) { return; }
     $nonce = wp_create_nonce('aichat_easycfg');
     echo '<div class="wrap aichat-easy-config-wrapper">';
-    echo '<h1>'.esc_html__('AI Chat – Easy Config','ai-chat').'</h1>';
+    echo '<h1>'.esc_html__('AI Chat – Easy Config','axiachat-ai').'</h1>';
     echo '<div id="aichat-easy-config-root" data-nonce="'.esc_attr($nonce).'"></div>';
-    echo '<noscript><p>'.esc_html__('This wizard requires JavaScript.','ai-chat').'</p></noscript>';
+    echo '<noscript><p>'.esc_html__('This wizard requires JavaScript.','axiachat-ai').'</p></noscript>';
     echo '</div>';
 }
 

@@ -8,8 +8,8 @@ function aichat_run_moderation_checks( $message ) {
     $enabled = (bool) get_option('aichat_moderation_enabled', false);
     if (!$enabled) return true;
 
-    $rejection = trim( get_option('aichat_moderation_rejection_message', __( 'Request not authorized.', 'ai-chat' ) ) );
-    if ($rejection === '') $rejection = __( 'Request not authorized.', 'ai-chat' );
+    $rejection = trim( get_option('aichat_moderation_rejection_message', __( 'Request not authorized.', 'axiachat-ai' ) ) );
+    if ($rejection === '') $rejection = __( 'Request not authorized.', 'axiachat-ai' );
 
     // 1) Bloqueo IP local
     $client_ip = aichat_detect_client_ip();

@@ -1,13 +1,13 @@
-=== AI Chat ===
+=== AxiaChat AI ===
 Contributors: estebandezafra
 Tags: chatbot, ai, openai, chat, assistant
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.1.3
+Stable tag: 1.1.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-A customizable AI chatbot plugin for WordPress powered by OpenAI. Create multiple bots, embed them via shortcode or a global floating widget, and optionally enhance answers with your own contextual content (RAG).
+Previously named "AI Chat". A customizable AI chatbot plugin for WordPress powered by OpenAI. Create multiple bots, embed them via shortcode or a global floating widget, and optionally enhance answers with your own contextual content (RAG).
 
 == Description ==
 AI Chat lets you add one or more AI‑powered chatbots to your WordPress site. Each bot can have its own model settings, instructions, UI colors, avatar and placement. It uses the OpenAI API (you must provide your own API key) and can augment answers with contextual data (documents, posts or imported PDF content) using a basic Retrieval Augmented Generation workflow.
@@ -26,7 +26,7 @@ Conversation logs are stored locally (can be disabled) so you can review usage (
 * Shortcode attribute overrides for quick per‑page customization
 * Action hooks: `aichat_after_response`, `aichat_conversation_saved` (extend for analytics, etc.)
 * Security: nonces + capability checks, prepared queries, escaping
-* Translation ready (text domain: aichat) – Spanish included
+* Translation ready (text domain: axiachat-ai – formerly ai-chat) – Spanish included
 * Clean uninstall (removes options; keeps conversation tables unless you delete them manually)
 * Local vendor assets (Bootstrap / Icons) so no external CDN dependency
 
@@ -122,101 +122,190 @@ User prompts (and selected context snippets) are sent to OpenAI. Content may con
 * Embedding/PDF ingestion can be heavy—schedule during low traffic
 * Lightweight front‑end footprint otherwise
 
+=== AxiaChat AI ===
+Contributors: estebandezafra
+Tags: chatbot, ai, openai, chat, assistant, embeddings, rag
+Requires at least: 5.0
+Tested up to: 6.8
+Requires PHP: 7.4
+Stable tag: 1.1.3
+License: GPLv2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
+AxiaChat AI is a flexible AI chatbot for WordPress: multiple bots, contextual retrieval (embeddings), PDF ingestion, usage limits, logging, and a guided setup wizard.
+
+== Description ==
+AxiaChat AI lets you add one or more AI‑powered chatbots to your site. Each bot defines model settings, instructions, UI style and context strategy. Enhance replies with your own content (posts, pages, products, PDFs) via local embeddings for Retrieval Augmented Generation (RAG) answers.
+
+All calls go directly from your server to OpenAI (bring your own API key). No external proxy layer. Conversation logging is optional and can be disabled for privacy.
+
+== Key Features ==
+* Multiple independent bots (model, temperature, context mode, UI)
+* Floating global widget or inline shortcode
+* Context modes: embeddings / page / none
+* PDF & content ingestion → embeddings (local RAG)
+* Easy Config wizard (scan, create context, index, link bot)
+* Conversation logging toggle (store or disable)
+* Daily usage limits (per user/IP + global) with hide/disable behaviors
+* GDPR consent bubble (blocks input until accepted)
+* Customizable UI (color, position, avatars, placeholder, start sentence, window controls)
+* Shortcode attribute overrides per page
+* Action hooks for extension (e.g. `aichat_conversation_saved`)
+* Security: nonces, capability checks, prepared SQL, escaping
+* Local vendor assets (Bootstrap / Icons) – no CDN reliance
+* Translation ready (text domain: axiachat-ai) – Spanish included
+* Clean uninstall (options removed; data tables preserved unless manually deleted)
+
+== Installation ==
+1. Upload the `aichat` folder to `/wp-content/plugins/` (or install via Plugins > Add New).
+2. Activate the plugin.
+3. Go to AxiaChat AI > Settings and add your OpenAI API key.
+4. Create or edit a Bot (model, UI, behavior).
+5. (Optional) Ingest content under AxiaChat AI > Context to build embeddings.
+6. Embed:
+   * Inline: `[aichat id="your-bot-slug"]`
+   * Global floating widget: enable it in Settings and choose a bot.
+
+== Usage Basics ==
+Create a bot, optionally index content, then place it inline or via the global widget. Adjust window flags (closable/minimizable/draggable) and placeholders from the bot configuration.
+
+== Easy Config Wizard ==
+The wizard streamlines first‑time setup:
+1. Scan recent site content (posts/pages/products)
+2. Create a local context
+3. Batch embedding (chunking large content, 10 items per AJAX batch)
+4. Link the default bot to the context (embeddings mode)
+
+Smart discovery prioritizes homepage links, legal/FAQ/about pages, key WooCommerce categories/products, and falls back to recent posts if needed.
+
+Chunking splits long content into overlapping segments for better semantic retrieval. You can deselect items before indexing to limit token usage.
+
+== Shortcode Reference ==
+Basic: `[aichat id="bot-slug"]`
+Optional attributes:
+* title="Custom Title"
+* placeholder="Ask me anything..."
+* layout="floating|inline"
+* position="br|bl|tr|tl|bottom-right|bottom-left|top-right|top-left"
+* class="extra-css-class"
+
+Example: `[aichat id="support-bot" title="Support Assistant" layout="floating" position="bottom-left"]`
+
+== Data Storage ==
+Custom tables:
+* wp_aichat_conversations (messages, responses, meta)
+* wp_aichat_contexts (context definitions & progress)
+* wp_aichat_chunks (embedded content chunks)
+* wp_aichat_bots (bot configuration)
+
+Options store API key, limits, GDPR, widget settings. Tables persist on uninstall for safety.
+
+== Privacy ==
+User prompts and selected context snippets are sent to OpenAI. If users may enter personal data, disclose this and obtain consent where required. Logging can be disabled; if enabled, data remains on your server.
+
+== GDPR / Compliance Notes ==
+* Processor: OpenAI
+* Basis: legitimate interest or consent (consult legal counsel)
+* IP storage: only when per‑user/IP limits active (binary format)
+* Erasure: delete conversation rows manually (export/anonymize planned)
+* Consent: optional in‑stream bubble (cookie `aichat_gdpr_ok`)
+* Recommendation: add a privacy notice near the chat widget
+
+== Security ==
+* Nonces on all AJAX endpoints
+* `manage_options` capability gate for admin actions
+* Prepared / parameterized DB queries
+* Sanitization + escaped output
+* Key stored in an option (not exposed on front end)
+
+== Performance ==
+* Front‑end loads only essential JS/CSS when needed
+* Chunk indexing can be resource intensive—run during low traffic
+* Lightweight runtime after initial context build
+
 == Bundled Libraries ==
-* Bootstrap (local) – styling & layout
-* Bootstrap Icons (local) – icons
-* smalot/pdfparser (LGPLv3) – PDF text extraction fallback
-All third‑party licenses included in `/vendor`.
+* Bootstrap (local)
+* Bootstrap Icons (local)
+* smalot/pdfparser (LGPLv3) for PDF extraction
 
 == Translation ==
-* Text Domain: `aichat`
+* Text Domain: `axiachat-ai`
 * Domain Path: `/languages`
 
 == Roadmap ==
-* Export / anonymize conversation data tool
-* Basic analytics dashboard (usage counts, limit hits)
+* Conversation export / anonymize tooling
+* Expanded analytics dashboard
 * Additional AI providers (Azure OpenAI, Anthropic, etc.)
-* Optional data retention controls (auto prune)
+* Retention policies (auto prune)
+* Rules/Actions engine for conditional bot behavior (planned)
 
-== Frequently Asked Questions ==
-= Do I need my own OpenAI API key? =
-Yes. The plugin does not include API access. Create a key at OpenAI, then paste it in AI Chat > Settings.
+== FAQ ==
+**Do I need an OpenAI API key?**
+Yes. Provide your own key in Settings.
 
-= Can I disable storing conversations? =
-Yes. Uncheck the conversation logging option in Settings. Existing rows remain until you delete them.
+**Can I disable storing conversations?**
+Yes. Toggle logging off; existing rows remain until manually deleted.
 
-= What about usage limits? =
-Configure per-user/IP and global daily limits in Settings. After hitting them the widget either disables input (message shown) or hides itself (hidden mode).
+**How do usage limits work?**
+Set per-user/IP and global caps; widget can hide or disable input when exceeded.
 
-= How is the GDPR consent handled? =
-If enabled, a consent bubble appears inside the chat stream; inputs stay disabled until the user accepts (cookie `aichat_gdpr_ok`).
+**How is consent handled?**
+Optional consent bubble blocks input until accepted.
 
-= Does this plugin send data to any third‑party besides OpenAI? =
-No. Only OpenAI is contacted unless you modify the code or add extensions.
+**Any third‑party calls besides OpenAI?**
+No.
 
-= How do I change the position of the floating widget? =
-Use the global widget settings or override with shortcode `layout="floating"` and `position="bottom-left"` (or shorthand codes br|bl|tr|tl).
+**Change floating widget position?**
+Use bot/global settings or shortcode position attribute.
 
-= Is it translation ready? =
-Yes. Spanish translation included; more welcome.
+**Is it translation ready?**
+Yes (includes Spanish).
 
-= Will you support other AI providers? =
-Planned (see roadmap).
+**Will more AI providers be supported?**
+Planned.
 
 == Screenshots ==
-1. Frontend chat widget (floating mode)
-2. Bot configuration screen
-3. Context ingestion interface
+1. Floating chat widget
+2. Bot configuration
+3. Context ingestion & indexing
 
 == Changelog ==
 = 1.1.3 =
-* AutoSync system: background cron diff detection (modified/new/orphans) with queue merging.
-* Manual "Run AutoSync Now" modal (modes: modified, modified + new, full rebuild) with progress & disabling while pending/in_progress.
-* Browse Chunks tab (local contexts only): paginated, filtered listing (q, type, per page) to inspect stored chunks.
-* Split previous combined Edit/Test button into separate Settings and Similarity buttons + direct tab navigation.
-* LIMITED context full rebuild fix (rebuild only existing post IDs; no unintended additions).
-* Improved UX: persistent Run AutoSync button across AJAX reloads, tooltips, immediate progress refresh, buttons disabled during processing.
-* Internationalization: added keys for new buttons, modal labels, browse UI (loading, no chunks messages).
-* Internal refactors: normalized autosync_post_types storage (ALL_* markers vs LIMITED), enforced mode restrictions when not ALL_*.
-* Mini-tab context sync fix (Browse tab now updates when switching context via Settings/Similarity buttons).
+* AutoSync system (diff detection: modified/new/orphans) + queue merging
+* Manual “Run AutoSync Now” modal (modified / modified+new / full)
+* Browse Chunks tab (pagination, filters, excerpts)
+* UI refinements and progress refresh improvements
+* Normalized autosync scope markers (ALL_* vs LIMITED)
+* Updated internationalization strings
 
 = 1.1.2 =
-* Added Easy Config wizard (activation redirect, guided context + default bot linking)
-* Instruction template selector UI: fixed height with scrollbar + navigation arrows
-* Added 3 customer service instruction templates (English)
-* Settings: Embed Allowed Origins block moved before Save + example external snippet
-* Minor bug fix (undefined function call prevented bots list from loading)
+* Easy Config wizard (guided context + default bot linking)
+* Instruction template selector UI improvements
+* Added support instruction templates
+* Minor bots list loading fix
 
 = 1.1.0 =
-* Added Logs admin screen (list + detail + delete) with filters & nonce protection
-* Logging ON/OFF toggle (no new inserts when disabled)
-* IP capture (binary) for optional per-user/IP limits
-* Daily usage limits (per user/IP & global) with hide/disable behaviors
-* GDPR consent bubble inside chat stream
-* UI improvements (Bootstrap cards, icons, window controls, draggable/minimizable defaults)
-* Shortcode data attributes updated for window flags/placeholders
-* Security/escaping pass on admin pages & logs
-* Local vendor assets (Bootstrap / Icons) instead of remote
+* Logs admin screens (list & detail) + delete with nonce
+* Logging toggle / IP capture for limits
+* Daily usage limits (per user/IP + global)
+* GDPR consent bubble
+* UI enhancements (avatars, window controls, draggable panel)
+* Security/escaping pass & local vendor assets
 
 = 1.0.0 =
-Initial release
+* Initial release
 
 == Upgrade Notice ==
 = 1.1.0 =
-Review new Settings (logging toggle, usage limits, GDPR consent). Update privacy policy to mention optional IP storage if limits enabled.
-
-
+Review new logging & limits settings; update privacy policy if enabling IP-based limits.
 
 == Support ==
-Use the WordPress.org support forum. Include WP version, PHP version, whether logging/limits are enabled, and (sanitized) steps to reproduce issues.
+Use the WordPress.org support forum. Provide WP version, PHP version, logging status, and reproduction steps.
 
 == Contributing ==
-Pull requests and feature suggestions welcome. Follow WordPress coding standards and provide descriptive commit messages.
+Feature suggestions and PRs welcome. Follow WP coding standards and supply clear commit messages.
 
 == License ==
-This plugin is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 2 of the License, or (at your option) any later version.
-
-Distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+GPLv2 or later. See LICENSE.
 
 == Disclaimer ==
-AI responses may be inaccurate or outdated. Do not rely solely on AI output for legal, medical, or financial decisions. Always review critical information.
+AI output may be inaccurate. Do not rely on responses for legal, medical or financial decisions without human review.
