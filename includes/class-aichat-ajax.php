@@ -503,9 +503,16 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
 
             $usage = [];
             if(isset($body['usage'])){
-                $usage['prompt_tokens'] = isset($body['usage']['prompt_tokens']) ? (int)$body['usage']['prompt_tokens'] : null;
-                $usage['completion_tokens'] = isset($body['usage']['completion_tokens']) ? (int)$body['usage']['completion_tokens'] : null;
-                $usage['total_tokens'] = isset($body['usage']['total_tokens']) ? (int)$body['usage']['total_tokens'] : ( ($usage['prompt_tokens']!==null && $usage['completion_tokens']!==null)? $usage['prompt_tokens']+$usage['completion_tokens']: null );
+                $u = $body['usage'];
+                $prompt_tokens = isset($u['prompt_tokens']) ? (int)$u['prompt_tokens'] : ( isset($u['input_tokens']) ? (int)$u['input_tokens'] : null );
+                $completion_tokens = isset($u['completion_tokens']) ? (int)$u['completion_tokens'] : ( isset($u['output_tokens']) ? (int)$u['output_tokens'] : null );
+                $total_tokens = isset($u['total_tokens']) ? (int)$u['total_tokens'] : null;
+                if($total_tokens === null && $prompt_tokens !== null && $completion_tokens !== null){
+                    $total_tokens = $prompt_tokens + $completion_tokens;
+                }
+                $usage['prompt_tokens'] = $prompt_tokens;
+                $usage['completion_tokens'] = $completion_tokens;
+                $usage['total_tokens'] = $total_tokens;
             }
             return [ 'message' => $text, 'usage'=>$usage ];
         }
@@ -864,9 +871,15 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             ]);
             }
 
-            // Update daily usage aggregate
-            if ( function_exists('aichat_update_daily_usage_row') && $model && $provider && $total_tokens !== null && $prompt_tokens !== null ) {
-                aichat_update_daily_usage_row($provider,$model,(int)$prompt_tokens,(int)$completion_tokens,(int)$total_tokens,(int)$cost_micros);
+            // Update daily usage aggregate (permitir sin desglose prompt/completion)
+            if ( function_exists('aichat_update_daily_usage_row') && $model && $provider && $total_tokens !== null ) {
+                $pt = ($prompt_tokens !== null) ? (int)$prompt_tokens : 0;
+                $ct = ($completion_tokens !== null) ? (int)$completion_tokens : 0;
+                if($pt === 0 && $ct === 0){
+                    // sin desglose => asignar todo a prompt para no perder contabilización
+                    $pt = (int)$total_tokens;
+                }
+                aichat_update_daily_usage_row($provider,$model,$pt,$ct,(int)$total_tokens,(int)$cost_micros);
             }
 
         }
@@ -1091,10 +1104,16 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             // Usage: Responses API (experimental formatting may vary)
             $usage = [];
             if(isset($body['usage'])){
-                // Some variants: usage = { "prompt_tokens":X, "completion_tokens":Y, "total_tokens":Z }
-                $usage['prompt_tokens'] = isset($body['usage']['prompt_tokens']) ? (int)$body['usage']['prompt_tokens'] : null;
-                $usage['completion_tokens'] = isset($body['usage']['completion_tokens']) ? (int)$body['usage']['completion_tokens'] : null;
-                $usage['total_tokens'] = isset($body['usage']['total_tokens']) ? (int)$body['usage']['total_tokens'] : ( ($usage['prompt_tokens']!==null && $usage['completion_tokens']!==null)? $usage['prompt_tokens']+$usage['completion_tokens']: null );
+                $u = $body['usage'];
+                $prompt_tokens = isset($u['prompt_tokens']) ? (int)$u['prompt_tokens'] : ( isset($u['input_tokens']) ? (int)$u['input_tokens'] : null );
+                $completion_tokens = isset($u['completion_tokens']) ? (int)$u['completion_tokens'] : ( isset($u['output_tokens']) ? (int)$u['output_tokens'] : null );
+                $total_tokens = isset($u['total_tokens']) ? (int)$u['total_tokens'] : null;
+                if($total_tokens === null && $prompt_tokens !== null && $completion_tokens !== null){
+                    $total_tokens = $prompt_tokens + $completion_tokens;
+                }
+                $usage['prompt_tokens'] = $prompt_tokens;
+                $usage['completion_tokens'] = $completion_tokens;
+                $usage['total_tokens'] = $total_tokens;
             }
             return [ 'message' => (string)$text, 'usage'=>$usage ];
         }
@@ -1127,9 +1146,16 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             if ($text === '') return [ 'error' => __('Respuesta vacía de OpenAI.','ai-chat') ];
             $usage = [];
             if(isset($body['usage'])){
-                $usage['prompt_tokens'] = isset($body['usage']['prompt_tokens']) ? (int)$body['usage']['prompt_tokens'] : null;
-                $usage['completion_tokens'] = isset($body['usage']['completion_tokens']) ? (int)$body['usage']['completion_tokens'] : null;
-                $usage['total_tokens'] = isset($body['usage']['total_tokens']) ? (int)$body['usage']['total_tokens'] : ( ($usage['prompt_tokens']!==null && $usage['completion_tokens']!==null)? $usage['prompt_tokens']+$usage['completion_tokens']: null );
+                $u = $body['usage'];
+                $prompt_tokens = isset($u['prompt_tokens']) ? (int)$u['prompt_tokens'] : ( isset($u['input_tokens']) ? (int)$u['input_tokens'] : null );
+                $completion_tokens = isset($u['completion_tokens']) ? (int)$u['completion_tokens'] : ( isset($u['output_tokens']) ? (int)$u['output_tokens'] : null );
+                $total_tokens = isset($u['total_tokens']) ? (int)$u['total_tokens'] : null;
+                if($total_tokens === null && $prompt_tokens !== null && $completion_tokens !== null){
+                    $total_tokens = $prompt_tokens + $completion_tokens;
+                }
+                $usage['prompt_tokens'] = $prompt_tokens;
+                $usage['completion_tokens'] = $completion_tokens;
+                $usage['total_tokens'] = $total_tokens;
             }
             return [ 'message' => (string)$text, 'usage'=>$usage ];
         }

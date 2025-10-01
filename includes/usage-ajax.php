@@ -44,7 +44,14 @@ function aichat_get_usage_timeseries(){
     $date_to = current_time('Y-m-d');
     $date_from = date('Y-m-d', strtotime('-30 days', strtotime($date_to)));
   }
-  $where = $wpdb->prepare('created_at BETWEEN %s AND %s 23:59:59',$date_from, $date_to);
+  // Validar formato simple YYYY-MM-DD
+  if(!preg_match('/^\d{4}-\d{2}-\d{2}$/',$date_from) || !preg_match('/^\d{4}-\d{2}-\d{2}$/',$date_to)){
+    wp_send_json_error(['message'=>'Invalid date format'],400);
+  }
+  // BETWEEN inclusivo: inicio 00:00:00 fin 23:59:59
+  $start_ts = $date_from.' 00:00:00';
+  $end_ts = $date_to.' 23:59:59';
+  $where = $wpdb->prepare('created_at BETWEEN %s AND %s', $start_ts, $end_ts);
   $sql = "SELECT DATE(created_at) d, SUM(prompt_tokens) p, SUM(completion_tokens) c, SUM(total_tokens) t, SUM(cost_micros) m FROM $conv WHERE $where GROUP BY DATE(created_at) ORDER BY d ASC";
   $rows = $wpdb->get_results($sql, ARRAY_A) ?: [];
   wp_send_json_success(['series'=>$rows,'date_from'=>$date_from,'date_to'=>$date_to]);
