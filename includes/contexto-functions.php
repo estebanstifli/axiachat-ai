@@ -531,23 +531,45 @@ function aichat_build_messages( $question, $contexts = [], $instructions = '', $
  */
 function aichat_replace_link_placeholder( $answer ) {
     if ( strpos( $answer, '[LINK]' ) === false ) {
-        return $answer;
+        return $answer; // nada que reemplazar
     }
-    $ctx = $GLOBALS['contexts'] ?? [];
-    if ( empty( $ctx ) ) {
-    return str_replace( '[LINK]', __( 'Link not available', 'axiachat-ai' ), $answer );
+    $contexts = $GLOBALS['contexts'] ?? [];
+    if ( empty( $contexts ) ) {
+        return str_replace( '[LINK]', __( 'Link not available', 'axiachat-ai' ), $answer );
     }
-    $top = reset( $ctx );
-    if ( ! $top ) {
-    return str_replace( '[LINK]', __( 'Link not available', 'axiachat-ai' ), $answer );
+
+    // 1. Encontrar el primer contexto cuya referencia apunte a un post público y publicado.
+    $public_link = '';
+    $public_title = '';
+    foreach ( $contexts as $c ) {
+        $pid = isset($c['post_id']) ? intval($c['post_id']) : 0;
+        if ( ! $pid ) continue;
+        $p = get_post( $pid );
+        if ( ! $p ) continue;
+        if ( $p->post_status !== 'publish' ) continue; // ignorar borradores / privados
+        $pto = get_post_type_object( $p->post_type );
+        if ( $pto && empty( $pto->public ) ) continue; // CPT no público
+        $link = get_permalink( $p );
+        if ( ! $link ) continue;
+        $public_link  = $link;
+        $public_title = $p->post_title ?: ( $c['title'] ?? '' );
+        break;
     }
-    $post_id  = isset( $top['post_id'] ) ? intval( $top['post_id'] ) : 0;
-    $title    = isset( $top['title'] ) ? $top['title'] : '';
-    $perma    = $post_id ? get_permalink( $post_id ) : '';
-    if ( $perma ) {
-        return str_replace( '[LINK]', '<a href="' . esc_url( $perma ) . '" target="_blank" rel="noopener">' . esc_html( $title ) . '</a>', $answer );
+
+    // 2. Si no encontramos un post público válido, aplicamos fallback: usar solo el título del primer contexto (sin enlace).
+    if ( ! $public_link ) {
+        $first = reset( $contexts );
+        // Nuevo comportamiento: devolver vacío por defecto.
+        $replacement = '';
+        // Permite personalizar el fallback (p.ej. mostrar título o aviso) vía filtro.
+        $replacement = apply_filters( 'aichat_link_placeholder_fallback', $replacement, $first, $contexts, $answer );
+        return str_replace( '[LINK]', $replacement, $answer );
     }
-    return str_replace( '[LINK]', __( 'Link not available', 'axiachat-ai' ), $answer );
+
+    // 3. Generar markup del enlace público encontrado.
+    $markup = '<a href="' . esc_url( $public_link ) . '" target="_blank" rel="noopener nofollow">' . esc_html( $public_title ) . '</a>';
+    $markup = apply_filters( 'aichat_link_placeholder_markup', $markup, $public_link, $public_title, $contexts, $answer );
+    return str_replace( '[LINK]', $markup, $answer );
 }
 
 /**

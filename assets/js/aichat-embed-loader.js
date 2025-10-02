@@ -2,7 +2,7 @@
  * Minimal external embed script.
  * Usage (external site):
  * <div id="aichat-embed" data-bot="default"></div>
- * <script async src="https://TU-DOMINIO/wp-content/plugins/ai-chat/assets/js/aichat-embed-loader.js"></script>
+ * <script async src="https://TU-DOMINIO/wp-content/plugins/axiachat-ai/assets/js/aichat-embed-loader.js"></script>
  */
 (function(){
   'use strict';

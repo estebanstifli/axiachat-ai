@@ -228,7 +228,7 @@ Solo esos dominios recibirán un `nonce` válido desde `/?aichat_embed_nonce=1`.
 ### 2. Snippet externo
 ```html
 <div id="aichat-embed" data-bot="default"></div>
-<script async src="https://TU-DOMINIO/wp-content/plugins/ai-chat/assets/js/aichat-embed-loader.js"></script>
+<script async src="https://TU-DOMINIO/wp-content/plugins/axiachat-ai/assets/js/aichat-embed-loader.js"></script>
 ```
 Opciones:
 - `data-bot="slugBot"`

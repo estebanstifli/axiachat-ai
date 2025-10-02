@@ -1,9 +1,9 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: AI Chat\n"
+"Project-Id-Version: AxiaChat AI\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-24 12:06+0000\n"
+"POT-Creation-Date: 2025-10-02 04:02+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: \n"
@@ -13,10 +13,16 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Loco https://localise.biz/\n"
-"X-Loco-Version: 2.8.0; wp-6.8.2; php-7.4.33\n"
-"X-Domain: ai-chat"
+"X-Loco-Version: 2.8.0; wp-6.8.3; php-8.1.33\n"
+"X-Domain: axiachat-ai"
 
-#: includes/settings.php:293
+#: includes/contexto-settings.php:173
+msgid ""
+"\"Only update existing\" re-embeds items already present. \"Update + add "
+"new\" also discovers and indexes newly published content from ALL sources."
+msgstr ""
+
+#: includes/settings.php:303
 msgid "0 = Unlimited"
 msgstr ""
 
@@ -24,46 +30,62 @@ msgstr ""
 msgid "[AIChat] No bots configured."
 msgstr ""
 
-#: includes/templates-prompt.php:6
-msgid "A customer support assistant for WooCommerce queries."
-msgstr ""
-
 #. Description of the plugin
-msgid "A customizable AI chatbot for WordPress using OpenAI."
+msgid ""
+"A customizable AI chatbot for WordPress with contextual embeddings, "
+"multi‑provider support and upcoming action rules."
 msgstr ""
 
-#: includes/contexto-pdf-template.php:189 includes/contexto-settings.php:60
+#: includes/contexto-pdf-template.php:189 includes/contexto-settings.php:66
 msgid "Actions"
-msgstr ""
-
-#: includes/templates-prompt.php:26
-msgid "Adapts to the user’s language for global accessibility."
 msgstr ""
 
 #: includes/contexto-pdf-template.php:76
 msgid "Add all chunks to the current context selection?"
 msgstr ""
 
-#: includes/contexto-pdf-template.php:119 includes/contexto-settings.php:27
+#: includes/contexto-pdf-template.php:119 includes/contexto-settings.php:30
 msgid "Add New"
 msgstr ""
 
-#. Título de la página
-#. Name of the plugin
-#: aichat.php:278 includes/settings.php:453
+#: includes/settings.php:519
 msgid "AI Chat"
 msgstr ""
 
-#: aichat.php:277 includes/settings.php:461
+#: includes/settings.php:527
 msgid "AI Chat Settings"
 msgstr ""
 
-#: includes/settings.php:195
+#: includes/easy-config.php:12
+msgid "AI Chat – Easy Config"
+msgstr ""
+
+#: includes/usage.php:8
+msgid "AI Chat – Usage / Cost"
+msgstr ""
+
+#: includes/settings.php:202
 msgid "AI Chat — Settings"
+msgstr ""
+
+#: includes/aichat-cron.php:375
+msgid "AIChat Hourly"
+msgstr ""
+
+#: axiachat-ai.php:381
+msgid "AixaChat AI Settings"
 msgstr ""
 
 #: includes/logs.php:166 includes/logs.php:175
 msgid "All"
+msgstr ""
+
+#: includes/contexto-settings.php:233
+msgid "All types"
+msgstr ""
+
+#: includes/settings.php:413
+msgid "Allowed Origins"
 msgstr ""
 
 #. %d: maximum file size in megabytes
@@ -71,7 +93,7 @@ msgstr ""
 msgid "Allowed: .pdf, .txt — Max %d MB / file"
 msgstr ""
 
-#: includes/contexto-functions.php:460
+#: includes/contexto-functions.php:493
 msgid ""
 "Answer ONLY using the provided CONTEXT. If the answer is not in the context, "
 "say you cannot find it. Do not fabricate."
@@ -81,15 +103,15 @@ msgstr ""
 msgid "API Key"
 msgstr ""
 
-#: includes/settings.php:225
+#: includes/settings.php:232
 msgid "API key to use Anthropic (Claude) models."
 msgstr ""
 
-#: includes/settings.php:217
+#: includes/settings.php:224
 msgid "API key to use OpenAI models."
 msgstr ""
 
-#: includes/settings.php:208
+#: includes/settings.php:215
 msgid "API Keys"
 msgstr ""
 
@@ -97,8 +119,20 @@ msgstr ""
 msgid "Are you sure you want to delete this context?"
 msgstr ""
 
-#: includes/logs-detail.php:113
+#: includes/logs-detail.php:134
 msgid "Assistant"
+msgstr ""
+
+#: includes/contexto-create.php:423
+msgid "Autosync Content"
+msgstr ""
+
+#: includes/contexto-settings.php:167
+msgid "AutoSync Mode"
+msgstr ""
+
+#: includes/contexto-create.php:435
+msgid "Autosync Mode"
 msgstr ""
 
 #: includes/contexto-pdf-template.php:214
@@ -107,11 +141,15 @@ msgstr ""
 msgid "Available"
 msgstr ""
 
-#: includes/logs-detail.php:86
+#. Name of the plugin
+msgid "AxiaChat AI"
+msgstr ""
+
+#: includes/logs-detail.php:107
 msgid "Back"
 msgstr ""
 
-#: includes/settings.php:379
+#: includes/settings.php:389
 msgid "Banned words"
 msgstr ""
 
@@ -119,7 +157,7 @@ msgstr ""
 msgid "Basic Settings"
 msgstr ""
 
-#: includes/settings.php:374
+#: includes/settings.php:384
 msgid "Blocked IPs"
 msgstr ""
 
@@ -127,7 +165,7 @@ msgstr ""
 msgid "Blocked."
 msgstr ""
 
-#: includes/logs.php:173 includes/logs.php:198 includes/logs-detail.php:73
+#: includes/logs-detail.php:84 includes/logs.php:173 includes/logs.php:198
 msgid "Bot"
 msgstr ""
 
@@ -137,17 +175,25 @@ msgstr ""
 msgid "Bot not found: %s"
 msgstr ""
 
-#: includes/settings.php:258
+#: includes/settings.php:268
 msgid "Bot used when global floating bot is active."
 msgstr ""
 
 #. Parent slug
 #. Título de la página
-#: aichat.php:310 aichat.php:311
+#: axiachat-ai.php:414 axiachat-ai.php:415
 msgid "Bots"
 msgstr ""
 
-#: includes/settings.php:340
+#: includes/contexto-functions.php:81 includes/contexto-settings.php:96
+msgid "Browse"
+msgstr ""
+
+#: includes/contexto-settings.php:139 includes/contexto-settings.php:226
+msgid "Browse Chunks"
+msgstr ""
+
+#: includes/settings.php:350
 msgid "Button label"
 msgstr ""
 
@@ -155,6 +201,10 @@ msgstr ""
 msgid ""
 "By using this chatbot, you agree to the recording and processing of your "
 "data for improving our services."
+msgstr ""
+
+#: includes/contexto-settings.php:309
+msgid "Cancel"
 msgstr ""
 
 #: includes/class-aichat-ajax.php:69
@@ -173,38 +223,53 @@ msgstr ""
 msgid "Chatbots"
 msgstr ""
 
-#: includes/settings.php:360
+#: includes/settings.php:370
 msgid "Checks IP/words and optionally external API before sending to AI."
+msgstr ""
+
+#: includes/contexto-settings.php:292
+msgid ""
+"Choose what to sync. \"Update + add new\" only available if context scope "
+"allows discovering new items."
 msgstr ""
 
 #: includes/contexto-create.php:70
 msgid "Choose where to store the context data."
 msgstr ""
 
+#: includes/contexto-settings.php:256
+msgid "Chunk"
+msgstr ""
+
 #: includes/contexto-pdf-template.php:71
 msgid "Chunking…"
 msgstr ""
 
-#: includes/contexto-pdf-template.php:187
+#: includes/contexto-pdf-template.php:187 includes/contexto-settings.php:62
 msgid "Chunks"
 msgstr ""
 
-#: includes/settings.php:220
+#: includes/settings.php:227
 msgid "Claude (Anthropic) API Key"
 msgstr ""
 
-#: includes/settings.php:196
+#: axiachat-ai.php:510
+msgid "Completed"
+msgstr ""
+
+#: includes/settings.php:203
 msgid "Configure global behaviour, API keys, logging, consent and moderation."
 msgstr ""
 
-#: includes/settings.php:335
+#: includes/settings.php:345
 msgid "Consent text"
 msgstr ""
 
 #. Parent slug
 #. Título de la página
-#: aichat.php:300 aichat.php:301 includes/contexto-pdf-template.php:114
-#: includes/contexto-settings.php:22
+#: axiachat-ai.php:404 axiachat-ai.php:405
+#: includes/contexto-pdf-template.php:114 includes/contexto-settings.php:25
+#: includes/contexto-settings.php:126
 msgid "Context"
 msgstr ""
 
@@ -220,7 +285,7 @@ msgstr ""
 msgid "Context name updated."
 msgstr ""
 
-#: includes/contexto-settings.php:15
+#: includes/contexto-settings.php:18
 msgid "Context Settings"
 msgstr ""
 
@@ -232,11 +297,11 @@ msgstr ""
 msgid "Conversation deleted."
 msgstr ""
 
-#: aichat.php:351 includes/logs-detail.php:15 includes/logs-detail.php:63
+#: axiachat-ai.php:479 includes/logs-detail.php:15 includes/logs-detail.php:74
 msgid "Conversation Detail"
 msgstr ""
 
-#: includes/settings.php:265
+#: includes/settings.php:275
 msgid "Conversation logging"
 msgstr ""
 
@@ -245,7 +310,7 @@ msgid ""
 "Conversation logging is currently disabled. No new entries are being stored."
 msgstr ""
 
-#: includes/settings.php:280
+#: includes/settings.php:290
 msgid "Conversation logging must be enabled for limits to work."
 msgstr ""
 
@@ -253,16 +318,24 @@ msgstr ""
 msgid "Conversation Logs"
 msgstr ""
 
-#: includes/contexto-create.php:423
+#: includes/usage.php:64
+msgid "Cost"
+msgstr ""
+
+#: includes/usage.php:20
+msgid "Cost (USD)"
+msgstr ""
+
+#: includes/contexto-create.php:454
 msgid "CREATE CONTEXT"
 msgstr ""
 
 #. Sin menú padre
-#: aichat.php:331 includes/contexto-create.php:16
+#: axiachat-ai.php:454 includes/contexto-create.php:16
 msgid "Create Context"
 msgstr ""
 
-#: includes/contexto-settings.php:49
+#: includes/contexto-settings.php:52
 msgid "Create New"
 msgstr ""
 
@@ -270,21 +343,33 @@ msgstr ""
 msgid "Create new chatbot"
 msgstr ""
 
-#. %s: URL to the AI Chat Bots admin settings page
-#: includes/settings.php:251
+#. %s is the URL to the AI Chat → Bots admin screen.
+#: includes/settings.php:261
 #, php-format
 msgid "Create one in <a href=\"%s\">AI Chat → Bots</a>."
+msgstr ""
+
+#: includes/contexto-settings.php:64
+msgid "Created / Status"
+msgstr ""
+
+#: axiachat-ai.php:509
+msgid "Creating bot..."
+msgstr ""
+
+#: includes/templates-prompt.php:10
+msgid "Customer Service Representative"
 msgstr ""
 
 #: includes/class-aichat-ajax.php:272
 msgid "Daily message limit reached for this user."
 msgstr ""
 
-#: includes/settings.php:307
+#: includes/settings.php:317
 msgid "Daily total limit behavior"
 msgstr ""
 
-#: includes/settings.php:315
+#: includes/settings.php:325
 msgid "Daily total limit message"
 msgstr ""
 
@@ -312,12 +397,12 @@ msgstr ""
 msgid "Date To"
 msgstr ""
 
-#: includes/contexto-functions.php:74 includes/contexto-settings.php:97
-#: includes/logs-detail.php:94
+#: includes/contexto-functions.php:74 includes/contexto-settings.php:103
+#: includes/logs-detail.php:115
 msgid "Delete"
 msgstr ""
 
-#: includes/logs-detail.php:88
+#: includes/logs-detail.php:109
 msgid "Delete this entire conversation?"
 msgstr ""
 
@@ -329,7 +414,7 @@ msgstr ""
 msgid "Detail"
 msgstr ""
 
-#: includes/settings.php:267
+#: includes/settings.php:277
 msgid "Disable to stop saving new messages (existing records remain)."
 msgstr ""
 
@@ -341,35 +426,51 @@ msgstr ""
 msgid "Drop PDF/TXT files here or click to select"
 msgstr ""
 
-#: aichat.php:580
+#: axiachat-ai.php:858
 msgid "Duplicate message detected."
 msgstr ""
 
-#: includes/contexto-functions.php:73 includes/contexto-settings.php:94
+#: axiachat-ai.php:426 axiachat-ai.php:427
+msgid "Easy Config"
+msgstr ""
+
+#: includes/contexto-functions.php:73
 msgid "Edit"
 msgstr ""
 
-#: includes/class-aichat-ajax.php:891
+#: includes/settings.php:405
+msgid "Embed (External Sites)"
+msgstr ""
+
+#: includes/class-aichat-ajax.php:1102
 msgid "Empty response from OpenAI (Responses)."
 msgstr ""
 
-#: includes/class-aichat-ajax.php:459
+#: includes/class-aichat-ajax.php:493
 msgid "Empty response from OpenAI."
 msgstr ""
 
-#: includes/settings.php:331
+#: includes/contexto-settings.php:158
+msgid "Enable"
+msgstr ""
+
+#: includes/contexto-create.php:427
+msgid "Enable Autosync"
+msgstr ""
+
+#: includes/settings.php:341
 msgid "Enable consent gate"
 msgstr ""
 
-#: includes/settings.php:240
+#: includes/settings.php:247
 msgid "Enable global floating bot"
 msgstr ""
 
-#: includes/settings.php:358
+#: includes/settings.php:368
 msgid "Enable moderation layer"
 msgstr ""
 
-#: includes/settings.php:286
+#: includes/settings.php:296
 msgid "Enable usage limits"
 msgstr ""
 
@@ -393,11 +494,11 @@ msgstr ""
 msgid "Enter Pinecone Endpoint"
 msgstr ""
 
-#: includes/contexto-pdf-template.php:73
+#: axiachat-ai.php:511 includes/contexto-pdf-template.php:73
 msgid "Error"
 msgstr ""
 
-#: includes/class-aichat-ajax.php:917
+#: includes/class-aichat-ajax.php:1142
 msgid "Error en OpenAI."
 msgstr ""
 
@@ -409,11 +510,23 @@ msgstr ""
 msgid "Every 1 Minute"
 msgstr ""
 
-#: includes/contexto-settings.php:45
+#: includes/settings.php:423
+msgid "Example snippet to paste on an external page"
+msgstr ""
+
+#: includes/contexto-settings.php:195
+msgid "Example: shipping costs for returns"
+msgstr ""
+
+#: includes/contexto-settings.php:216 includes/contexto-settings.php:262
+msgid "Excerpt"
+msgstr ""
+
+#: includes/contexto-settings.php:48
 msgid "Existing Contexts"
 msgstr ""
 
-#: includes/settings.php:365
+#: includes/settings.php:375
 msgid "External moderation (OpenAI)"
 msgstr ""
 
@@ -425,8 +538,9 @@ msgstr ""
 msgid "Falta la OpenAI API Key en Ajustes."
 msgstr ""
 
-#: includes/templates-prompt.php:10
-msgid "FAQ-Based Assistant"
+#: includes/templates-prompt.php:6
+msgid ""
+"Fast, precise technical customer support with clear and detailed solutions."
 msgstr ""
 
 #: includes/contexto-pdf-template.php:183
@@ -437,37 +551,42 @@ msgstr ""
 msgid "Filter"
 msgstr ""
 
-#: includes/settings.php:324
+#: includes/templates-prompt.php:11
+msgid ""
+"Friendly general customer support: quick answers, clear and helpful guidance."
+msgstr ""
+
+#: includes/contexto-settings.php:303
+msgid "Full rebuild (slow)"
+msgstr ""
+
+#: includes/settings.php:334
 msgid "GDPR Consent"
 msgstr ""
 
-#: includes/templates-prompt.php:5
-msgid "General Support Assistant"
-msgstr ""
-
-#: includes/settings.php:245
+#: includes/settings.php:252
 msgid "Global Bot"
 msgstr ""
 
-#: includes/settings.php:233
+#: includes/settings.php:240
 msgid "Global Bot & Logging"
 msgstr ""
 
-#: includes/settings.php:400
+#: includes/settings.php:443
 msgid ""
 "Global Bot is enabled but no bot is selected. On save the first available "
 "bot will be used."
 msgstr ""
 
-#: includes/settings.php:298
+#: includes/settings.php:308
 msgid "Guests tracked by IP. 0 = Unlimited"
 msgstr ""
 
-#: includes/templates-prompt.php:21
+#: includes/templates-prompt.php:26
 msgid "Helps with common technical issues in WooCommerce."
 msgstr ""
 
-#: includes/settings.php:311
+#: includes/settings.php:321
 msgid "Hide widget completely"
 msgstr ""
 
@@ -476,7 +595,7 @@ msgid "https://wpbotwriter.com"
 msgstr ""
 
 #. URI of the plugin
-msgid "https://wpbotwriter.com/ai-chat"
+msgid "https://wpbotwriter.com/axiachat-ai"
 msgstr ""
 
 #: includes/settings.php:108 includes/shortcode.php:151
@@ -487,60 +606,108 @@ msgstr ""
 msgid "I'm tired, please come back tomorrow."
 msgstr ""
 
-#: includes/contexto-settings.php:57
+#: includes/contexto-settings.php:60
 msgid "ID"
+msgstr ""
+
+#: includes/contexto-settings.php:162
+msgid ""
+"If enabled, modified items are periodically re-embedded to keep answers "
+"fresh."
 msgstr ""
 
 #: includes/contexto-create.php:58
 msgid "If left empty, a default name (e.g., Default1) will be assigned."
 msgstr ""
 
-#: includes/contexto-functions.php:486
+#: includes/contexto-functions.php:519
 msgid ""
 "If the answer needs to link to a post from context, include the marker [LINK]"
 " where appropriate."
 msgstr ""
 
 #. Sin menú padre
-#: aichat.php:340 includes/contexto-pdf-template.php:124
-#: includes/contexto-pdf-template.php:132 includes/contexto-settings.php:32
+#: axiachat-ai.php:463 includes/contexto-pdf-template.php:124
+#: includes/contexto-pdf-template.php:132 includes/contexto-settings.php:35
 msgid "Import PDF/Data"
 msgstr ""
 
-#: includes/settings.php:383
+#: includes/settings.php:393
 msgid "Include base list in English"
+msgstr ""
+
+#: axiachat-ai.php:508
+msgid "Indexing content..."
+msgstr ""
+
+#: includes/contexto-settings.php:227
+msgid "Inspect stored chunks with filters."
 msgstr ""
 
 #: includes/class-aichat-ajax.php:51
 msgid "Invalid nonce."
 msgstr ""
 
-#: aichat.php:572
+#: axiachat-ai.php:850
 msgid "Invalid pattern."
+msgstr ""
+
+#: includes/contexto-settings.php:154
+msgid "Keeps the context updated with site content changes"
+msgstr ""
+
+#: includes/usage.php:13
+msgid "Last 30 days"
+msgstr ""
+
+#: includes/usage.php:12
+msgid "Last 7 days"
 msgstr ""
 
 #: includes/logs.php:200
 msgid "Last Snippet"
 msgstr ""
 
-#: includes/contexto-functions.php:505 includes/contexto-functions.php:509
-#: includes/contexto-functions.php:517
+#: includes/settings.php:416
+msgid ""
+"Leave empty to disallow all external script embeds (iframe method still "
+"works)."
+msgstr ""
+
+#: includes/contexto-functions.php:538 includes/contexto-functions.php:542
+#: includes/contexto-functions.php:550
 msgid "Link not available"
+msgstr ""
+
+#: includes/settings.php:410
+msgid ""
+"List the allowed external site origins (protocol + domain) that can embed "
+"the chat via the script loader. One per line. Example: https://example.com"
+msgstr ""
+
+#: includes/contexto-functions.php:82 includes/usage.php:20
+msgid "Loading..."
 msgstr ""
 
 #: includes/contexto-create.php:67
 msgid "Local"
 msgstr ""
 
-#: aichat.php:320 aichat.php:321
+#: axiachat-ai.php:443 axiachat-ai.php:444
 msgid "Logs"
 msgstr ""
 
-#: includes/settings.php:291
+#: includes/settings.php:429
+msgid ""
+"Make sure the external site origin (e.g. <code>https://example.com</code>) "
+"is present in the list above, otherwise the embed will be blocked."
+msgstr ""
+
+#: includes/settings.php:301
 msgid "Max messages per day"
 msgstr ""
 
-#: includes/settings.php:296
+#: includes/settings.php:306
 msgid "Max messages per user/day"
 msgstr ""
 
@@ -552,11 +719,11 @@ msgstr ""
 msgid "Message too long."
 msgstr ""
 
-#: includes/settings.php:303
+#: includes/settings.php:313
 msgid "Message when user limit reached"
 msgstr ""
 
-#: includes/logs.php:199 includes/logs-detail.php:81
+#: includes/logs-detail.php:102 includes/logs.php:199
 msgid "Messages"
 msgstr ""
 
@@ -564,12 +731,24 @@ msgstr ""
 msgid "Missing parameters."
 msgstr ""
 
+#: includes/usage.php:20
+msgid "Model"
+msgstr ""
+
 #: includes/class-aichat-ajax.php:338
 msgid "Model returned an empty response."
 msgstr ""
 
-#: includes/settings.php:352
+#: includes/settings.php:362
 msgid "Moderation"
+msgstr ""
+
+#: includes/contexto-settings.php:299
+msgid "Modified + discover new"
+msgstr ""
+
+#: includes/contexto-settings.php:295
+msgid "Modified only (fast)"
 msgstr ""
 
 #: includes/contexto-create.php:138 includes/contexto-create.php:213
@@ -577,51 +756,74 @@ msgstr ""
 msgid "Most Recent"
 msgstr ""
 
-#: includes/templates-prompt.php:25
-msgid "Multilingual Support Assistant"
+#: includes/contexto-settings.php:61 includes/contexto-settings.php:149
+msgid "Name"
 msgstr ""
 
-#: includes/contexto-settings.php:58
-msgid "Name"
+#: includes/contexto-settings.php:271
+msgid "Next"
 msgstr ""
 
 #: includes/class-aichat-ajax.php:129
 msgid "No bot found to process the request."
 msgstr ""
 
-#: includes/settings.php:247
+#: includes/settings.php:254
 msgid "No bots defined yet"
 msgstr ""
 
-#: includes/contexto-settings.php:107
+#: includes/contexto-functions.php:83
+msgid "No chunks found"
+msgstr ""
+
+#: includes/contexto-settings.php:109
 msgid "No contexts yet. Create one in the “Add New” tab."
 msgstr ""
 
-#: includes/logs.php:232
+#: includes/logs.php:251
 msgid "No conversations found."
+msgstr ""
+
+#: includes/usage.php:18
+msgid "No data"
 msgstr ""
 
 #: includes/contexto-pdf-template.php:193
 msgid "No files yet. Upload some to get started."
 msgstr ""
 
-#: includes/logs-detail.php:136
+#: includes/logs-detail.php:157
 msgid "No messages in this conversation."
 msgstr ""
 
-#: includes/class-aichat-ajax.php:682
+#: axiachat-ai.php:601
+msgid "No results found for that query."
+msgstr ""
+
+#: includes/class-aichat-ajax.php:893
 msgid "Nonce inválido."
 msgstr ""
 
-#: includes/settings.php:387
+#: includes/settings.php:397
 msgid "One per line. Regex allowed if wrapped in /."
 msgstr ""
 
-#: includes/settings.php:376
+#: includes/settings.php:386
 msgid "One per line. Supports CIDR."
 msgstr ""
 
-#: includes/logs.php:225
+#: includes/contexto-create.php:437 includes/contexto-settings.php:169
+msgid "Only update existing"
+msgstr ""
+
+#: includes/contexto-create.php:441
+msgid ""
+"Only update existing: re-embeds items already in the context. Update + add "
+"new: also discovers and indexes newly published items of the selected ALL "
+"sources."
+msgstr ""
+
+#: includes/logs.php:244
 msgid "Open"
 msgstr ""
 
@@ -629,11 +831,11 @@ msgstr ""
 msgid "Open Import PDF/Data"
 msgstr ""
 
-#: includes/settings.php:212
+#: includes/settings.php:219
 msgid "OpenAI API Key"
 msgstr ""
 
-#: includes/class-aichat-ajax.php:453
+#: includes/class-aichat-ajax.php:487
 msgid "OpenAI error."
 msgstr ""
 
@@ -650,21 +852,34 @@ msgid "Pinecone"
 msgstr ""
 
 #. %s: settings page link
-#: includes/settings.php:458
+#: includes/settings.php:524
 #, php-format
 msgid ""
 "Please add an OpenAI or Claude API key in %s to start using the chatbot."
 msgstr ""
 
-#: aichat.php:541
+#: axiachat-ai.php:819
 msgid "Please slow down."
 msgstr ""
 
+#: includes/contexto-settings.php:257
+msgid "Post ID"
+msgstr ""
+
 #: includes/contexto-create.php:113 includes/contexto-create.php:130
+#: includes/contexto-settings.php:63
 msgid "Posts"
 msgstr ""
 
-#: includes/contexto-create.php:432
+#: includes/contexto-settings.php:270
+msgid "Prev"
+msgstr ""
+
+#: includes/templates-prompt.php:15
+msgid "Problem Resolution Advisor"
+msgstr ""
+
+#: includes/contexto-create.php:463
 msgid "PROCESS"
 msgstr ""
 
@@ -672,7 +887,7 @@ msgstr ""
 msgid "Processing capabilities (technical details)"
 msgstr ""
 
-#: includes/templates-prompt.php:15
+#: includes/templates-prompt.php:20
 msgid "Product Recommender"
 msgstr ""
 
@@ -680,20 +895,24 @@ msgstr ""
 msgid "Products"
 msgstr ""
 
-#: includes/contexto-settings.php:59
+#: includes/contexto-settings.php:65
 msgid "Progress"
 msgstr ""
 
-#: includes/contexto-settings.php:117
+#: includes/contexto-settings.php:116
 msgid ""
 "Progress updates automatically when indexing runs from Add New or via cron."
+msgstr ""
+
+#: includes/usage.php:20
+msgid "Provider"
 msgstr ""
 
 #: includes/class-aichat-ajax.php:312
 msgid "Provider not supported."
 msgstr ""
 
-#: aichat.php:550
+#: axiachat-ai.php:828
 msgid "Rate limit reached. Try again later."
 msgstr ""
 
@@ -705,7 +924,7 @@ msgstr ""
 msgid "Ready"
 msgstr ""
 
-#: includes/templates-prompt.php:16
+#: includes/templates-prompt.php:21
 msgid "Recommends products based on user queries and store context."
 msgstr ""
 
@@ -713,7 +932,7 @@ msgstr ""
 msgid "Refresh"
 msgstr ""
 
-#: includes/settings.php:370
+#: includes/settings.php:380
 msgid "Rejection message"
 msgstr ""
 
@@ -733,7 +952,7 @@ msgstr ""
 msgid "Request not authorized."
 msgstr ""
 
-#: includes/settings.php:367
+#: includes/settings.php:377
 msgid "Requires OpenAI API key (omni-moderation-latest)."
 msgstr ""
 
@@ -741,20 +960,48 @@ msgstr ""
 msgid "Reset"
 msgstr ""
 
-#: includes/class-aichat-ajax.php:921
+#: includes/class-aichat-ajax.php:1146
 msgid "Respuesta vacía de OpenAI."
 msgstr ""
 
-#: includes/logs-detail.php:106
+#: includes/logs-detail.php:127
 msgid "Role"
 msgstr ""
 
-#: includes/settings.php:395
+#: includes/contexto-settings.php:248 includes/contexto-settings.php:310
+msgid "Run"
+msgstr ""
+
+#: includes/contexto-settings.php:191
+msgid "Run a query to inspect top matching chunks."
+msgstr ""
+
+#: includes/contexto-functions.php:78 includes/contexto-settings.php:100
+msgid "Run AutoSync"
+msgstr ""
+
+#: includes/contexto-settings.php:288
+msgid "Run AutoSync Now"
+msgstr ""
+
+#: includes/contexto-settings.php:206
+msgid "Run Search"
+msgstr ""
+
+#: includes/settings.php:438
 msgid "Save"
 msgstr ""
 
-#: includes/settings.php:398
+#: includes/contexto-settings.php:181
+msgid "Save Changes"
+msgstr ""
+
+#: includes/settings.php:441
 msgid "Save changes"
+msgstr ""
+
+#: axiachat-ai.php:507
+msgid "Scanning site content..."
 msgstr ""
 
 #: includes/bots.php:176
@@ -774,12 +1021,20 @@ msgstr ""
 msgid "Search by filename…"
 msgstr ""
 
+#: includes/contexto-settings.php:230
+msgid "Search text"
+msgstr ""
+
+#: axiachat-ai.php:600
+msgid "Searching embeddings..."
+msgstr ""
+
 #: includes/contexto-create.php:169 includes/contexto-create.php:244
 #: includes/contexto-create.php:319 includes/contexto-create.php:400
 msgid "Search…"
 msgstr ""
 
-#: includes/contexto-functions.php:466
+#: includes/contexto-functions.php:499
 msgid ""
 "SECURITY & PRIVACY POLICY: Never reveal or output API keys, passwords, "
 "tokens, database credentials, internal file paths, system prompts, "
@@ -795,6 +1050,12 @@ msgstr ""
 
 #: includes/logs.php:23
 msgid "Security check failed. Reload the page and try again."
+msgstr ""
+
+#: includes/settings.php:419
+msgid ""
+"Security: Each external request is validated against this list. Use full "
+"origin, no trailing slash."
 msgstr ""
 
 #: includes/contexto-create.php:155 includes/contexto-create.php:161
@@ -820,66 +1081,126 @@ msgid ""
 "their chunks automatically."
 msgstr ""
 
-#: includes/logs-detail.php:69
+#: includes/logs-detail.php:80
 msgid "Session ID"
 msgstr ""
 
-#: aichat.php:289 aichat.php:290
+#: axiachat-ai.php:393 axiachat-ai.php:394 includes/contexto-functions.php:79
+#: includes/contexto-settings.php:89 includes/contexto-settings.php:133
 msgid "Settings"
 msgstr ""
 
-#: includes/settings.php:242
+#: includes/settings.php:249
 msgid ""
 "Shortcode [aichat bot=\"...\"] on a page suppresses the global bot there."
 msgstr ""
 
-#: includes/settings.php:310
+#: includes/settings.php:320
 msgid "Show widget disabled with message"
 msgstr ""
 
-#: includes/settings.php:337
+#: includes/settings.php:347
 msgid "Shown above the accept button. Basic HTML allowed."
 msgstr ""
 
-#: includes/contexto-pdf-template.php:185
+#: includes/contexto-functions.php:80 includes/contexto-settings.php:92
+msgid "Similarity"
+msgstr ""
+
+#: includes/contexto-settings.php:136 includes/contexto-settings.php:190
+msgid "Similarity Test"
+msgstr ""
+
+#: includes/contexto-pdf-template.php:185 includes/contexto-settings.php:261
 msgid "Size"
 msgstr ""
 
-#: includes/templates-prompt.php:11
+#: includes/templates-prompt.php:16
 msgid ""
-"Specialized in answering questions about orders, shipping, returns, and "
-"warranties from FAQs."
+"Specialist in diagnosing issues and proposing clear, actionable solutions."
 msgstr ""
 
 #: includes/contexto-pdf-template.php:186
 msgid "Status"
 msgstr ""
 
-#: includes/templates-prompt.php:20
+#: includes/templates-prompt.php:5
+msgid "Technical Customer Service Specialist"
+msgstr ""
+
+#: includes/templates-prompt.php:25
 msgid "Technical Support Assistant"
 msgstr ""
 
-#: includes/logs-detail.php:107
+#: includes/logs-detail.php:128
 msgid "Text"
 msgstr ""
 
-#: includes/logs-detail.php:105
+#: includes/contexto-settings.php:176
+msgid "This context is limited; only updating existing content is allowed."
+msgstr ""
+
+#: includes/contexto-settings.php:305
+msgid "This is a LIMITED scope context; discovering new items is disabled."
+msgstr ""
+
+#: includes/contexto-create.php:444
+msgid ""
+"This selection is limited (no ALL source), so only updating existing items "
+"is available."
+msgstr ""
+
+#: includes/easy-config.php:14
+msgid "This wizard requires JavaScript."
+msgstr ""
+
+#: includes/logs-detail.php:126
 msgid "Time"
 msgstr ""
 
-#: aichat.php:568
+#: includes/usage.php:15
+msgid "Timeseries (Last 30 days)"
+msgstr ""
+
+#: includes/contexto-settings.php:215 includes/contexto-settings.php:259
+msgid "Title"
+msgstr ""
+
+#: includes/usage.php:11
+msgid "Today"
+msgstr ""
+
+#: includes/usage.php:9
+msgid ""
+"Token & cost metrics (chat). Costs are approximate based on configured "
+"pricing."
+msgstr ""
+
+#: includes/usage.php:11 includes/usage.php:12 includes/usage.php:13
+msgid "tokens"
+msgstr ""
+
+#: axiachat-ai.php:846
 msgid "Too many links."
 msgstr ""
 
-#: aichat.php:531
+#: axiachat-ai.php:809
 msgid "Too many requests. Try later."
 msgstr ""
 
-#: includes/contexto-pdf-template.php:184
+#: includes/usage.php:19
+msgid "Top Models (30d)"
+msgstr ""
+
+#: includes/usage.php:63
+msgid "Total Tokens"
+msgstr ""
+
+#: includes/contexto-pdf-template.php:184 includes/contexto-settings.php:258
 msgid "Type"
 msgstr ""
 
-#: aichat.php:481 includes/logs.php:6 includes/logs-detail.php:6
+#: axiachat-ai.php:654 includes/logs-detail.php:6 includes/logs.php:6
 msgid "Unauthorized"
 msgstr ""
 
@@ -889,11 +1210,19 @@ msgstr ""
 msgid "Unavailable"
 msgstr ""
 
+#: axiachat-ai.php:602
+msgid "Unexpected error performing search."
+msgstr ""
+
 #: includes/class-aichat-ajax.php:322
 msgid "Unknown error occurred."
 msgstr ""
 
-#: includes/contexto-pdf-template.php:188
+#: includes/contexto-create.php:438 includes/contexto-settings.php:170
+msgid "Update + add new"
+msgstr ""
+
+#: includes/contexto-pdf-template.php:188 includes/contexto-settings.php:260
 msgid "Updated"
 msgstr ""
 
@@ -911,15 +1240,16 @@ msgstr ""
 msgid "Uploading…"
 msgstr ""
 
-#: includes/settings.php:275
+#: includes/settings.php:285
 msgid "Usage (Limits)"
 msgstr ""
 
-#: includes/logs.php:197 includes/logs-detail.php:113
+#: includes/logs-detail.php:88 includes/logs-detail.php:134
+#: includes/logs.php:197
 msgid "User"
 msgstr ""
 
-#: includes/logs.php:164 includes/logs-detail.php:77
+#: includes/logs.php:164
 msgid "User ID"
 msgstr ""
 
@@ -928,29 +1258,65 @@ msgstr ""
 msgid "View All"
 msgstr ""
 
-#: includes/contexto-functions.php:461
+#: includes/contexto-create.php:431
+msgid ""
+"When enabled, the system will periodically detect modified content and re-"
+"embed it so your context stays fresh."
+msgstr ""
+
+#: includes/templates-prompt.php:12
+msgid ""
+"You are a Customer Service Representative focused on helping users quickly "
+"and politely. Goals: respond fast, resolve doubts immediately, and maintain "
+"a respectful, friendly tone. Approach: 1) Greet and acknowledge the user. 2) "
+"Confirm understanding of their question (rephrase briefly if needed). 3) "
+"Provide a clear, helpful answer using only the provided CONTEXT or "
+"previously confirmed details. 4) Offer an extra helpful suggestion when "
+"relevant. 5) Close by inviting more questions. If something is missing from "
+"the CONTEXT, be transparent and suggest contacting human support. Stay "
+"empathetic, avoid jargon unless requested, and never fabricate information. "
+"Try to answer briefly, ideally in one or two concise sentences. If the user "
+"asks for more detail, then elaborate."
+msgstr ""
+
+#: includes/contexto-functions.php:494
 msgid ""
 "You are a helpful assistant. Be concise and truthful. If you do not know, "
 "say you do not know."
 msgstr ""
 
-#: includes/templates-prompt.php:12
+#: includes/templates-prompt.php:17
 msgid ""
-"You are a support agent specialized in the company’s FAQs, focusing on "
-"orders, shipping, returns, warranties, and store policies in a WooCommerce "
-"store. Use only the provided FAQ CONTEXT from the site’s pages or vector "
-"search results. Respond only to questions aligned with this CONTEXT; if the "
-"information is not available, state so and recommend contacting official "
-"support. Use clear, simple language, avoiding technical jargon unless "
-"necessary. Structure responses: 1) Summarize the user’s question to confirm "
-"understanding. 2) Quote directly from the CONTEXT for the answer (without "
-"altering text). 3) Offer next steps if applicable, e.g., “To track your "
-"order, enter the number in the My Account section.” Maintain a reassuring, "
-"solution-oriented tone, prioritizing customer satisfaction. Do not promote "
-"sales or deviate from FAQ topics."
+"You are a Problem Resolution Advisor. Your role is to diagnose the user’s "
+"issue quickly and deliver a structured, solution-oriented response. Method: "
+"1) Identify and restate the core problem. 2) If needed, ask ONE concise "
+"clarifying question before proceeding (only if essential). 3) Provide a "
+"prioritized, step-by-step solution (based strictly on the available CONTEXT)."
+" 4) Explain the reasoning or expected outcome briefly. 5) Offer a fallback "
+"or escalation path if resolution is uncertain. Tone: calm, pragmatic, "
+"respectful, and encouraging. Do not speculate beyond the CONTEXT. If "
+"insufficient data is available, clearly state the limitation and propose the "
+"next best action. Try to answer briefly, ideally in one or two concise "
+"sentences. If the user asks for more detail, then elaborate."
 msgstr ""
 
-#: includes/templates-prompt.php:22
+#: includes/templates-prompt.php:7
+msgid ""
+"You are a Technical Customer Service Specialist. Your mission: respond "
+"rapidly, resolve issues efficiently, and deliver accurate, actionable "
+"solutions. Use a professional, courteous tone at all times. Provide detailed "
+"explanations when helpful, but stay concise and structured. Workflow: 1) "
+"Acknowledge the user politely. 2) Briefly restate or clarify the problem. 3) "
+"Provide a clear step-by-step solution (based strictly on the available "
+"CONTEXT or conversation). 4) Offer an optional alternative or preventive tip."
+" 5) Ask if further assistance is needed. If the information is not in the "
+"CONTEXT, state that you cannot confirm it and suggest escalating to human "
+"support. Never invent technical data. Prioritize clarity, correctness, and "
+"empathy. Try to answer briefly, ideally in one or two concise sentences. If "
+"the user asks for more detail, then elaborate."
+msgstr ""
+
+#: includes/templates-prompt.php:27
 msgid ""
 "You are a technical support agent for a WooCommerce store, specialized in "
 "resolving common issues like checkout errors, payment problems, site "
@@ -961,37 +1327,11 @@ msgid ""
 "“I understand you’re having trouble with...”. 2) Provide clear, numbered "
 "instructions from the CONTEXT, e.g., “1. Go to your cart. 2. Click Update.” "
 "3) If unresolved, suggest escalating to human support. Avoid assuming "
-"technical knowledge and be inclusive."
+"technical knowledge and be inclusive. Try to answer briefly, ideally in one "
+"or two concise sentences. If the user asks for more detail, then elaborate."
 msgstr ""
 
-#: includes/templates-prompt.php:27
-msgid ""
-"You are a versatile assistant for international WooCommerce stores, "
-"responding in the user’s detected language (adapt automatically). Focus on "
-"general store queries, using the CONTEXT from the current page or vector "
-"search results in multilingual posts. Stick to the CONTEXT for cultural and "
-"regional accuracy (e.g., local shipping, currencies). Do not add external "
-"data. Be inclusive, culturally respectful, and accessible. Structure "
-"responses: 1) Greet in the detected language. 2) Answer concisely based on "
-"CONTEXT. 3) Offer translation if relevant. End with “How can I assist you "
-"further?” in the appropriate language. Prioritize clarity and avoid slang."
-msgstr ""
-
-#: includes/templates-prompt.php:7
-msgid ""
-"You are a WooCommerce expert assistant, designed to help customers with "
-"products, purchases, and site navigation. Stick strictly to the provided "
-"CONTEXT (current page or vector search results from posts and pages). Do not "
-"invent information or use external knowledge; if the question is not covered "
-"in the CONTEXT, suggest contacting human support or redirect to a relevant "
-"page. Use a friendly, professional, and empathetic tone. Structure responses:"
-" confirm the question, provide the answer based on CONTEXT, and offer "
-"further help if needed. For example, if asked about a product, describe its "
-"features from the CONTEXT; if about the cart, guide step-by-step using only "
-"available information."
-msgstr ""
-
-#: includes/templates-prompt.php:17
+#: includes/templates-prompt.php:22
 msgid ""
 "You are an intelligent product recommender for a WooCommerce store, acting "
 "as a personalized shopping advisor. Use the CONTEXT (current page or vector "
@@ -1004,10 +1344,11 @@ msgid ""
 "the CONTEXT with brief descriptions, prices (if available), and suggested "
 "links. 3) Explain why they fit, e.g., “Based on your search for sportswear, "
 "this item is ideal for its breathable material.” End by inviting to add to "
-"cart or ask more."
+"cart or ask more. Try to answer briefly, ideally in one or two concise "
+"sentences. If the user asks for more detail, then elaborate."
 msgstr ""
 
-#: includes/settings.php:181
+#: includes/settings.php:188
 msgid "You do not have sufficient permissions."
 msgstr ""
 

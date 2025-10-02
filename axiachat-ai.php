@@ -378,8 +378,8 @@ function aichat_uninstall() {
 add_action( 'admin_menu', 'aichat_admin_menu' );
 function aichat_admin_menu() {
   add_menu_page(
-	__( 'AixaChat AI Settings', 'axiachat-ai' ), // Título de la página
-        'AixaChat AI',          // Título del menú, no tiene sentido traducirlo
+	__( 'AxiaChat AI Settings', 'axiachat-ai' ), // Título de la página
+        'AxiaChat AI',          // Título del menú, no tiene sentido traducirlo
         'manage_options',                   // Capacidad requerida
         'aichat-settings',                  // Slug del menú
         'aichat_settings_page',             // Función de callback
@@ -600,6 +600,37 @@ function aichat_admin_menu() {
             'searching' => __('Searching embeddings...', 'axiachat-ai'),
             'no_results' => __('No results found for that query.', 'axiachat-ai'),
             'error_generic' => __('Unexpected error performing search.', 'axiachat-ai'),
+        ]);
+      }
+      // NUEVO: Encolar JS específico para la pantalla de Context Settings si no se había encolado
+      if ( $page === 'aichat-contexto-settings' && ! wp_script_is('aichat-contexto-settings','enqueued') ) {
+        wp_enqueue_script(
+          'aichat-contexto-settings',
+          AICHAT_PLUGIN_URL . 'assets/js/contexto-settings.js',
+          [ 'jquery' ],
+          AICHAT_VERSION,
+          true
+        );
+        // Localizar todas las cadenas y nonce que el script necesita (usa el mismo objeto global esperado: aichat_settings_ajax)
+        wp_localize_script('aichat-contexto-settings','aichat_settings_ajax', [
+          'ajax_url'        => admin_url('admin-ajax.php'),
+          'nonce'           => wp_create_nonce('aichat_nonce'),
+          // Labels botones/acciones
+          'settings_label'  => __('Settings', 'axiachat-ai'),
+          'similarity_label'=> __('Similarity', 'axiachat-ai'),
+          'browse_label'    => __('Browse', 'axiachat-ai'),
+          'run_autosync'    => __('Run AutoSync', 'axiachat-ai'),
+          'delete_text'     => __('Delete', 'axiachat-ai'),
+          'delete_confirm'  => __('Are you sure you want to delete this context?', 'axiachat-ai'),
+          'updated_text'    => __('Updated', 'axiachat-ai'),
+          'deleted_text'    => __('Deleted successfully.', 'axiachat-ai'),
+          // Mensajes funcionales
+          'no_contexts'     => __('No contexts found.', 'axiachat-ai'),
+          'no_chunks'       => __('No chunks found', 'axiachat-ai'),
+          'searching'       => __('Searching embeddings...', 'axiachat-ai'),
+          'no_results'      => __('No results found for that query.', 'axiachat-ai'),
+          'error_generic'   => __('Unexpected error performing search.', 'axiachat-ai'),
+          'loading'         => __('Loading...', 'axiachat-ai'),
         ]);
       }
     }

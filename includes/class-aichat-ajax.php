@@ -1006,28 +1006,89 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
          */
         protected function call_openai_responses( $api_key, $model, $messages, $max_tokens, $extra = [], $temperature = null ) {
             $endpoint = 'https://api.openai.com/v1/responses';
-            $input    = $this->messages_to_prompt( (array)$messages );
             $is_gpt5  = $this->is_gpt5_model($model);
+            $raw_messages = (array)$messages;
 
-            // Construcción inicial del payload (sin temperature para gpt‑5*)
+            // --- Nueva estrategia solicitada ---
+            // In 'instructions': policy + bot instructions + contexto
+            // In 'input': historial (user/assistant) + mensaje actual DEL usuario (sin el bloque de contexto)
+            // Si extracción falla, fallback a versión aplanada previa.
+
+            $system_blocks = [];
+            $history_pairs  = [];
+            $last_user_index = null;
+
+            foreach ($raw_messages as $idx => $m) {
+                $role = $m['role'] ?? '';
+                if ($role === 'system') {
+                    $c = trim((string)($m['content'] ?? ''));
+                    if ($c !== '') $system_blocks[] = $c;
+                    continue;
+                }
+                if ($role === 'user') { $last_user_index = $idx; }
+            }
+
+            // Extraer contexto del último user (si patrón CONTEXT: ... QUESTION: ...)
+            $context_block = '';
+            $question_block = '';
+            if ($last_user_index !== null) {
+                $user_content = (string)($raw_messages[$last_user_index]['content'] ?? '');
+                if (preg_match('/CONTEXT:\s*(.*?)QUESTION:\s*(.*)$/s', $user_content, $m)) {
+                    $context_block  = trim($m[1]);
+                    $question_block = trim($m[2]);
+                } else {
+                    $question_block = trim($user_content);
+                }
+            }
+
+            // Historial: todos los user/assistant excepto el último user (que es la pregunta actual)
+            foreach ($raw_messages as $idx => $m) {
+                if ($idx === $last_user_index) continue; // saltar user actual
+                $role = $m['role'] ?? '';
+                if ($role !== 'user' && $role !== 'assistant') continue;
+                $txt = trim(wp_strip_all_tags((string)($m['content'] ?? '')));
+                if ($txt === '') continue;
+                $history_pairs[] = ($role === 'assistant' ? 'Assistant: ' : 'User: ') . $txt;
+            }
+
+            $instructions_field = '';
+            if ($system_blocks) {
+                // Dedupe política si se repite
+                $instructions_field = implode("\n\n", array_unique($system_blocks));
+            }
+            if ($context_block !== '') {
+                $instructions_field .= ($instructions_field ? "\n\n" : '') . "CONTEXT (READ-ONLY):\n" . $context_block;
+            }
+            if ($instructions_field === '') {
+                $instructions_field = 'You are a helpful assistant.'; // fallback extremo
+            }
+
+            $input_field_parts = [];
+            if ($history_pairs) {
+                $input_field_parts[] = "HISTORY:\n" . implode("\n\n", $history_pairs);
+            }
+            if ($question_block !== '') {
+                $input_field_parts[] = "USER QUESTION:\n" . $question_block;
+            }
+            $input_field = implode("\n\n", $input_field_parts);
+            if ($input_field === '') { $input_field = $question_block ?: 'Hello'; }
+
+            // Construir payload primario (nuevo formato)
             $payload = [
                 'model' => $model,
-                'input' => $input,
+                'instructions' => $instructions_field,
+                'input' => $input_field,
             ];
 
-            // Reasoning (solo si UI ≠ off); lo quitamos si el modelo lo rechaza
             if (!empty($extra['reasoning']) && strtolower($extra['reasoning']) !== 'off') {
                 $payload['reasoning'] = [ 'effort' => $this->map_reasoning_effort($extra['reasoning']) ];
             }
-
-            // Temperature: jamás enviar para gpt‑5*
-            if (!$is_gpt5 && $temperature !== null && $temperature !== '') {
-                $payload['temperature'] = (float)$temperature;
-            }
-
-            // Preferir max_output_tokens; si el backend lo rechaza, caemos a max_tokens
             if (!empty($max_tokens)) {
                 $payload['max_output_tokens'] = (int)$max_tokens;
+            }
+            // Nunca temperature para gpt-5 según política previa
+            if (!$is_gpt5 && $temperature !== null && $temperature !== '') {
+                $payload['temperature'] = (float)$temperature;
             }
 
             $post = function(array $pl) use ($endpoint, $api_key) {
@@ -1047,24 +1108,38 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             $body_raw = wp_remote_retrieve_body($res);
             $body = json_decode($body_raw, true);
 
-            // Fallbacks por parámetros no soportados
+            // Si error y puede deberse a 'instructions' no soportado, fallback a flatten previa
             if ($code >= 400) {
                 $msg = isset($body['error']['message']) ? (string)$body['error']['message'] : '';
-
-                // Quitar temperature si lo rechaza
-                if (stripos($msg, 'temperature') !== false && isset($payload['temperature'])) {
-                    unset($payload['temperature']);
-                    $res = $post($payload);
+                $needs_flatten_fallback = stripos($msg, 'instructions') !== false || stripos($msg, 'input') !== false;
+                if ($needs_flatten_fallback) {
+                    $flatten = [
+                        'model' => $model,
+                        'input' => $this->messages_to_prompt($raw_messages),
+                    ];
+                    if (!empty($extra['reasoning']) && strtolower($extra['reasoning']) !== 'off') {
+                        $flatten['reasoning'] = [ 'effort' => $this->map_reasoning_effort($extra['reasoning']) ];
+                    }
+                    if (!empty($max_tokens)) {
+                        $flatten['max_output_tokens'] = (int)$max_tokens;
+                    }
+                    $res = $post($flatten);
                     if ( is_wp_error($res) ) return [ 'error' => $res->get_error_message() ];
                     $code = wp_remote_retrieve_response_code($res);
                     $body_raw = wp_remote_retrieve_body($res);
                     $body = json_decode($body_raw, true);
-                }
-
-                // Cambiar max_output_tokens → max_tokens si lo rechaza
-                if ($code >= 400) {
-                    $msg = isset($body['error']['message']) ? (string)$body['error']['message'] : $msg;
-                    if (stripos($msg, 'max_output_tokens') !== false && isset($payload['max_output_tokens'])) {
+                } else {
+                    // Otros fallos: aplicar degradaciones como antes
+                    // Quitar temperature si estaba (caso no gpt5)
+                    if (isset($payload['temperature']) && stripos($msg,'temperature') !== false) {
+                        unset($payload['temperature']);
+                        $res = $post($payload);
+                        if ( is_wp_error($res) ) return [ 'error' => $res->get_error_message() ];
+                        $code = wp_remote_retrieve_response_code($res);
+                        $body_raw = wp_remote_retrieve_body($res);
+                        $body = json_decode($body_raw, true);
+                    }
+                    if ($code >= 400 && isset($payload['max_output_tokens']) && stripos($msg,'max_output_tokens') !== false) {
                         $payload['max_tokens'] = (int)$payload['max_output_tokens'];
                         unset($payload['max_output_tokens']);
                         $res = $post($payload);
@@ -1073,12 +1148,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                         $body_raw = wp_remote_retrieve_body($res);
                         $body = json_decode($body_raw, true);
                     }
-                }
-
-                // Quitar reasoning si lo rechaza
-                if ($code >= 400) {
-                    $msg = isset($body['error']['message']) ? (string)$body['error']['message'] : $msg;
-                    if (stripos($msg, 'reasoning') !== false && isset($payload['reasoning'])) {
+                    if ($code >= 400 && isset($payload['reasoning']) && stripos($msg,'reasoning') !== false) {
                         unset($payload['reasoning']);
                         $res = $post($payload);
                         if ( is_wp_error($res) ) return [ 'error' => $res->get_error_message() ];
@@ -1089,33 +1159,27 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 }
             }
 
-            // Log (ya lo tienes justo antes)
-            // Extracción robusta del texto
             $text = $this->extract_openai_responses_text($body);
-
-            // Fallback por si alguna cuenta devuelve formato tipo chat
             if ($text === '' && isset($body['choices'][0]['message']['content'])) {
                 $text = (string)$body['choices'][0]['message']['content'];
             }
-
             if ($text === '') {
                 return [ 'error' => __( 'Empty response from OpenAI (Responses).', 'axiachat-ai' ) ];
             }
-            // Usage: Responses API (experimental formatting may vary)
             $usage = [];
-            if(isset($body['usage'])){
+            if(isset($body['usage'])) {
                 $u = $body['usage'];
                 $prompt_tokens = isset($u['prompt_tokens']) ? (int)$u['prompt_tokens'] : ( isset($u['input_tokens']) ? (int)$u['input_tokens'] : null );
                 $completion_tokens = isset($u['completion_tokens']) ? (int)$u['completion_tokens'] : ( isset($u['output_tokens']) ? (int)$u['output_tokens'] : null );
                 $total_tokens = isset($u['total_tokens']) ? (int)$u['total_tokens'] : null;
-                if($total_tokens === null && $prompt_tokens !== null && $completion_tokens !== null){
+                if ($total_tokens === null && $prompt_tokens !== null && $completion_tokens !== null) {
                     $total_tokens = $prompt_tokens + $completion_tokens;
                 }
                 $usage['prompt_tokens'] = $prompt_tokens;
                 $usage['completion_tokens'] = $completion_tokens;
                 $usage['total_tokens'] = $total_tokens;
             }
-            return [ 'message' => (string)$text, 'usage'=>$usage ];
+            return [ 'message' => (string)$text, 'usage' => $usage ];
         }
 
         /** Chat Completions clásico para GPT‑4* (versión router) */

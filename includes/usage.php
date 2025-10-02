@@ -22,7 +22,8 @@ function aichat_usage_admin_page(){
 }
 
 add_action('admin_enqueue_scripts', function($hook){
-  if($hook !== 'ai-chat_page_aichat-usage') return;
+  // Solo cargar scripts en la página de uso/coste exacta.
+  if ( $hook !== 'axiachat-ai_page_aichat-usage' ) return;
 
   // Patrón igual que en class-aichat-core.php: derivar base_path/base_url desde este include
   $base_path = dirname( plugin_dir_path(__FILE__) ) . '/'; // raíz plugin
@@ -37,7 +38,7 @@ add_action('admin_enqueue_scripts', function($hook){
     if( function_exists('aichat_log_debug') ) aichat_log_debug('[AIChat Usage] Missing chart.umd.min.js at '.$chart_path);
     return; // evita errores si falta
   }
-  if( function_exists('aichat_log_debug') ) aichat_log_debug('[AIChat Usage] Using Chart file (single mode): '.$chart_rel);
+  if( function_exists('aichat_log_debug') ) aichat_log_debug('[AIChat Usage] Using Chart file: '.$chart_rel);
   $chart_url = $base_url . $chart_rel;
   $usage_url = $base_url . $usage_rel;
   $ver_chart = (string) filemtime($chart_path);
