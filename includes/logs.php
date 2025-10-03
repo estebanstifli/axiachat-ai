@@ -141,13 +141,7 @@ function aichat_logs_page() {
             <div class="notice notice-success is-dismissible"><p><?php echo esc_html__('Conversation deleted.', 'axiachat-ai'); ?></p></div>
         <?php endif; ?>
 
-        <style>
-            /* Ajustes de layout para filtros de logs */
-            .aichat-logs-filters.card { width:100%; box-sizing:border-box; }
-            @media (min-width: 768px){
-                .aichat-logs-filters .form-label { font-weight:600; }
-            }
-        </style>
+        <!-- Inline styles moved to assets/css/aichat-admin.css -->
         <form method="get" class="aichat-logs-filters card card-body mb-4 shadow-sm">
             <input type="hidden" name="page" value="aichat-logs" />
             <?php wp_nonce_field('aichat_logs_filter','aichat_logs_nonce'); ?>

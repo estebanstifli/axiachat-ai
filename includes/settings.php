@@ -423,7 +423,7 @@ https://sub.site2.net"><?php echo esc_textarea($embed_origins_raw); ?></textarea
 <div style="font-weight:600;margin-bottom:6px;color:#93c5fd;"><?php echo esc_html__('Example snippet to paste on an external page','axiachat-ai'); ?>:</div>
 &lt;!-- AI Chat Widget --&gt;<br />
 &lt;div id=&quot;aichat-embed&quot; data-bot=&quot;<?php echo esc_html( $example_bot ); ?>&quot;&gt;&lt;/div&gt;<br />
-&lt;script async src=&quot;<?php echo esc_url( site_url('/wp-content/plugins/axiachat-ai/assets/js/aichat-embed-loader.js') ); ?>&quot;&gt;&lt;/script&gt;<br />
+&lt;script async src=&quot;<?php echo esc_url( AICHAT_PLUGIN_URL . 'assets/js/aichat-embed-loader.js' ); ?>&quot; data-ajax-url=&quot;<?php echo esc_url( admin_url('admin-ajax.php') ); ?>&quot; data-nonce-endpoint=&quot;<?php echo esc_url( add_query_arg('aichat_embed_nonce','1', home_url('/')) ); ?>&quot;&gt;&lt;/script&gt;<br />
 &lt;!-- /AI Chat Widget --&gt;
 <div style="margin-top:6px;font-size:11px;color:#cbd5e1;">
 <?php echo wp_kses_post( __( 'Make sure the external site origin (e.g. <code>https://example.com</code>) is present in the list above, otherwise the embed will be blocked.', 'axiachat-ai' ) ); ?>

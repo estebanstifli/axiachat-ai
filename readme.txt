@@ -4,10 +4,10 @@ Tags: chatbot, ai, openai, chat, assistant
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.1.4
+Stable tag: 1.1.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Previously named "AI Chat". A customizable AI chatbot plugin for WordPress powered by OpenAI. Create multiple bots, embed them via shortcode or a global floating widget, and optionally enhance answers with your own contextual content (RAG).
+Flexible AI chatbot: multiple bots, OpenAI / Claude support, shortcode or floating widget, optional RAG with local or Pinecone embeddings.
 
 == Description ==
 AI Chat lets you add one or more AI‑powered chatbots to your WordPress site. Each bot can have its own model settings, instructions, UI colors, avatar and placement. It uses the OpenAI API (you must provide your own API key) and can augment answers with contextual data (documents, posts or imported PDF content) using a basic Retrieval Augmented Generation workflow.
@@ -231,6 +231,106 @@ User prompts and selected context snippets are sent to OpenAI. If users may ente
 * Text Domain: `axiachat-ai`
 * Domain Path: `/languages`
 
+== External Services / Data Disclosure ==
+This plugin can connect to the following third‑party APIs depending on which features you enable. You (the site owner) must supply the API keys. No keys are bundled and no traffic is proxied through a vendor server controlled by this plugin author.
+
+=== 1. OpenAI ===
+Used for: chat completions / responses, embeddings (context indexing), moderation (safety checks).
+
+Endpoints used (HTTPS):
+* https://api.openai.com/v1/chat/completions (legacy Chat Completions)
+* https://api.openai.com/v1/responses (Responses API – new unified endpoint if configured)
+* https://api.openai.com/v1/embeddings (document/post/PDF embedding + wizard indexing)
+* https://api.openai.com/v1/moderations (content moderation)
+
+Data Sent:
+* User prompt text (per message) and limited conversation history (trimmed for token control)
+* System / policy instructions (security + privacy policy + bot instructions)
+* Optional retrieved context snippets (only the selected top‑N chunks or page excerpt – never the full original document)
+* Embedding requests: raw chunk text produced from your site’s content or uploaded PDFs
+* Moderation: only the user prompt text (not the entire history)
+
+Data Retention (Your Server):
+* Conversation log rows (if logging enabled) including user prompt, model reply, timestamps, bot slug, session id, optional user id. IP (binary) only stored when per‑IP limits are turned on. Disable logging to stop storing new rows.
+* Embeddings table stores numeric vectors generated from your content (not reversible plaintext) plus the original chunk text for retrieval.
+
+Recommendations:
+* Update your privacy policy to disclose sending user prompts and limited site content to OpenAI for processing.
+* Disable logging or periodically purge if you process personal data.
+
+Legal / Docs:
+* Terms: https://openai.com/policies/terms-of-use
+* Privacy: https://openai.com/policies/privacy-policy
+* Usage Policies: https://openai.com/policies/usage-policies
+
+Opt‑Out / Control:
+* Remove the OpenAI API key in Settings to stop all OpenAI calls (bots will refuse to answer).
+* Disable conversation logging.
+* Limit context ingestion to non‑sensitive pages.
+
+=== 2. Anthropic (Claude) ===
+Used for: alternative chat completions via Claude models (messages API) when a bot provider is set to Anthropic/Claude.
+
+Endpoint used (HTTPS):
+* https://api.anthropic.com/v1/messages
+
+Data Sent:
+* A rewritten message array: system instructions + user prompt + condensed prior turns (trimmed) + optional retrieved context snippets.
+* Model identifier, max tokens / temperature style parameters.
+
+Headers:
+* `x-api-key` (your key) and `anthropic-version` (currently 2023-06-01 set in code).
+
+Retention (Your Server):
+* Same as OpenAI notes for conversation logging (the provider choice does not change local storage schema).
+
+Legal / Docs:
+* Terms: https://www.anthropic.com/legal/terms-of-service
+* Privacy: https://www.anthropic.com/legal/privacy
+* Usage Policy: https://www.anthropic.com/legal/aup
+
+Opt‑Out / Control:
+* Leave the Claude API key blank; those bots will fallback/refuse if provider requires it.
+* Switch provider per bot back to OpenAI.
+
+=== 3. Pinecone (Optional Remote Vector Store) ===
+Only used if you explicitly create a Context with remote type "Pinecone". Local context mode (default) never contacts Pinecone.
+
+Endpoint Pattern:
+* Region/index specific HTTPS endpoints you enter (example placeholder: https://controller.pinecone.io and index query/upsert endpoints under *.pinecone.io). The plugin validates host against an allowlist containing pinecone.io (filter extendable).
+
+Used For:
+* Upserting embeddings (during context indexing / syncing)
+* Querying similar vectors when answering a question in that context.
+
+Data Sent:
+* Vectors (embedding arrays) and associated metadata (post/page IDs, titles, short chunk text) for upsert.
+* Query: the embedding vector of the user question + top‑K request.
+
+Retention:
+* Stored inside your Pinecone project (not on this plugin server). Local DB still keeps minimal reference metadata if you mix modes.
+
+Legal / Docs:
+* Terms: https://www.pinecone.io/terms/
+* Privacy: https://www.pinecone.io/privacy/
+* Security: https://www.pinecone.io/security/
+
+Opt‑Out / Control:
+* Do not configure a remote Pinecone context; use local mode or page mode instead.
+* Delete the remote context to stop future upserts/queries.
+
+=== 4. Embedded Loader (Your Site’s Frontend) ===
+The public embed script served from your own domain loads the chat UI. It calls only your WordPress `admin-ajax.php` endpoint (dynamic URL) – no third‑party directly from the browser.
+
+Data Flow (Browser → Your Server → Provider):
+1. Browser sends user message + bot slug + nonce to your server.
+2. Server validates (nonce, honeypot, optional moderation) and selects provider.
+3. Server sends sanitized payload to OpenAI/Anthropic (and optionally Pinecone for retrieval).
+4. Response sanitized and returned to browser.
+
+No external JS/CDN calls are required; Bootstrap & Icons are bundled locally.
+
+== Roadmap ==
 == Roadmap ==
 * Conversation export / anonymize tooling
 * Expanded analytics dashboard
@@ -252,7 +352,7 @@ Set per-user/IP and global caps; widget can hide or disable input when exceeded.
 Optional consent bubble blocks input until accepted.
 
 **Any third‑party calls besides OpenAI?**
-No.
+Yes, optionally Claude (Anthropic) and Pinecone if you configure those keys/contexts. See the "External Services / Data Disclosure" section for full details.
 
 **Change floating widget position?**
 Use bot/global settings or shortcode position attribute.

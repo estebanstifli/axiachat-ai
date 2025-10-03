@@ -46,8 +46,20 @@
       return full.replace(/\/assets\/js\/aichat-embed-loader\.js$/,'');
     } catch(e){ return ORIGIN; }
   })();
-  var AJAX_URL    = ORIGIN + '/wp-admin/admin-ajax.php';
-  var NONCE_ENDPOINT = ORIGIN + '/?aichat_embed_nonce=1';
+  // Determine AJAX and nonce endpoints without hardcoding wp-admin path.
+  var currentScript = document.currentScript || (function(){ var s=document.getElementsByTagName('script'); return s[s.length-1]; })();
+  var ds = currentScript ? currentScript.dataset : {};
+  // Priority: data attributes -> query params -> fallback guess
+  var qp = (function(){
+    if (!currentScript || !currentScript.src) return {};
+    try { var url = new URL(currentScript.src); var out={}; url.searchParams.forEach(function(v,k){out[k]=v;}); return out; } catch(e){ return {}; }
+  })();
+  function firstNonEmpty(){ for (var i=0;i<arguments.length;i++){ if (arguments[i]) return arguments[i]; } return ''; }
+  var AJAX_URL = firstNonEmpty(ds.ajaxUrl, ds.ajax_url, qp.ajax_url);
+  if (!AJAX_URL) { // last resort (may fail on custom setups but keeps backward compatibility)
+    AJAX_URL = ORIGIN + '/wp-admin/admin-ajax.php';
+  }
+  var NONCE_ENDPOINT = firstNonEmpty(ds.nonceEndpoint, ds.nonce_endpoint, qp.nonce_endpoint, ORIGIN + '/?aichat_embed_nonce=1');
 
   // Select targets
   var targets = [].slice.call(document.querySelectorAll('#aichat-embed, [data-aichat-embed]'));

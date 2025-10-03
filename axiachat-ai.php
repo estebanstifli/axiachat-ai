@@ -3,7 +3,7 @@
  * Plugin Name:       AxiaChat AI
  * Plugin URI:        https://wpbotwriter.com/axiachat-ai
  * Description:       A customizable AI chatbot for WordPress with contextual embeddings, multi‑provider support and upcoming action rules.
- * Version:           1.1.4
+ * Version:           1.1.5
  * Requires at least: 5.0
  * Requires PHP:      7.4
  * Author:            estebandezafra
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Definir constantes del plugin
-define( 'AICHAT_VERSION', '1.1.4' );
+define( 'AICHAT_VERSION', '1.1.5' );
 define( 'AICHAT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AICHAT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define('AICHAT_DEBUG', true);
@@ -588,6 +588,7 @@ function aichat_admin_menu() {
         'nonce'                 => wp_create_nonce('aichat_bots_nonce'),
         'embedding_options'     => $embedding_options,
         'instruction_templates' => $instruction_templates,
+        'preview_url'           => home_url('/?aichat_preview=1&bot='),
       ]);
     }
 
@@ -655,9 +656,10 @@ add_action('template_redirect', function () {
     <head>
       <meta charset="<?php bloginfo('charset'); ?>">
       <?php wp_head(); ?>
-      <style>
-        html,body{height:100%;margin:0}
-      </style>
+      <?php
+      // Enqueue minimal preview stylesheet
+      wp_enqueue_style('aichat-preview', AICHAT_PLUGIN_URL.'assets/css/aichat-preview.css', [], AICHAT_VERSION);
+      ?>
     </head>
     <body>
       <?php echo do_shortcode('[aichat id="'.esc_attr($slug).'"]'); ?>
