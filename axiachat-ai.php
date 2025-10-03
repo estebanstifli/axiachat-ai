@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'AICHAT_VERSION', '1.1.5' );
 define( 'AICHAT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AICHAT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
-define('AICHAT_DEBUG', true);
+define('AICHAT_DEBUG', false);
 
 // Nota: Eliminado load_plugin_textdomain manual.
 // Para WordPress.org, las traducciones de 'axiachat-ai' se cargarán automáticamente

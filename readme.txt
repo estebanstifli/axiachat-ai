@@ -7,7 +7,7 @@ Requires PHP: 7.4
 Stable tag: 1.1.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Flexible AI chatbot: multiple bots, OpenAI / Claude support, shortcode or floating widget, optional RAG with local or Pinecone embeddings.
+Short Description: Flexible AI chatbot with multiple bots, OpenAI & Claude, contextual embeddings (local or Pinecone), PDF ingestion, usage limits & GDPR tools.
 
 == Description ==
 AI Chat lets you add one or more AI‑powered chatbots to your WordPress site. Each bot can have its own model settings, instructions, UI colors, avatar and placement. It uses the OpenAI API (you must provide your own API key) and can augment answers with contextual data (documents, posts or imported PDF content) using a basic Retrieval Augmented Generation workflow.
@@ -122,106 +122,6 @@ User prompts (and selected context snippets) are sent to OpenAI. Content may con
 * Embedding/PDF ingestion can be heavy—schedule during low traffic
 * Lightweight front‑end footprint otherwise
 
-=== AxiaChat AI ===
-Contributors: estebandezafra
-Tags: chatbot, ai, openai, chat, assistant, embeddings, rag
-Requires at least: 5.0
-Tested up to: 6.8
-Requires PHP: 7.4
-Stable tag: 1.1.3
-License: GPLv2 or later
-License URI: https://www.gnu.org/licenses/gpl-2.0.html
-AxiaChat AI is a flexible AI chatbot for WordPress: multiple bots, contextual retrieval (embeddings), PDF ingestion, usage limits, logging, and a guided setup wizard.
-
-== Description ==
-AxiaChat AI lets you add one or more AI‑powered chatbots to your site. Each bot defines model settings, instructions, UI style and context strategy. Enhance replies with your own content (posts, pages, products, PDFs) via local embeddings for Retrieval Augmented Generation (RAG) answers.
-
-All calls go directly from your server to OpenAI (bring your own API key). No external proxy layer. Conversation logging is optional and can be disabled for privacy.
-
-== Key Features ==
-* Multiple independent bots (model, temperature, context mode, UI)
-* Floating global widget or inline shortcode
-* Context modes: embeddings / page / none
-* PDF & content ingestion → embeddings (local RAG)
-* Easy Config wizard (scan, create context, index, link bot)
-* Conversation logging toggle (store or disable)
-* Daily usage limits (per user/IP + global) with hide/disable behaviors
-* GDPR consent bubble (blocks input until accepted)
-* Customizable UI (color, position, avatars, placeholder, start sentence, window controls)
-* Shortcode attribute overrides per page
-* Action hooks for extension (e.g. `aichat_conversation_saved`)
-* Security: nonces, capability checks, prepared SQL, escaping
-* Local vendor assets (Bootstrap / Icons) – no CDN reliance
-* Translation ready (text domain: axiachat-ai) – Spanish included
-* Clean uninstall (options removed; data tables preserved unless manually deleted)
-
-== Installation ==
-1. Upload the `aichat` folder to `/wp-content/plugins/` (or install via Plugins > Add New).
-2. Activate the plugin.
-3. Go to AxiaChat AI > Settings and add your OpenAI API key.
-4. Create or edit a Bot (model, UI, behavior).
-5. (Optional) Ingest content under AxiaChat AI > Context to build embeddings.
-6. Embed:
-   * Inline: `[aichat id="your-bot-slug"]`
-   * Global floating widget: enable it in Settings and choose a bot.
-
-== Usage Basics ==
-Create a bot, optionally index content, then place it inline or via the global widget. Adjust window flags (closable/minimizable/draggable) and placeholders from the bot configuration.
-
-== Easy Config Wizard ==
-The wizard streamlines first‑time setup:
-1. Scan recent site content (posts/pages/products)
-2. Create a local context
-3. Batch embedding (chunking large content, 10 items per AJAX batch)
-4. Link the default bot to the context (embeddings mode)
-
-Smart discovery prioritizes homepage links, legal/FAQ/about pages, key WooCommerce categories/products, and falls back to recent posts if needed.
-
-Chunking splits long content into overlapping segments for better semantic retrieval. You can deselect items before indexing to limit token usage.
-
-== Shortcode Reference ==
-Basic: `[aichat id="bot-slug"]`
-Optional attributes:
-* title="Custom Title"
-* placeholder="Ask me anything..."
-* layout="floating|inline"
-* position="br|bl|tr|tl|bottom-right|bottom-left|top-right|top-left"
-* class="extra-css-class"
-
-Example: `[aichat id="support-bot" title="Support Assistant" layout="floating" position="bottom-left"]`
-
-== Data Storage ==
-Custom tables:
-* wp_aichat_conversations (messages, responses, meta)
-* wp_aichat_contexts (context definitions & progress)
-* wp_aichat_chunks (embedded content chunks)
-* wp_aichat_bots (bot configuration)
-
-Options store API key, limits, GDPR, widget settings. Tables persist on uninstall for safety.
-
-== Privacy ==
-User prompts and selected context snippets are sent to OpenAI. If users may enter personal data, disclose this and obtain consent where required. Logging can be disabled; if enabled, data remains on your server.
-
-== GDPR / Compliance Notes ==
-* Processor: OpenAI
-* Basis: legitimate interest or consent (consult legal counsel)
-* IP storage: only when per‑user/IP limits active (binary format)
-* Erasure: delete conversation rows manually (export/anonymize planned)
-* Consent: optional in‑stream bubble (cookie `aichat_gdpr_ok`)
-* Recommendation: add a privacy notice near the chat widget
-
-== Security ==
-* Nonces on all AJAX endpoints
-* `manage_options` capability gate for admin actions
-* Prepared / parameterized DB queries
-* Sanitization + escaped output
-* Key stored in an option (not exposed on front end)
- * Reinforced input handling: centralized helpers (session id clamp, bounded ints), validated JSON patch size (20KB cap), hardened file upload MIME/size checks, sanitized captcha payload
-
-== Performance ==
-* Front‑end loads only essential JS/CSS when needed
-* Chunk indexing can be resource intensive—run during low traffic
-* Lightweight runtime after initial context build
 
 == Bundled Libraries ==
 * Bootstrap (local)
@@ -394,10 +294,6 @@ Planned.
 
 = 1.0.0 =
 * Initial release
-
-== Upgrade Notice ==
-= 1.1.0 =
-Review new logging & limits settings; update privacy policy if enabling IP-based limits.
 
 == Support ==
 Use the WordPress.org support forum. Provide WP version, PHP version, logging status, and reproduction steps.

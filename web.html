@@ -1,0 +1,215 @@
+<!-- AI Chat Plugin Landing Page (English) -->
+<section class="aichat-landing">
+
+  <style>
+    .aichat-landing{--ac-primary:#1a73e8;--ac-dark:#0f1e2e;--ac-light:#f5f8fc;--ac-radius:10px;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif;line-height:1.5;color:#223;}
+    .aichat-landing *{box-sizing:border-box;}
+    .aichat-landing h1,.aichat-landing h2,.aichat-landing h3{line-height:1.2;font-weight:600;margin:0 0 .6em;}
+    .aichat-hero{display:grid;gap:2rem;align-items:center;padding:3rem 1.5rem 2rem;background:linear-gradient(135deg,#0f1e2e 0%,#143456 70%);color:#fff;border-radius:var(--ac-radius);position:relative;overflow:hidden;}
+    .aichat-hero:after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 75% 35%,rgba(255,255,255,.18),transparent 60%);}
+    .aichat-hero-inner{max-width:1080px;margin:0 auto;position:relative;z-index:2;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:2.5rem;}
+    .aichat-hero h1{font-size:clamp(2.1rem,4vw,3.2rem);letter-spacing:.5px;margin-bottom:.75rem;}
+    .aichat-badges{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem;}
+    .aichat-badge{background:rgba(255,255,255,.12);color:#fff;padding:.35rem .75rem;border-radius:40px;font-size:.75rem;letter-spacing:.5px;text-transform:uppercase;font-weight:500;display:inline-flex;align-items:center;gap:.35rem;}
+    .aichat-actions{display:flex;flex-wrap:wrap;gap:.9rem;margin-top:1.25rem;}
+    .aichat-btn{--btn-bg:var(--ac-primary);--btn-color:#fff;text-decoration:none;padding:.9rem 1.35rem;font-weight:600;font-size:.95rem;border-radius:8px;display:inline-flex;align-items:center;gap:.55rem;box-shadow:0 6px 18px -6px rgba(0,0,0,.4);transition:.25s background,.25s transform;}
+    .aichat-btn:hover{transform:translateY(-2px);text-decoration:none;}
+    .aichat-btn.primary{background:var(--btn-bg);color:var(--btn-color);}
+    .aichat-btn.secondary{background:#fff;color:#143456;}
+    .aichat-metrics{display:flex;gap:1.5rem;margin-top:2rem;flex-wrap:wrap;}
+    .aichat-metric{flex:1;min-width:160px;background:rgba(255,255,255,.12);backdrop-filter:blur(4px);padding:1rem 1.2rem;border-radius:12px;}
+    .aichat-metric strong{display:block;font-size:1.35rem;}
+    .aichat-section{max-width:1180px;margin:0 auto;padding:3.5rem 1.2rem;}
+    .aichat-grid{display:grid;gap:2rem;}
+    @media (min-width:900px){.aichat-grid.cols-3{grid-template-columns:repeat(3,1fr);} .aichat-grid.cols-2{grid-template-columns:repeat(2,1fr);} }
+    .aichat-card{background:#fff;border:1px solid #e4ecf3;padding:1.4rem 1.3rem;border-radius:14px;position:relative;overflow:hidden;display:flex;flex-direction:column;gap:.85rem;box-shadow:0 4px 12px -6px rgba(20,40,80,.08);}
+    .aichat-card h3{font-size:1.05rem;margin:0;}
+    .aichat-card p{margin:0;font-size:.9rem;}
+    .aichat-pill-list{display:flex;flex-wrap:wrap;gap:.55rem;margin:1rem 0;}
+    .aichat-pill{background:var(--ac-light);padding:.45rem .75rem;border-radius:40px;font-size:.7rem;text-transform:uppercase;letter-spacing:.5px;font-weight:600;}
+    .aichat-callout{background:linear-gradient(135deg,#1a73e8,#174e9d);color:#fff;padding:2.4rem 1.7rem;border-radius:18px;display:grid;gap:1.2rem;box-shadow:0 10px 28px -8px rgba(0,30,80,.5);}
+    .aichat-code{background:#0f1e2e;color:#e4f1ff;padding:1.1rem 1rem;font-family:ui-monospace,Consolas,monaco,monospace;font-size:.8rem;border-radius:10px;overflow:auto;line-height:1.35;}
+    .aichat-list{margin:.4rem 0 1.1rem;padding-left:1.1rem;}
+    .aichat-list li{margin:.25rem 0;}
+    .aichat-table{width:100%;border-collapse:collapse;font-size:.85rem;margin:1rem 0;}
+    .aichat-table th,.aichat-table td{border:1px solid #dfe7f0;padding:.55rem .65rem;text-align:left;vertical-align:top;}
+    .aichat-faq details{background:#fff;border:1px solid #e2e9f2;border-radius:10px;padding:.95rem 1.15rem;margin-bottom:.75rem;}
+    .aichat-faq summary{cursor:pointer;font-weight:600;list-style:none;position:relative;padding-left:1.2rem;}
+    .aichat-faq summary:before{content:\"›\";position:absolute;left:0;top:0;transform:rotate(0deg);transition:.25s;}
+    .aichat-faq details[open] summary:before{transform:rotate(90deg);}
+    .aichat-inline-note{background:#fff7e0;border:1px solid #f3da95;padding:.7rem .85rem;border-radius:8px;font-size:.8rem;margin-top:.6rem;}
+    .aichat-footer{padding:2.5rem 1.2rem 3rem;text-align:center;font-size:.75rem;color:#5b6b7d;}
+    .aichat-sep{height:1px;border:0;background:linear-gradient(90deg,transparent,#ccd9e6,transparent);margin:3.2rem 0;}
+    .aichat-tag-cloud{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.75rem;}
+    .aichat-tag-cloud span{background:#eef4fb;color:#2c4968;font-size:.65rem;padding:.35rem .55rem;border-radius:4px;font-weight:600;letter-spacing:.5px;}
+    .aichat-badge.free{background:#16a34a;}
+  </style>
+
+  <!-- HERO -->
+  <div class="aichat-hero">
+    <div class="aichat-hero-inner">
+      <div>
+        <div class="aichat-badges">
+          <span class="aichat-badge free">Free</span>
+          <span class="aichat-badge">OpenAI</span>
+          <span class="aichat-badge">Embeddings / RAG</span>
+        </div>
+  <h1>AxiaChat AI for WordPress</h1>
+        <p style="max-width:560px;font-size:1.05rem;opacity:.95">
+          Build multiple AI chatbots with independent settings, floating widget or shortcode mode, and enrich answers using your own content (PDFs, posts, custom chunks) via a lightweight RAG pipeline (local DB or optional Pinecone).
+        </p>
+        <div class="aichat-actions">
+          <a class="aichat-btn primary" href="#getting-started">Get Started</a>
+          <a class="aichat-btn secondary" href="#shortcodes">Shortcodes</a>
+          <a class="aichat-btn primary" style="--btn-bg:#10b981" href="#privacy">Privacy</a>
+        </div>
+        <div class="aichat-metrics">
+          <div class="aichat-metric"><strong>Multi‑Bot</strong><small>Separate configs</small></div>
+            <div class="aichat-metric"><strong>RAG</strong><small>Context retrieval</small></div>
+          <div class="aichat-metric"><strong>Consent</strong><small>GDPR friendly</small></div>
+        </div>
+      </div>
+      <div>
+        <div class="aichat-card" style="backdrop-filter:blur(6px);background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);min-height:260px;">
+          <h3 style="color:#fff;margin-top:0">Shortcode Example</h3>
+          <div class="aichat-code">
+            [aichat id="support-bot" title="Support"]<br>
+            [aichat id="sales" placeholder="Ask about plans..."]
+          </div>
+          <p style="font-size:.75rem;opacity:.85">Customize position, color, avatar, placeholder, send button text and more.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FEATURES -->
+  <div class="aichat-section" id="features">
+  <h2>Main Features</h2>
+    <div class="aichat-grid cols-3" style="margin-top:1.8rem">
+  <div class="aichat-card"><h3>Multiple Bots</h3><p>Each with its own model (OpenAI or Claude), temperature, system instructions and UI style.</p></div>
+      <div class="aichat-card"><h3>Widget + Shortcode</h3><p>Global floating chat or inline embeds where you need them.</p></div>
+  <div class="aichat-card"><h3>Context (RAG)</h3><p>Ingest PDFs or existing site content, chunk & embed for better answers (local or Pinecone).</p></div>
+  <div class="aichat-card"><h3>Local Embeddings</h3><p>Stored in your database—full ownership & portability. Optional remote vector store via Pinecone.</p></div>
+      <div class="aichat-card"><h3>Consent Layer</h3><p>Optional consent gate before any message is sent.</p></div>
+      <div class="aichat-card"><h3>Usage Limits</h3><p>Per user/IP & daily caps to prevent abuse.</p></div>
+      <div class="aichat-card"><h3>Optional Logs</h3><p>Conversation storage toggle for internal review (disable anytime).</p></div>
+      <div class="aichat-card"><h3>Customizable UI</h3><p>Colors, placeholders, open sentence, avatars, draggable/minimizable.</p></div>
+  <div class="aichat-card"><h3>Security</h3><p>Centralized sanitization, nonces, capability checks, size/MIME validation & no external proxy layer.</p></div>
+  <div class="aichat-card"><h3>Claude Support</h3><p>Anthropic Claude models selectable per bot (instructions + style preserved).</p></div>
+  <div class="aichat-card"><h3>Smart Link Hints</h3><p>Responses can embed a contextual top link via placeholder strategy.</p></div>
+    </div>
+  </div>
+
+  <hr class="aichat-sep" />
+
+  <!-- GETTING STARTED -->
+  <div class="aichat-section" id="getting-started">
+    <h2>Installation & Getting Started</h2>
+    <ol class="aichat-list">
+  <li>Install and activate the “AxiaChat AI” plugin.</li>
+      <li>Go to Settings → AI Chat and add your OpenAI API Key.</li>
+      <li>Create a bot (model, instructions, UI appearance).</li>
+      <li>(Optional) Ingest context (PDFs or posts) to enhance responses.</li>
+      <li>Insert the shortcode or enable the global floating widget.</li>
+    </ol>
+    <div class="aichat-inline-note">
+      Note: Conversation logging and IP capture are only active if you enable usage/IP limits.
+    </div>
+  </div>
+
+  <!-- SHORTCODES -->
+  <div class="aichat-section" id="shortcodes">
+  <h2>Shortcodes & Attributes</h2>
+    <div class="aichat-code">
+      [aichat id="bot-slug"]<br>
+      [aichat id="sales" title="Sales Assistant" placeholder="Ask about pricing..."]<br>
+      [aichat id="support" layout="floating" position="bottom-left"]
+    </div>
+    <table class="aichat-table">
+      <thead><tr><th>Attribute</th><th>Values</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td>id / bot</td><td>slug</td><td>Identifier of the bot to load.</td></tr>
+        <tr><td>title</td><td>Text</td><td>Header title (inline mode).</td></tr>
+        <tr><td>placeholder</td><td>Text</td><td>Input placeholder text.</td></tr>
+        <tr><td>layout</td><td>floating | inline</td><td>Render as floating widget or inline block.</td></tr>
+        <tr><td>position</td><td>br | bl | tr | tl</td><td>Floating widget corner.</td></tr>
+        <tr><td>class</td><td>CSS class</td><td>Extra CSS class for styling.</td></tr>
+        <tr><td>button</td><td>Text</td><td>Custom send button label.</td></tr>
+        <tr><td>avatar</td><td>URL</td><td>Override bot avatar (if avatars enabled).</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <hr class="aichat-sep" />
+
+  <!-- PRIVACY -->
+  <div class="aichat-section" id="privacy">
+    <h2>Privacy & GDPR</h2>
+  <p>Requests are sent directly to OpenAI or Anthropic (Claude) using your own API keys. You can disable conversation logging entirely. If IP-based limits are enabled, IPs are stored in binary form (not plain text). Add an appropriate privacy notice for your jurisdiction.</p>
+    <ul class="aichat-list">
+      <li>Optional in-chat consent barrier.</li>
+      <li>Data resides on your server (except model API calls).</li>
+      <li>Embeddings & chunks stored locally.</li>
+    </ul>
+  </div>
+
+  <!-- FAQ -->
+  <div class="aichat-section" id="faq">
+    <h2>FAQ</h2>
+    <div class="aichat-faq">
+      <details open>
+        <summary>Do I need my own API keys?</summary>
+        <p>Yes. Bring your own OpenAI and (optionally) Anthropic keys. The plugin does not proxy or bundle access.</p>
+      </details>
+      <details>
+        <summary>Can I disable chat logging?</summary>
+        <p>Yes. When disabled, no new rows are stored; existing history remains until you purge it.</p>
+      </details>
+      <details>
+        <summary>How does the context (RAG) work?</summary>
+        <p>Indexed content is chunked, embedded and similarity‑matched; the most relevant snippets are appended to the model prompt.</p>
+      </details>
+      <details>
+        <summary>Performance impact?</summary>
+        <p>Indexing PDFs can be heavier; schedule during low traffic times. Normal runtime queries are lightweight.</p>
+      </details>
+      <details>
+        <summary>Does it support Pinecone?</summary>
+        <p>Yes. You can switch a context to use Pinecone for vector search; local mode stays available for full control.</p>
+      </details>
+      <details>
+        <summary>How are inputs sanitized?</summary>
+        <p>A centralized set of helpers enforces bounded lengths, allowed MIME types, safe integers and size caps for patch/JSON bodies.</p>
+      </details>
+    </div>
+  </div>
+
+  <hr class="aichat-sep" />
+
+  <!-- CTA -->
+  <div class="aichat-section">
+    <div class="aichat-callout">
+      <h2 style="margin:0;">Start Now</h2>
+  <p style="margin:0;max-width:640px;">Install the plugin, create your first bot and deliver contextual AI assistance to your users. Free, extensible, and privacy‑aware.</p>
+      <div class="aichat-actions">
+        <a class="aichat-btn primary" href="#getting-started">Create a Bot</a>
+        <a class="aichat-btn secondary" href="#features">View Features</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAGS -->
+  <div class="aichat-section" style="padding-top:2rem">
+    <h3 style="margin-bottom:.4rem;font-size:1rem;">Tags / Keywords</h3>
+    <div class="aichat-tag-cloud">
+      <span>chatbot</span><span>openai</span><span>rag</span><span>pdf ingestion</span><span>embeddings</span><span>gdpr</span><span>shortcode</span><span>assistant</span><span>multi-bot</span>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="aichat-footer">
+    AxiaChat AI · Free & extensible. Not officially affiliated with OpenAI or Anthropic.<br />
+    Licensed under GPLv2 or later.
+  </div>
+
+</section>
