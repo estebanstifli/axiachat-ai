@@ -283,13 +283,15 @@ function aichat_get_context_for_question( $question, $args = [] ) {
 
     // Modo none: sin contexto
     if ( $args['mode'] === 'none' ) {
-        $GLOBALS['contexts'] = [];
+    // Store resolved contexts globally under prefixed key for later link replacement.
+    // Contexts stored under unique prefixed global per WP.org prefix guidelines.
+    $GLOBALS['aichat_contexts'] = [];
         return [];
     }
 
     $q_embed = aichat_generate_embedding( $question );
     if ( ! $q_embed ) {
-        $GLOBALS['contexts'] = [];
+    $GLOBALS['aichat_contexts'] = [];
         return [];
     }
 
@@ -299,7 +301,7 @@ function aichat_get_context_for_question( $question, $args = [] ) {
     $context_id = intval( $args['context_id'] );
     // Ya no hay contexto global: si no viene, no hay contexto
     if ( $context_id <= 0 && $args['mode'] !== 'pinecone' ) {
-        $GLOBALS['contexts'] = [];
+    $GLOBALS['aichat_contexts'] = [];
         return [];
     }
 
@@ -322,7 +324,7 @@ function aichat_get_context_for_question( $question, $args = [] ) {
         }
     } elseif ( $mode === 'auto' && ! $context_row ) {
         // Sin fila de contexto: no hay contexto
-        $GLOBALS['contexts'] = [];
+    $GLOBALS['aichat_contexts'] = [];
         return [];
     }
 
@@ -344,18 +346,18 @@ function aichat_get_context_for_question( $question, $args = [] ) {
                     'score'   => 1.0,
                     'type'    => (string)$post->post_type,
                 ];
-                $GLOBALS['contexts'] = [ $row ];
+                $GLOBALS['aichat_contexts'] = [ $row ];
                 return [ $row ];
             }
         }
-        $GLOBALS['contexts'] = [];
+    $GLOBALS['aichat_contexts'] = [];
         return [];
     }
 
     // --------- Pinecone ----------
     if ( $mode === 'pinecone' ) {
         if ( ! $context_row || empty( $context_row['remote_api_key'] ) || empty( $context_row['remote_endpoint'] ) ) {
-            $GLOBALS['contexts'] = [];
+            $GLOBALS['aichat_contexts'] = [];
             return [];
         }
 
@@ -366,7 +368,7 @@ function aichat_get_context_for_question( $question, $args = [] ) {
         $remote_endpoint = aichat_sanitize_remote_endpoint( $raw_ep );
         if ( $remote_endpoint === '' ) {
             aichat_log_debug('[AIChat] Invalid remote_endpoint discarded: '. $raw_ep);
-            $GLOBALS['contexts'] = [];
+            $GLOBALS['aichat_contexts'] = [];
             return [];
         }
 
@@ -386,14 +388,14 @@ function aichat_get_context_for_question( $question, $args = [] ) {
 
         if ( is_wp_error( $response ) ) {
             aichat_log_debug( '[AIChat] Pinecone query error: ' . $response->get_error_message() );
-            $GLOBALS['contexts'] = [];
+            $GLOBALS['aichat_contexts'] = [];
             return [];
         }
 
         $code = wp_remote_retrieve_response_code( $response );
         if ( $code !== 200 ) {
             aichat_log_debug( '[AIChat] Pinecone HTTP ' . $code . ' → ' . wp_remote_retrieve_body( $response ) );
-            $GLOBALS['contexts'] = [];
+            $GLOBALS['aichat_contexts'] = [];
             return [];
         }
 
@@ -409,7 +411,7 @@ function aichat_get_context_for_question( $question, $args = [] ) {
         }, $data['matches'] ?? [] );
 
         usort( $rows, fn($a,$b) => $b['score'] <=> $a['score'] );
-        $GLOBALS['contexts'] = $rows;
+    $GLOBALS['aichat_contexts'] = $rows;
         return array_slice( $rows, 0, $limit );
     }
 
@@ -442,12 +444,12 @@ function aichat_get_context_for_question( $question, $args = [] ) {
             ];
         }, $rows );
 
-        $GLOBALS['contexts'] = $norm;
+    $GLOBALS['aichat_contexts'] = $norm;
         return $norm;
     }
 
     // Cualquier otro caso: sin contexto
-    $GLOBALS['contexts'] = [];
+    $GLOBALS['aichat_contexts'] = [];
     return [];
 }
 
@@ -533,7 +535,7 @@ function aichat_replace_link_placeholder( $answer ) {
     if ( strpos( $answer, '[LINK]' ) === false ) {
         return $answer; // nada que reemplazar
     }
-    $contexts = $GLOBALS['contexts'] ?? [];
+    $contexts = $GLOBALS['aichat_contexts'] ?? [];
     if ( empty( $contexts ) ) {
         return str_replace( '[LINK]', __( 'Link not available', 'axiachat-ai' ), $answer );
     }
@@ -642,4 +644,18 @@ if ( ! function_exists('aichat_sanitize_remote_endpoint') ) {
         $base = $p['scheme'].'://'.$host;
         return $base;
     }
+}
+
+/**
+ * Accessor for the last resolved AIChat contexts.
+ * Wrapper to avoid direct reliance on the global variable name and keep prefix uniqueness.
+ * @since 1.1.6
+ * @return array
+ */
+function aichat_get_current_contexts() {
+    // Primary prefixed global.
+    if ( isset( $GLOBALS['aichat_contexts'] ) && is_array( $GLOBALS['aichat_contexts'] ) ) {
+        return $GLOBALS['aichat_contexts'];
+    }
+    return [];
 }
