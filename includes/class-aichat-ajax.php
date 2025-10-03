@@ -37,11 +37,8 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             $t0 = microtime(true);
             $uid = wp_generate_uuid4();
 
-            // --- Flag de depuración ---
-            $debug = false;
-            if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) { $debug = true; }
-            if ( isset($_POST['debug']) && $_POST['debug'] ) { $debug = true; }
-
+            // Flag de depuración ahora sólo depende de la constante global AICHAT_DEBUG
+            $debug = ( defined('AICHAT_DEBUG') && AICHAT_DEBUG );
             aichat_log_debug("[AIChat AJAX][$uid] start");
 
             // Nonce
@@ -53,7 +50,8 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
 
             $message  = isset( $_POST['message'] )  ? sanitize_textarea_field( wp_unslash( $_POST['message'] ) ) : '';
             $bot_slug = isset( $_POST['bot_slug'] ) ? sanitize_title( wp_unslash( $_POST['bot_slug'] ) ) : '';
-            $session  = isset( $_POST['session_id'] ) ? preg_replace('/[^a-z0-9\-]/i','', (string)wp_unslash($_POST['session_id'])) : '';
+            // Session id sanitize (regex + length bound)
+            $session  = isset( $_POST['session_id'] ) ? aichat_sanitize_session_id( wp_unslash( $_POST['session_id'] ) ) : '';
             if ($session==='') { $session = wp_generate_uuid4(); }
 
             if ( $message === '' ) {
@@ -63,14 +61,20 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             aichat_log_debug("[AIChat AJAX][$uid] payload slug={$bot_slug} msg_len=" . strlen($message));
 
             // ---- CAPTCHA (filtro opcional) ----
-            $captcha_ok = apply_filters( 'aichat_validate_captcha', true, $_POST );
+            // Provide a sanitized shallow copy to captcha filters (defensive)
+            $captcha_payload = [
+                'bot_slug'   => $bot_slug,
+                'session_id' => $session,
+                'message_len'=> strlen( $message ),
+            ];
+            $captcha_ok = apply_filters( 'aichat_validate_captcha', true, $captcha_payload );
             if ( ! $captcha_ok ) {
                 aichat_log_debug("[AIChat AJAX][$uid] captcha failed");
                 wp_send_json_error( [ 'message' => __( 'Captcha validation failed.', 'axiachat-ai' ) ], 403 );
             }
 
             // ---- Honeypot anti bots ----
-            if ( ! empty( $_POST['aichat_hp'] ) ) {
+            if ( ! empty( $_POST['aichat_hp'] ) ) { // Honeypot present -> block
                 aichat_log_debug("[AIChat AJAX][$uid] honeypot filled");
                 wp_send_json_error( [ 'message' => __( 'Request blocked.', 'axiachat-ai' ) ], 403 );
             }
@@ -374,9 +378,10 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             }
 
             // 8) Respuesta (con debug opcional)
-            $debug_payload = null;
+            // Construir respuesta
+            $resp = [ 'message' => $answer ];
             if ( $debug ) {
-                $debug_payload = [
+                $resp['debug'] = [
                     'uid'          => $uid,
                     'bot'          => [ 'id'=>$bot_id, 'slug'=>$bot_slug_r, 'name'=>$bot_name ],
                     'provider'     => $provider,
@@ -396,17 +401,11 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                         'total'    => round( (microtime(true)-$t0)*1000 ),
                     ],
                 ];
-                // Cabeceras útiles para inspección en Network → Response Headers
                 @header('X-AIChat-Bot: ' . $bot_slug_r);
                 @header('X-AIChat-Provider: ' . $provider);
                 @header('X-AIChat-Model: ' . $model);
                 @header('X-AIChat-Context-Count: ' . $ctx_count);
                 @header('X-AIChat-Mode: ' . $mode_arg);
-            }
-
-            $resp = [ 'message' => $answer ];
-            if ( $debug && $debug_payload ) {
-                $resp['debug'] = $debug_payload;
             }
 
             // Hook after response
@@ -892,9 +891,10 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             if ( empty($nonce) || ! wp_verify_nonce( $nonce, 'aichat_ajax' ) ) {
                 wp_send_json_error( [ 'message' => __( 'Nonce inválido.', 'axiachat-ai' ) ], 403 );
             }
-            $session  = isset( $_POST['session_id'] ) ? preg_replace('/[^a-z0-9\-]/i','', (string)wp_unslash($_POST['session_id'])) : '';
+            $session  = isset( $_POST['session_id'] ) ? aichat_sanitize_session_id( wp_unslash( $_POST['session_id'] ) ) : '';
             $bot_slug = isset( $_POST['bot_slug'] ) ? sanitize_title( wp_unslash( $_POST['bot_slug'] ) ) : '';
-            $limit    = isset( $_POST['limit'] ) ? max(1, min(200, intval($_POST['limit']) )) : 50;
+            $limit_raw = isset( $_POST['limit'] ) ? wp_unslash( $_POST['limit'] ) : 50;
+            $limit    = aichat_bounded_int( $limit_raw, 1, 200, 50 );
             if ($session==='' || $bot_slug==='') wp_send_json_success( [ 'items' => [] ] );
 
             global $wpdb; $t = $wpdb->prefix.'aichat_conversations';

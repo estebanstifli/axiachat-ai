@@ -250,13 +250,28 @@ add_action('wp_ajax_aichat_upload_file', function(){
 
     $name = sanitize_file_name($f['name']);
     $tmp  = $f['tmp_name'];
-    $mime = $f['type'] ?: mime_content_type($tmp);
+    // Prefer server-side detection
+    $filetype = wp_check_filetype_and_ext( $tmp, $name );
+    $mime = $filetype['type'] ?: ( $f['type'] ?: mime_content_type( $tmp ) );
     $size = (int) $f['size'];
 
-    // Validación básica
+    // Validation: extension & MIME pair whitelist
     $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-    if (! in_array($ext, array('pdf','txt'), true)) {
-        wp_send_json_error(array('message'=>'Only .pdf or .txt allowed'), 400);
+    $allowed_ext = array( 'pdf','txt' );
+    if ( ! in_array( $ext, $allowed_ext, true ) ) {
+        wp_send_json_error( array( 'message' => 'Only .pdf or .txt allowed' ), 400 );
+    }
+    $allowed_mime = array( 'application/pdf','text/plain','text/markdown','application/octet-stream' ); // octet-stream fallback for some txt uploads
+    if ( $ext === 'pdf' && $mime !== 'application/pdf' ) {
+        wp_send_json_error( array( 'message' => 'Invalid PDF MIME.' ), 400 );
+    }
+    if ( $ext === 'txt' && ! in_array( $mime, $allowed_mime, true ) ) {
+        wp_send_json_error( array( 'message' => 'Invalid TXT MIME.' ), 400 );
+    }
+    // Size cap (10MB default)
+    $max_bytes = apply_filters( 'aichat_pdf_max_bytes', 10 * 1024 * 1024 );
+    if ( $size > $max_bytes ) {
+        wp_send_json_error( array( 'message' => 'File too large.' ), 400 );
     }
 
     // Move a carpeta propia

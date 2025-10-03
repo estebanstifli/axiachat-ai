@@ -216,6 +216,7 @@ User prompts and selected context snippets are sent to OpenAI. If users may ente
 * Prepared / parameterized DB queries
 * Sanitization + escaped output
 * Key stored in an option (not exposed on front end)
+ * Reinforced input handling: centralized helpers (session id clamp, bounded ints), validated JSON patch size (20KB cap), hardened file upload MIME/size checks, sanitized captcha payload
 
 == Performance ==
 * Front‑end loads only essential JS/CSS when needed

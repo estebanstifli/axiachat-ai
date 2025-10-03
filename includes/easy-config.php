@@ -230,7 +230,7 @@ add_action('wp_ajax_aichat_easycfg_index_batch', function(){
     check_ajax_referer('aichat_easycfg','nonce');
 
     $context_id = isset($_POST['context_id']) ? (int)$_POST['context_id'] : 0;
-    $batch = isset($_POST['ids']) ? (array)$_POST['ids'] : [];
+    $batch = isset($_POST['ids']) ? array_map( 'intval', (array)$_POST['ids'] ) : [];
     $processed = [];
     foreach($batch as $pid){
         $pid = (int)$pid; if ($pid<=0) continue;

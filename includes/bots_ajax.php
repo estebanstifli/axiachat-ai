@@ -254,8 +254,11 @@ function aichat_bot_update(){
   if (!$row) wp_send_json_error(['message'=>'Bot not found'],404);
 
   $raw = isset($_POST['patch']) ? $_POST['patch'] : '{}';
-  $patch = is_string($raw) ? json_decode(stripslashes($raw), true) : (array)$raw;
-  if (!is_array($patch)) $patch=[];
+  $patch = aichat_validate_patch_payload( $raw );
+  if ( is_wp_error( $patch ) ) {
+    wp_send_json_error( [ 'message' => $patch->get_error_message() ], 400 );
+  }
+  if ( ! is_array( $patch ) ) { $patch = []; }
 
   $data = aichat_bots_sanitize_patch($patch, $row);
 

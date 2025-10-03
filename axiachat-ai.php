@@ -74,6 +74,10 @@ require_once AICHAT_PLUGIN_DIR . 'includes/class-aichat-core.php';
 require_once AICHAT_PLUGIN_DIR . 'includes/class-aichat-ajax.php';
 require_once AICHAT_PLUGIN_DIR . 'includes/settings.php';
 
+// Sanitization helpers centralizados (nuevas funciones aichat_sanitize_* / aichat_bool / etc.)
+  require_once AICHAT_PLUGIN_DIR . 'includes/sanitize-helpers.php';
+
+
 
 require_once AICHAT_PLUGIN_DIR . 'includes/contexto-functions.php'; // Nuevo archivo para funciones de contexto
 
@@ -703,11 +707,16 @@ function aichat_handle_delete_conversation() {
 
 if ( ! function_exists('aichat_get_ip') ) {
   function aichat_get_ip() {
-    foreach ( ['HTTP_CLIENT_IP','HTTP_X_FORWARDED_FOR','REMOTE_ADDR'] as $k ) {
-      if ( empty($_SERVER[$k]) ) continue;
-      $raw = explode(',', $_SERVER[$k]);
-      $ip  = trim($raw[0]);
-      if ( filter_var($ip, FILTER_VALIDATE_IP) ) return $ip;
+    // NOTE: Only trust proxy headers if your environment sets them reliably.
+    $candidates = [];
+    $order = apply_filters( 'aichat_ip_header_order', ['HTTP_CF_CONNECTING_IP','HTTP_X_REAL_IP','HTTP_CLIENT_IP','HTTP_X_FORWARDED_FOR','REMOTE_ADDR'] );
+    foreach ( $order as $k ) {
+        if ( empty( $_SERVER[ $k ] ) ) { continue; }
+        $first = explode( ',', (string) $_SERVER[ $k ] )[0];
+        $cand  = trim( $first );
+        if ( filter_var( $cand, FILTER_VALIDATE_IP ) ) {
+            return $cand; // return first valid
+        }
     }
     return '';
   }
