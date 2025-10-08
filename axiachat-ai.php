@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'AICHAT_VERSION', '1.1.5' );
 define( 'AICHAT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AICHAT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
-define('AICHAT_DEBUG', false);
+define('AICHAT_DEBUG', true);
 
 // Nota: Eliminado load_plugin_textdomain manual.
 // Para WordPress.org, las traducciones de 'axiachat-ai' se cargarán automáticamente
@@ -71,8 +71,17 @@ require_once AICHAT_PLUGIN_DIR . 'includes/shortcode.php';
 
 // Incluir archivos de clases principales
 require_once AICHAT_PLUGIN_DIR . 'includes/class-aichat-core.php';
+require_once AICHAT_PLUGIN_DIR . 'includes/tools.php'; // Tools registration API
+require_once AICHAT_PLUGIN_DIR . 'includes/macro-tools.php'; // Macro tools layer
+// Sample/demo tools (can be removed in production)
+if ( file_exists( AICHAT_PLUGIN_DIR . 'includes/tools-sample.php' ) ) {
+  require_once AICHAT_PLUGIN_DIR . 'includes/tools-sample.php';
+}
 require_once AICHAT_PLUGIN_DIR . 'includes/class-aichat-ajax.php';
 require_once AICHAT_PLUGIN_DIR . 'includes/settings.php';
+require_once AICHAT_PLUGIN_DIR . 'includes/tools-settings.php';
+require_once AICHAT_PLUGIN_DIR . 'includes/tools-logs.php';
+require_once AICHAT_PLUGIN_DIR . 'includes/tools-ajax.php';
 
 // Sanitization helpers centralizados (nuevas funciones aichat_sanitize_* / aichat_bool / etc.)
   require_once AICHAT_PLUGIN_DIR . 'includes/sanitize-helpers.php';
@@ -318,6 +327,7 @@ function aichat_bots_maybe_create(){
     input_max_length INT NOT NULL DEFAULT 512,
     max_messages INT NOT NULL DEFAULT 20,
     context_max_length INT NOT NULL DEFAULT 4096,
+  tools_json LONGTEXT NULL,
     ui_color VARCHAR(7) NOT NULL DEFAULT '#1a73e8',
     ui_position ENUM('br','bl','tr','tl') NOT NULL DEFAULT 'br',
     ui_avatar_enabled TINYINT(1) NOT NULL DEFAULT 0,
@@ -341,11 +351,67 @@ function aichat_bots_maybe_create(){
   ) $charset;";
 
   dbDelta($sql); // dbDelta hará los ajustes necesarios si ya existe.
+
+  // Nueva tabla para trazas de tool calls
+  $tool_calls_table = $wpdb->prefix.'aichat_tool_calls';
+  $sql_tools = "CREATE TABLE $tool_calls_table (
+    id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+    request_uuid CHAR(36) NOT NULL,
+    conversation_id BIGINT(20) UNSIGNED NULL,
+    session_id VARCHAR(64) NULL,
+    bot_slug VARCHAR(100) NOT NULL,
+    round SMALLINT UNSIGNED NOT NULL DEFAULT 1,
+    call_id VARCHAR(100) NOT NULL,
+    tool_name VARCHAR(191) NOT NULL,
+    arguments_json MEDIUMTEXT NULL,
+    output_excerpt MEDIUMTEXT NULL,
+    duration_ms INT UNSIGNED NULL,
+    error_code VARCHAR(64) NULL,
+    created_at DATETIME NOT NULL,
+    PRIMARY KEY (id),
+    KEY bot_slug (bot_slug),
+    KEY conversation_id (conversation_id),
+    KEY request_uuid (request_uuid),
+    KEY call_id (call_id)
+  ) $charset;";
+  dbDelta($sql_tools);
 }
 
 // Upgrade routine for adding chunk_index if missing (run on admin_init lightweight)
 add_action('admin_init', function(){
   global $wpdb; $table = $wpdb->prefix.'aichat_chunks';
+  // Asegurar tabla tool calls (upgrade silencioso)
+  $tool_calls = $wpdb->prefix.'aichat_tool_calls';
+  $exists_tool = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name=%s", $tool_calls));
+  if ( ! $exists_tool ) {
+    $charset = $wpdb->get_charset_collate();
+    $wpdb->query("CREATE TABLE $tool_calls (
+      id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+      request_uuid CHAR(36) NOT NULL,
+      conversation_id BIGINT(20) UNSIGNED NULL,
+      session_id VARCHAR(64) NULL,
+      bot_slug VARCHAR(100) NOT NULL,
+      round SMALLINT UNSIGNED NOT NULL DEFAULT 1,
+      call_id VARCHAR(100) NOT NULL,
+      tool_name VARCHAR(191) NOT NULL,
+      arguments_json MEDIUMTEXT NULL,
+      output_excerpt MEDIUMTEXT NULL,
+      duration_ms INT UNSIGNED NULL,
+      error_code VARCHAR(64) NULL,
+      created_at DATETIME NOT NULL,
+      PRIMARY KEY (id),
+      KEY bot_slug (bot_slug),
+      KEY conversation_id (conversation_id),
+      KEY request_uuid (request_uuid),
+      KEY call_id (call_id)
+    ) $charset");
+  }
+  // Upgrade bots table add tools_json if missing
+  $bots_table = aichat_bots_table();
+  $bots_cols = $wpdb->get_col("SHOW COLUMNS FROM $bots_table",0);
+  if ( $bots_cols && ! in_array('tools_json',$bots_cols,true) ) {
+    $wpdb->query("ALTER TABLE $bots_table ADD COLUMN tools_json LONGTEXT NULL AFTER context_max_length");
+  }
   $cols = $wpdb->get_results("SHOW COLUMNS FROM $table LIKE 'chunk_index'");
   if (empty($cols)) {
     $wpdb->query("ALTER TABLE $table ADD COLUMN chunk_index INT NOT NULL DEFAULT 0 AFTER post_id");
@@ -377,6 +443,7 @@ function aichat_uninstall() {
     delete_option( 'aichat_chat_color' );
     delete_option( 'aichat_position' );
 }
+
 
 // Agregar menús y páginas
 add_action( 'admin_menu', 'aichat_admin_menu' );
@@ -451,25 +518,58 @@ function aichat_admin_menu() {
     'aichat_logs_page'
   );
 
+  // === NUEVO: Menú Tools (para gestión de tools y trazas) ===
+  add_menu_page(
+    __( 'AI Tools', 'axiachat-ai' ),
+    __( 'AI Tools', 'axiachat-ai' ),
+    'manage_options',
+    'aichat-tools',
+    'aichat_tools_settings_page',
+    'dashicons-hammer',
+    81
+  );
+  // Submenú Tools > Settings
+  add_submenu_page(
+    'aichat-tools',
+    __( 'Tools Settings', 'axiachat-ai' ),
+    __( 'Settings', 'axiachat-ai' ),
+    'manage_options',
+    'aichat-tools',
+    'aichat_tools_settings_page'
+  );
+  // Submenú Tools > Logs
+  add_submenu_page(
+    'aichat-tools',
+    __( 'Tools Logs', 'axiachat-ai' ),
+    __( 'Logs', 'axiachat-ai' ),
+    'manage_options',
+    'aichat-tools-logs',
+    'aichat_tools_logs_page'
+  );
 
 
-    add_submenu_page(
-        null, // Sin menú padre
-  __('Create Context', 'axiachat-ai'), // Título de la página
-        '', // Título del menú (vacío)
-        'manage_options', // Capacidad
-        'aichat-contexto-create', // Slug de la página
-        'aichat_contexto_create_page' // Función de callback
-    );
 
-    add_submenu_page(
-        null, // Sin menú padre
-  __('Import PDF/Data', 'axiachat-ai'), // Título de la página
-        '', // Título del menú (vacío)
-        'manage_options', // Capacidad
-        'aichat-contexto-pdf', // Slug de la página
-        'aichat_contexto_pdf_page' // Función de callback
-    );
+  // Reemplazo de páginas ocultas: en versiones recientes se depreca usar parent '' para páginas huérfanas.
+  // Creamos páginas hook usando add_menu_page con un title mínimo y luego las ocultamos del menú.
+  $hidden_hooks = [];
+  $hidden_hooks[] = add_menu_page(
+    __('Create Context','axiachat-ai'),
+    '__hidden_aichat_ctx_create', // título de menú no visible (lo ocultaremos)
+    'manage_options',
+    'aichat-contexto-create',
+    'aichat_contexto_create_page',
+    'dashicons-hidden',
+    82
+  ); 
+  $hidden_hooks[] = add_menu_page(
+    __('Import PDF/Data','axiachat-ai'),
+    '__hidden_aichat_ctx_pdf',
+    'manage_options',
+    'aichat-contexto-pdf',
+    'aichat_contexto_pdf_page',
+    'dashicons-hidden',
+    83
+  );
 
   add_submenu_page(
     'aichat-settings',
@@ -478,20 +578,26 @@ function aichat_admin_menu() {
 
   
   // Página oculta para detalle de conversación
-  add_submenu_page(
-    null,
-  __( 'Conversation Detail', 'axiachat-ai' ),
-    '',
+  $hidden_hooks[] = add_menu_page(
+    __( 'Conversation Detail', 'axiachat-ai' ),
+    '__hidden_aichat_conv_detail',
     'manage_options',
     'aichat-logs-detail',
-    'aichat_logs_detail_page'
+    'aichat_logs_detail_page',
+    'dashicons-hidden',
+    84
   );
+
+  // Ocultar entradas de menú generadas para páginas internas (dejamos sólo accesibles por slug directo)
+  add_action('admin_head', function(){
+      echo '<style>#adminmenu a.toplevel_page_aichat-contexto-create, #adminmenu a.toplevel_page_aichat-contexto-pdf, #adminmenu a.toplevel_page_aichat-logs-detail {display:none!important;}</style>';
+  });
 
   add_action('admin_enqueue_scripts', function($hook){
     if ( ! isset($_GET['page']) ) return;
     $page = sanitize_text_field( wp_unslash( $_GET['page'] ) );
   // Incluir también la página principal de ajustes para usar Bootstrap en el rediseño
-  $needs_bootstrap = in_array( $page, [ 'aichat-settings','aichat-bots-settings','aichat-logs','aichat-logs-detail','aichat-contexto-settings','aichat-contexto-create','aichat-contexto-pdf' ], true );
+  $needs_bootstrap = in_array( $page, [ 'aichat-settings','aichat-bots-settings','aichat-logs','aichat-logs-detail','aichat-contexto-settings','aichat-contexto-create','aichat-contexto-pdf','aichat-tools' ], true );
   // Añadir easy config a la lista que necesita bootstrap (reutilizamos estilos)
   if ( $page === 'aichat-easy-config' ) {
     $needs_bootstrap = true;
@@ -549,7 +655,7 @@ function aichat_admin_menu() {
   wp_enqueue_style('aichat-admin', AICHAT_PLUGIN_URL.'assets/css/aichat-admin.css', ['aichat-bootstrap'], AICHAT_VERSION);    
     wp_enqueue_script('aichat-bootstrap');
 
-    // Script específico de la página de ajustes (toggle mostrar/ocultar API keys)
+  // Script específico de la página de ajustes (toggle mostrar/ocultar API keys)
     if ( $page === 'aichat-settings' && ! wp_script_is('aichat-settings-js','enqueued') ) {
       wp_enqueue_script(
         'aichat-settings-js',
@@ -560,7 +666,7 @@ function aichat_admin_menu() {
       );
     }
 
-    // Lógica específica para página de bots
+  // Lógica específica para página de bots
     if ( $page === 'aichat-bots-settings' ) {
       wp_enqueue_script('aichat-bots-js', AICHAT_PLUGIN_URL.'assets/js/bots.js', ['jquery'], AICHAT_VERSION, true);
 
@@ -593,6 +699,62 @@ function aichat_admin_menu() {
         'embedding_options'     => $embedding_options,
         'instruction_templates' => $instruction_templates,
         'preview_url'           => home_url('/?aichat_preview=1&bot='),
+      ]);
+    }
+
+    // Assets para página Tools (rule builder)
+    if ( $page === 'aichat-tools' ) {
+      wp_enqueue_style('aichat-tools-css', AICHAT_PLUGIN_URL.'assets/css/tools.css', ['aichat-admin'], AICHAT_VERSION);
+      wp_enqueue_script('aichat-tools-js', AICHAT_PLUGIN_URL.'assets/js/tools.js', ['jquery'], AICHAT_VERSION, true);
+      wp_localize_script('aichat-tools-js','aichat_tools_ajax', [
+        'ajax_url' => admin_url('admin-ajax.php'),
+        'nonce'    => wp_create_nonce('aichat_tools_nonce')
+      ]);
+      wp_localize_script('aichat-tools-js','aichat_tools_i18n', [
+        'no_rules' => __('No rules defined yet. Use the + button to create the first one.','axiachat-ai'),
+        'when_label' => __('WHEN','axiachat-ai'),
+        'do_label' => __('DO','axiachat-ai'),
+        'delete_rule' => __('Delete rule','axiachat-ai'),
+        'saving' => __('Saving...','axiachat-ai'),
+        'saved' => __('Saved','axiachat-ai'),
+        'save' => __('Save','axiachat-ai'),
+        'error' => __('Error','axiachat-ai'),
+        'cond_user_wants' => __('User wants','axiachat-ai'),
+        'cond_user_talks_about' => __('User talks about','axiachat-ai'),
+        'cond_user_asks_about' => __('User asks about','axiachat-ai'),
+        'cond_user_sentiment' => __('User sentiment is','axiachat-ai'),
+        'cond_phrase_contains' => __('Phrase contains','axiachat-ai'),
+        'cond_date_is' => __('Date is','axiachat-ai'),
+        'cond_is_holiday' => __('Is holiday','axiachat-ai'),
+        'cond_url_contains' => __('Page URL contains','axiachat-ai'),
+        'cond_custom' => __('Other (custom)','axiachat-ai'),
+        'act_navigate' => __('Navigate to','axiachat-ai'),
+        'act_say_exact' => __('Say exact message','axiachat-ai'),
+        'act_always_include' => __('Always include','axiachat-ai'),
+        'act_always_talk_about' => __('Always talk about','axiachat-ai'),
+        'act_request_info' => __('Request information','axiachat-ai'),
+        'act_send_email' => __('Send email','axiachat-ai'),
+        'act_api_request' => __('Send API request','axiachat-ai'),
+        'act_site_search' => __('Site search','axiachat-ai'),
+        'act_list_articles' => __('List articles','axiachat-ai'),
+        'act_book_appointment' => __('Book an appointment','axiachat-ai'),
+        'act_knowledge_base' => __('Answer from knowledge base','axiachat-ai'),
+        'act_enable_screen_share' => __('Enable screen share','axiachat-ai'),
+        'act_push_notification' => __('Send push notification','axiachat-ai'),
+        'placeholder_value' => __('value','axiachat-ai'),
+        'placeholder_text' => __('Text to say','axiachat-ai'),
+        'placeholder_url' => __('https://...','axiachat-ai'),
+        'placeholder_email' => __('recipient@domain.com','axiachat-ai'),
+        'placeholder_message' => __('Message','axiachat-ai'),
+        'placeholder_fields' => __('Fields to request (e.g. phone,name)','axiachat-ai'),
+        'placeholder_param' => __('Parameter','axiachat-ai'),
+        // Capabilities selection UI
+        'caps_title' => __('Enabled Capabilities for this Bot','axiachat-ai'),
+        'caps_none' => __('No capabilities available. Register macros or tools.','axiachat-ai'),
+        'caps_save' => __('Save Capabilities','axiachat-ai'),
+        'caps_saving' => __('Saving capabilities...','axiachat-ai'),
+        'caps_saved' => __('Capabilities saved','axiachat-ai'),
+        'caps_error' => __('Error saving capabilities','axiachat-ai')
       ]);
     }
 
