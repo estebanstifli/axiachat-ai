@@ -71,17 +71,19 @@ require_once AICHAT_PLUGIN_DIR . 'includes/shortcode.php';
 
 // Incluir archivos de clases principales
 require_once AICHAT_PLUGIN_DIR . 'includes/class-aichat-core.php';
-require_once AICHAT_PLUGIN_DIR . 'includes/tools.php'; // Tools registration API
-require_once AICHAT_PLUGIN_DIR . 'includes/macro-tools.php'; // Macro tools layer
-// Sample/demo tools (can be removed in production)
-if ( file_exists( AICHAT_PLUGIN_DIR . 'includes/tools-sample.php' ) ) {
-  require_once AICHAT_PLUGIN_DIR . 'includes/tools-sample.php';
+// Load AI Tools add-on components when enabled
+$aichat_ai_tools_enabled = (int) get_option('aichat_addon_ai_tools_enabled', 1);
+if ( $aichat_ai_tools_enabled ) {
+  $addon_dir = AICHAT_PLUGIN_DIR . 'includes/add-ons/ai-tools/';
+  if ( file_exists( $addon_dir . 'api.php' ) ) require_once $addon_dir . 'api.php';
+  if ( file_exists( $addon_dir . 'macro-api.php' ) ) require_once $addon_dir . 'macro-api.php';
+  if ( file_exists( $addon_dir . 'admin-settings.php' ) ) require_once $addon_dir . 'admin-settings.php';
+  if ( file_exists( $addon_dir . 'admin-logs.php' ) ) require_once $addon_dir . 'admin-logs.php';
+  if ( file_exists( $addon_dir . 'admin-ajax.php' ) ) require_once $addon_dir . 'admin-ajax.php';
+  if ( file_exists( $addon_dir . 'tools-sample.php' ) ) require_once $addon_dir . 'tools-sample.php';
 }
 require_once AICHAT_PLUGIN_DIR . 'includes/class-aichat-ajax.php';
 require_once AICHAT_PLUGIN_DIR . 'includes/settings.php';
-require_once AICHAT_PLUGIN_DIR . 'includes/tools-settings.php';
-require_once AICHAT_PLUGIN_DIR . 'includes/tools-logs.php';
-require_once AICHAT_PLUGIN_DIR . 'includes/tools-ajax.php';
 
 // Sanitization helpers centralizados (nuevas funciones aichat_sanitize_* / aichat_bool / etc.)
   require_once AICHAT_PLUGIN_DIR . 'includes/sanitize-helpers.php';
@@ -519,56 +521,47 @@ function aichat_admin_menu() {
   );
 
   // === NUEVO: Menú Tools (para gestión de tools y trazas) ===
-  add_menu_page(
-    __( 'AI Tools', 'axiachat-ai' ),
-    __( 'AI Tools', 'axiachat-ai' ),
-    'manage_options',
-    'aichat-tools',
-    'aichat_tools_settings_page',
-    'dashicons-hammer',
-    81
-  );
-  // Submenú Tools > Settings
-  add_submenu_page(
-    'aichat-tools',
-    __( 'Tools Settings', 'axiachat-ai' ),
-    __( 'Settings', 'axiachat-ai' ),
-    'manage_options',
-    'aichat-tools',
-    'aichat_tools_settings_page'
-  );
-  // Submenú Tools > Logs
-  add_submenu_page(
-    'aichat-tools',
-    __( 'Tools Logs', 'axiachat-ai' ),
-    __( 'Logs', 'axiachat-ai' ),
-    'manage_options',
-    'aichat-tools-logs',
-    'aichat_tools_logs_page'
-  );
+  // Tools menus nested under AxiaChat AI only when AI Tools add-on is enabled
+  if ( (int) get_option('aichat_addon_ai_tools_enabled', 1 ) === 1 ) {
+    add_submenu_page(
+      'aichat-settings',
+      __( 'AI Tools', 'axiachat-ai' ),
+      __( 'AI Tools', 'axiachat-ai' ),
+      'manage_options',
+      'aichat-tools',
+      'aichat_tools_settings_page'
+    );
+    add_submenu_page(
+      'aichat-settings',
+      __( 'AI Tools Logs', 'axiachat-ai' ),
+      __( 'AI Tools Logs', 'axiachat-ai' ),
+      'manage_options',
+      'aichat-tools-logs',
+      'aichat_tools_logs_page'
+    );
+  }
 
 
 
-  // Reemplazo de páginas ocultas: en versiones recientes se depreca usar parent '' para páginas huérfanas.
-  // Creamos páginas hook usando add_menu_page con un title mínimo y luego las ocultamos del menú.
+  // Páginas "ocultas" (huérfanas) usando options.php como padre para evitar deprecations
+  // y mantener título correcto en <h1>/<title>, accesibles sólo por URL.
   $hidden_hooks = [];
-  $hidden_hooks[] = add_menu_page(
+  $hidden_hooks[] = add_submenu_page(
+    'options.php',
     __('Create Context','axiachat-ai'),
-    '__hidden_aichat_ctx_create', // título de menú no visible (lo ocultaremos)
+    // menu_title no se muestra porque el parent no es visible
+    '__hidden_aichat_ctx_create',
     'manage_options',
     'aichat-contexto-create',
-    'aichat_contexto_create_page',
-    'dashicons-hidden',
-    82
-  ); 
-  $hidden_hooks[] = add_menu_page(
+    'aichat_contexto_create_page'
+  );
+  $hidden_hooks[] = add_submenu_page(
+    'options.php',
     __('Import PDF/Data','axiachat-ai'),
     '__hidden_aichat_ctx_pdf',
     'manage_options',
     'aichat-contexto-pdf',
-    'aichat_contexto_pdf_page',
-    'dashicons-hidden',
-    83
+    'aichat_contexto_pdf_page'
   );
 
   add_submenu_page(
@@ -578,26 +571,26 @@ function aichat_admin_menu() {
 
   
   // Página oculta para detalle de conversación
-  $hidden_hooks[] = add_menu_page(
+  $hidden_hooks[] = add_submenu_page(
+    'options.php',
     __( 'Conversation Detail', 'axiachat-ai' ),
     '__hidden_aichat_conv_detail',
     'manage_options',
     'aichat-logs-detail',
-    'aichat_logs_detail_page',
-    'dashicons-hidden',
-    84
+    'aichat_logs_detail_page'
   );
 
-  // Ocultar entradas de menú generadas para páginas internas (dejamos sólo accesibles por slug directo)
-  add_action('admin_head', function(){
-      echo '<style>#adminmenu a.toplevel_page_aichat-contexto-create, #adminmenu a.toplevel_page_aichat-contexto-pdf, #adminmenu a.toplevel_page_aichat-logs-detail {display:none!important;}</style>';
-  });
 
   add_action('admin_enqueue_scripts', function($hook){
     if ( ! isset($_GET['page']) ) return;
     $page = sanitize_text_field( wp_unslash( $_GET['page'] ) );
   // Incluir también la página principal de ajustes para usar Bootstrap en el rediseño
-  $needs_bootstrap = in_array( $page, [ 'aichat-settings','aichat-bots-settings','aichat-logs','aichat-logs-detail','aichat-contexto-settings','aichat-contexto-create','aichat-contexto-pdf','aichat-tools' ], true );
+  $needs_bootstrap_pages = [ 'aichat-settings','aichat-bots-settings','aichat-logs','aichat-logs-detail','aichat-contexto-settings','aichat-contexto-create','aichat-contexto-pdf' ];
+  if ( (int) get_option('aichat_addon_ai_tools_enabled', 1 ) === 1 ) {
+    $needs_bootstrap_pages[] = 'aichat-tools';
+    $needs_bootstrap_pages[] = 'aichat-tools-logs';
+  }
+  $needs_bootstrap = in_array( $page, $needs_bootstrap_pages, true );
   // Añadir easy config a la lista que necesita bootstrap (reutilizamos estilos)
   if ( $page === 'aichat-easy-config' ) {
     $needs_bootstrap = true;
@@ -703,9 +696,9 @@ function aichat_admin_menu() {
     }
 
     // Assets para página Tools (rule builder)
-    if ( $page === 'aichat-tools' ) {
-      wp_enqueue_style('aichat-tools-css', AICHAT_PLUGIN_URL.'assets/css/tools.css', ['aichat-admin'], AICHAT_VERSION);
-      wp_enqueue_script('aichat-tools-js', AICHAT_PLUGIN_URL.'assets/js/tools.js', ['jquery'], AICHAT_VERSION, true);
+    if ( $page === 'aichat-tools' && (int) get_option('aichat_addon_ai_tools_enabled', 1 ) === 1 ) {
+      wp_enqueue_style('aichat-tools-css', AICHAT_PLUGIN_URL . 'assets/css/tools.css', ['aichat-admin'], AICHAT_VERSION);
+      wp_enqueue_script('aichat-tools-js', AICHAT_PLUGIN_URL . 'assets/js/tools.js', ['jquery'], AICHAT_VERSION, true);
       wp_localize_script('aichat-tools-js','aichat_tools_ajax', [
         'ajax_url' => admin_url('admin-ajax.php'),
         'nonce'    => wp_create_nonce('aichat_tools_nonce')
@@ -756,7 +749,7 @@ function aichat_admin_menu() {
         'caps_saved' => __('Capabilities saved','axiachat-ai'),
         'caps_error' => __('Error saving capabilities','axiachat-ai')
       ]);
-    }
+  }
 
     // Añadir cadenas para test semántico (context settings)
     if ( $page === 'aichat-contexto-settings' || $page === 'aichat-settings' ) {

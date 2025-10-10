@@ -36,7 +36,8 @@ function aichat_admin_enqueue_scripts($hook) {
     }
 
     // Encolar para la página de creación (pestaña 1)
-    if ($hook === 'admin_page_aichat-contexto-create') {
+    // Nota: No dependas del $hook, pues cambia con el parent slug. Usa $_GET['page'].
+    if ( isset($_GET['page']) && sanitize_text_field( wp_unslash($_GET['page']) ) === 'aichat-contexto-create' ) {
         wp_enqueue_script(
             'aichat-contexto-create',
             plugin_dir_url(__FILE__) . '../assets/js/contexto-create.js',
@@ -56,7 +57,7 @@ function aichat_admin_enqueue_scripts($hook) {
     }
 
     // Encolar para la página de settings (pestaña 2)
-    if ($hook === 'ai-chat_page_aichat-contexto-settings') {        
+    if ( isset($_GET['page']) && sanitize_text_field( wp_unslash($_GET['page']) ) === 'aichat-contexto-settings' ) {        
         wp_enqueue_script(
             'aichat-contexto-settings',
             plugin_dir_url(__FILE__) . '../assets/js/contexto-settings.js',
@@ -503,9 +504,36 @@ function aichat_build_messages( $question, $contexts = [], $instructions = '', $
         // Permite que otros modifiquen la política (añadir/quitar reglas)
         $security_policy = apply_filters( 'aichat_security_policy', $security_policy, $question, $contexts );
     }
-    // Prevenir duplicado si ya viniera (por algún override extremo)
+
+    // Línea con fecha/hora actual del sitio (según zona horaria de WordPress)
+    try {
+        $tz_obj   = function_exists('wp_timezone') ? wp_timezone() : new DateTimeZone( function_exists('wp_timezone_string') ? wp_timezone_string() : get_option('timezone_string') );
+    } catch ( \Throwable $e ) {
+        $tz_obj = new DateTimeZone('UTC');
+    }
+    $ts_gmt    = function_exists('current_time') ? current_time('timestamp', true) : time(); // timestamp en GMT/UTC
+    if ( function_exists('wp_date') ) {
+        $now_fmt = wp_date('Y-m-d H:i', $ts_gmt, $tz_obj);
+        $offset  = wp_date('P', $ts_gmt, $tz_obj);
+        $wday    = wp_date('l', $ts_gmt, $tz_obj);
+    } else {
+        // Fallback a date_i18n si wp_date no está disponible
+        $now_fmt = date_i18n('Y-m-d H:i', $ts_gmt, true);
+        $offset  = date_i18n('P', $ts_gmt, true);
+        $wday    = date_i18n('l', $ts_gmt, true);
+    }
+    $tz_name = function_exists('wp_timezone_string') ? wp_timezone_string() : ( get_option('timezone_string') ?: ('UTC'.$offset) );
+    $datetime_line = sprintf(
+        /* translators: 1: localized date time, 2: numeric timezone offset like +02:00, 3: timezone name like Europe/Madrid, 4: weekday name */
+        __( 'Current site date/time: %1$s %2$s (%3$s) – %4$s', 'axiachat-ai' ),
+        $now_fmt, $offset, $tz_name, $wday
+    );
+
+    // Inyectar SIEMPRE la fecha/hora al principio. Luego la política de seguridad si no estuviera ya.
     if ( stripos( $system, 'SECURITY & PRIVACY POLICY:' ) === false ) {
-        $system = $security_policy . "\n\n" . $system;
+        $system = $datetime_line . "\n\n" . $security_policy . "\n\n" . $system;
+    } else {
+        $system = $datetime_line . "\n\n" . $system;
     }
 
     // Filtro final para personalización completa del prompt final

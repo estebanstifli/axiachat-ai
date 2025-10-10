@@ -147,6 +147,13 @@ function aichat_register_simple_settings() {
                 'default' => '',
             ] );
         
+            // Add-ons: AI Tools toggle
+            register_setting( $option_group, 'aichat_addon_ai_tools_enabled', [
+                'type' => 'boolean',
+                'sanitize_callback' => 'aichat_sanitize_checkbox',
+                'default' => 1,
+            ] );
+        
 
 
 }
@@ -431,6 +438,22 @@ https://sub.site2.net"><?php echo esc_textarea($embed_origins_raw); ?></textarea
                                     </div>
                                 </div>
                             </div>
+                            <!-- Add-ons -->
+                            <div class="card shadow-sm mb-4">
+                                <div class="card-header bg-purple text-white d-flex align-items-center" style="background:#6f42c1;">
+                                    <i class="bi bi-puzzle-fill me-2"></i><strong><?php echo esc_html__('Add-ons', 'axiachat-ai'); ?></strong>
+                                </div>
+                                <div class="card-body">
+                                    <div class="aichat-checkbox-row mb-0">
+                                        <input type="hidden" name="aichat_addon_ai_tools_enabled" value="0" />
+                                        <label for="aichat_addon_ai_tools_enabled" class="aichat-checkbox-label">
+                                            <input type="checkbox" id="aichat_addon_ai_tools_enabled" name="aichat_addon_ai_tools_enabled" value="1" <?php checked( (int) aichat_get_setting('aichat_addon_ai_tools_enabled'), 1 ); ?> />
+                                            <span><?php echo esc_html__('Enable AI Tools (tools & macros system)', 'axiachat-ai'); ?></span>
+                                        </label>
+                                        <div class="form-text ms-0"><?php echo esc_html__('When enabled, exposes the AI Tools menus and allows bots to call registered tools/macros.', 'axiachat-ai'); ?></div>
+                                    </div>
+                                </div>
+                            </div>
 
                             <!-- Save -->
                             <div class="card shadow-sm mb-4">
@@ -445,6 +468,8 @@ https://sub.site2.net"><?php echo esc_textarea($embed_origins_raw); ?></textarea
                                 </div>
                             </div>
                         </div>
+
+                        
                     </div>
                 </div>
             </form>

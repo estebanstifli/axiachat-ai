@@ -47,17 +47,37 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 wp_send_json_error( [ 'message' => __( 'Invalid nonce.', 'axiachat-ai' ) ], 403 );
             }
 
+            // Flujo de continuación de tools (segunda fase)
+            $is_continue = ! empty($_POST['continue_tool']);
+            $continue_response_id = '';
+            $continue_tool_calls = [];
+
             $message  = isset( $_POST['message'] )  ? sanitize_textarea_field( wp_unslash( $_POST['message'] ) ) : '';
             $bot_slug = isset( $_POST['bot_slug'] ) ? sanitize_title( wp_unslash( $_POST['bot_slug'] ) ) : '';
             // Session id sanitize (regex + length bound)
             $session  = isset( $_POST['session_id'] ) ? aichat_sanitize_session_id( wp_unslash( $_POST['session_id'] ) ) : '';
             if ($session==='') { $session = wp_generate_uuid4(); }
-
-            if ( $message === '' ) {
-                aichat_log_debug("[AIChat AJAX][$uid] empty message");
-                wp_send_json_error( [ 'message' => __( 'Message is empty.', 'axiachat-ai' ) ], 400 );
+            if ( $is_continue ) {
+                // Segunda fase: no exigimos message, sí parámetros response_id + tool_calls
+                $continue_response_id = isset($_POST['response_id']) ? sanitize_text_field( wp_unslash($_POST['response_id']) ) : '';
+                $tool_calls_raw = isset($_POST['tool_calls']) ? wp_unslash($_POST['tool_calls']) : '';
+                if ( is_string($tool_calls_raw) && $tool_calls_raw !== '' ) {
+                    $decoded = json_decode($tool_calls_raw, true);
+                    if ( is_array($decoded) ) { $continue_tool_calls = $decoded; }
+                } elseif ( is_array($_POST['tool_calls'] ?? null) ) {
+                    $continue_tool_calls = $_POST['tool_calls'];
+                }
+                if ( $continue_response_id === '' || empty($continue_tool_calls) ) {
+                    wp_send_json_error( [ 'message' => 'Missing continuation parameters.' ], 400 );
+                }
+                aichat_log_debug("[AIChat AJAX][$uid] continuation init response_id={$continue_response_id} tool_calls=".count($continue_tool_calls));
+            } else {
+                if ( $message === '' ) {
+                    aichat_log_debug("[AIChat AJAX][$uid] empty message");
+                    wp_send_json_error( [ 'message' => __( 'Message is empty.', 'axiachat-ai' ) ], 400 );
+                }
             }
-            aichat_log_debug("[AIChat AJAX][$uid] payload slug={$bot_slug} msg_len=" . strlen($message));
+            aichat_log_debug("[AIChat AJAX][$uid] payload slug={$bot_slug} msg_len=" . strlen($message) . ($is_continue? ' (continuation)':'') );
 
             // ---- CAPTCHA (filtro opcional) ----
             $captcha_payload = [
@@ -179,7 +199,12 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             }
             aichat_log_debug("[AIChat AJAX][$uid] context mode_eff={$mode_arg} count={$ctx_count} time_ms=" . round( ($t_ctx1 - $t_ctx0)*1000 ) . " top=" . wp_json_encode($ctx_peek) );
 
-            // 3) Construir mensajes (system + historial + user actual)
+            if ( $is_continue ) {
+                // Saltar construcción normal: reutilizamos herramienta de continuación Responses
+                return $this->process_tool_continuation($bot_slug, $session, $continue_response_id, $continue_tool_calls, $uid);
+            }
+
+            // 3) Construir mensajes (system + historial + user actual) para primera fase
             // Base (system + user actual con CONTEXTO)
             $base = aichat_build_messages( $message, $contexts, $instructions );
             $system_msg       = isset($base[0]) ? $base[0] : [ 'role'=>'system', 'content'=>'' ];
@@ -493,7 +518,21 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 $result = is_array($result) ? array_merge($result,['message'=>$final_answer]) : $result;
             } elseif ( $provider === 'openai' && $this->is_openai_responses_model($model) ) {
                 // Ejecutar directamente vía Responses (multi-ronda interna)
-                $result = $this->call_openai_auto( $openai_key, $model, $messages, $temperature, $max_tokens, [ 'tools'=>$active_tools ] );
+                $result = $this->call_openai_auto( $openai_key, $model, $messages, $temperature, $max_tokens, [ 'tools'=>$active_tools, 'bot_slug'=>$bot_slug_r, 'session_id'=>$session ] );
+                // Si Responses devolvió handshake tool_pending, reenviar tal cual al frontend
+                if ( is_array($result) && isset($result['status']) && $result['status']==='tool_pending' ) {
+                    // Adjuntamos datos mínimos de sesión/bot
+                    $out = [
+                        'status' => 'tool_pending',
+                        'response_id' => $result['response_id'] ?? '',
+                        'tool_calls' => $result['tool_calls'] ?? [],
+                        'request_uuid' => $result['request_uuid'] ?? '',
+                        'session_id' => $session,
+                        'bot_slug' => $bot_slug_r,
+                        'model' => $model,
+                    ];
+                    wp_send_json_success( $out );
+                }
                 if ( is_wp_error($result) ) { $final_answer = ''; }
                 elseif ( isset($result['error']) ) { $final_answer=''; } else { $final_answer = (string)($result['message'] ?? ''); }
             } elseif ( $provider === 'claude' ) {
@@ -585,6 +624,10 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             }
 
             // 7) Guardar conversación con tokens/coste si procede
+            // Pasar request_uuid (si existe) para vincular con tool_calls registrados en esta request
+            if (!isset($_REQUEST['aichat_request_uuid']) && isset($request_uuid) && is_string($request_uuid) && preg_match('/^[a-f0-9-]{36}$/i',$request_uuid)) {
+                $_REQUEST['aichat_request_uuid'] = $request_uuid;
+            }
             if ( get_option( 'aichat_logging_enabled', 1 ) ) {
                 $this->maybe_log_conversation( get_current_user_id(), $session, $bot_slug, $page_id, $message, $answer, $model, $provider, $prompt_tokens, $completion_tokens, $total_tokens, $cost_micros );
             }
@@ -631,6 +674,145 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             ]);
 
             wp_send_json_success( $resp );
+        }
+
+        /**
+         * Segunda fase: ejecutar tools solicitadas por Responses (handshake tool_pending) y obtener respuesta final.
+         */
+        protected function process_tool_continuation( $bot_slug, $session, $response_id, $tool_calls, $uid ) {
+            $bot = $this->resolve_bot( $bot_slug );
+            if ( ! $bot ) {
+                wp_send_json_error( [ 'message' => 'Bot not found.' ], 404 );
+            }
+            $provider = ! empty( $bot['provider'] ) ? sanitize_key($bot['provider']) : 'openai';
+            if ( $provider !== 'openai' ) {
+                wp_send_json_error( [ 'message' => 'Continuation only supported for OpenAI Responses.' ], 400 );
+            }
+            $model = ! empty( $bot['model'] ) ? sanitize_text_field($bot['model']) : 'gpt-4o-mini';
+            if ( ! $this->is_openai_responses_model($model) ) {
+                wp_send_json_error( [ 'message' => 'Model is not a Responses (gpt-5*) model.' ], 400 );
+            }
+            $openai_key = get_option( 'aichat_openai_api_key', '' );
+            if ( empty($openai_key) ) {
+                wp_send_json_error( [ 'message' => 'Missing OpenAI key.' ], 400 );
+            }
+            $registered = function_exists('aichat_get_registered_tools') ? aichat_get_registered_tools() : [];
+            $pending_tool_outputs = [];
+            // request_uuid opcional para enlazar tool_calls con la conversación al persistir
+            $request_uuid = '';
+            if ( ! empty($_REQUEST['aichat_request_uuid']) ) {
+                $uuid = sanitize_text_field( (string)$_REQUEST['aichat_request_uuid'] );
+                if ( preg_match('/^[a-f0-9-]{36}$/i',$uuid) ) { $request_uuid = $uuid; }
+            }
+            // Asegurar NOT NULL en la columna (fallback si el cliente no envió UUID)
+            if ($request_uuid === '' || $request_uuid === null) {
+                $request_uuid = wp_generate_uuid4();
+                if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+                    aichat_log_debug('[AIChat Continue]['.$uid.'] missing aichat_request_uuid; generated fallback', ['request_uuid'=>$request_uuid]);
+                }
+            }
+            foreach ( $tool_calls as $tc ) {
+                $call_id = isset($tc['call_id']) ? sanitize_text_field($tc['call_id']) : ('tc_'.wp_generate_uuid4());
+                $name    = isset($tc['name']) ? sanitize_text_field($tc['name']) : '';
+                $args_json = isset($tc['args']) ? (string)$tc['args'] : '{}';
+                $args_arr = json_decode($args_json, true); if(!is_array($args_arr)) $args_arr = [];
+                $out_str = '';
+                $start_exec = microtime(true);
+                if ( isset($registered[$name]['callback']) && is_callable($registered[$name]['callback']) ) {
+                    try {
+                        $res_cb = call_user_func( $registered[$name]['callback'], $args_arr, [ 'session_id'=>$session, 'bot_slug'=>$bot_slug ] );
+                        if ( is_array($res_cb) ) $out_str = wp_json_encode($res_cb);
+                        elseif ( is_string($res_cb) ) $out_str = $res_cb; else $out_str='"ok"';
+                    } catch( \Throwable $e ) {
+                        $out_str = wp_json_encode(['ok'=>false,'error'=>'exception','message'=>$e->getMessage()]);
+                    }
+                } else {
+                    $out_str = wp_json_encode(['ok'=>false,'error'=>'unknown_tool']);
+                }
+                $elapsed_tool = round((microtime(true)-$start_exec)*1000);
+                if ( mb_strlen($out_str) > 4000 ) { $out_str = mb_substr($out_str,0,4000).'…'; }
+                aichat_log_debug('[AIChat Continue]['.$uid.'] tool_exec name='.$name.' ms='.$elapsed_tool.' args_len='.strlen($args_json));
+                // Persistir log de tool call (continuation path)
+                global $wpdb; $tool_tbl = $wpdb->prefix.'aichat_tool_calls';
+                $wpdb->insert($tool_tbl,[
+                    'request_uuid'    => $request_uuid,
+                    'conversation_id' => null,
+                    'session_id'      => $session,
+                    'bot_slug'        => $bot_slug,
+                    'round'           => 2, // continuation round
+                    'call_id'         => $call_id,
+                    'tool_name'       => $name,
+                    'arguments_json'  => $args_json,
+                    'output_excerpt'  => $out_str,
+                    'duration_ms'     => $elapsed_tool,
+                    'error_code'      => (strpos($out_str,'"error"')!==false ? 'error':null),
+                    'created_at'      => current_time('mysql',1),
+                ],['%s','%d','%s','%s','%d','%s','%s','%s','%s','%d','%s','%s']);
+                if ( ! empty($wpdb->last_error) ) {
+                    aichat_log_debug('[AIChat Continue]['.$uid.'] tool_calls insert error', [
+                        'error' => $wpdb->last_error,
+                        'table' => $tool_tbl,
+                        'call_id' => $call_id,
+                        'tool' => $name,
+                    ]);
+                }
+                $pending_tool_outputs[] = [ 'tool_call_id'=>$call_id, 'output'=>$out_str ];
+            }
+            // Construir request second-round: reutilizamos parte de call_openai_responses mediante mini-adapter
+            $second_payload = [
+                'model' => $model,
+                'previous_response_id' => $response_id,
+                'input' => []
+            ];
+            foreach ($pending_tool_outputs as $po) {
+                $second_payload['input'][] = [
+                    'type' => 'function_call_output',
+                    'call_id' => $po['tool_call_id'],
+                    'output' => $po['output']
+                ];
+            }
+            $second_payload['max_output_tokens'] = (int)( $bot['max_tokens'] ?? 512 );
+            $json_payload = wp_json_encode($second_payload);
+            $endpoint = 'https://api.openai.com/v1/responses';
+            $res = wp_remote_post($endpoint, [
+                'headers' => [ 'Authorization'=>'Bearer '.$openai_key, 'Content-Type'=>'application/json' ],
+                'body' => $json_payload,
+                'timeout' => 60,
+            ]);
+            if ( is_wp_error($res) ) {
+                wp_send_json_error( [ 'message' => $res->get_error_message() ], 500 );
+            }
+            $code = wp_remote_retrieve_response_code($res);
+            $raw  = wp_remote_retrieve_body($res);
+            if ($code >= 400) {
+                $data = json_decode($raw,true);
+                $err = isset($data['error']['message']) ? $data['error']['message'] : ('HTTP '.$code);
+                wp_send_json_error( [ 'message' => $err ], 500 );
+            }
+            $data = json_decode($raw,true);
+            $final_text = '';
+            if ( isset($data['output']) && is_array($data['output']) ) {
+                foreach ($data['output'] as $blk) {
+                    if (($blk['type'] ?? '') === 'message' && isset($blk['content']) ) {
+                        foreach ($blk['content'] as $c) {
+                            if (($c['type'] ?? '') === 'output_text' && isset($c['text'])) {
+                                $final_text .= ($final_text?"\n\n":'').$c['text'];
+                            }
+                        }
+                    }
+                }
+            }
+            if ($final_text === '') {
+                $final_text = '(empty response)';
+            }
+            $final_text = aichat_replace_link_placeholder( $final_text );
+            $final_text = $this->sanitize_answer_html( $final_text );
+            wp_send_json_success([
+                'status' => 'final',
+                'message'=> $final_text,
+                'session_id'=>$session,
+                'bot_slug'=>$bot_slug,
+            ]);
         }
 
         /**
@@ -987,7 +1169,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             if ( $provider === 'claude' && ! $claude_key ) return new WP_Error('aichat_no_key','Missing Claude key');
 
             if ( $provider === 'openai' ) {
-                $result = $this->call_openai_auto( $openai_key, $model, $messages, $temperature, $max_tokens );
+                $result = $this->call_openai_auto( $openai_key, $model, $messages, $temperature, $max_tokens, [ 'bot_slug'=>$bot['slug'], 'session_id'=>$session_id ] );
             } elseif ( $provider === 'claude' ) {
                 $result = $this->call_claude_messages( $claude_key, $model, $messages, $temperature, $max_tokens );
             } else {
@@ -1484,11 +1666,46 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 if ( empty($tool_calls) ) {
                     break; // final answer reached
                 }
+                // NUEVO HANDSHAKE: si es la primera ronda y hay tool_calls, devolvemos estado tool_pending sin ejecutar herramientas todavía
+                if ( $response_id !== null && $round === 1 ) {
+                    // (seguridad: en este punto response_id ya asignado tras primera solicitud)
+                }
+                if ( $round === 1 && ! empty($tool_calls) ) {
+                    // Construir salida especial
+                    $pending = [];
+                    // Mapear tool_calls -> incluir activity_label si existe en registro
+                    $registered_map = function_exists('aichat_get_registered_tools') ? aichat_get_registered_tools() : [];
+                    foreach ($tool_calls as $tc) {
+                        $fname = $tc['name'];
+                        $activity = '';
+                        if ( isset($registered_map[$fname]['activity_label']) ) {
+                            $activity = (string)$registered_map[$fname]['activity_label'];
+                        } else {
+                            $activity = 'Running tool: '.$fname.'...';
+                        }
+                        $pending[] = [
+                            'call_id' => $tc['id'],
+                            'name' => $fname,
+                            'args' => $tc['arguments'],
+                            'activity_label' => $activity,
+                        ];
+                    }
+                    return [
+                        'status' => 'tool_pending',
+                        'response_id' => $response_id,
+                        'tool_calls' => $pending,
+                        'request_uuid' => $request_uuid,
+                        'usage' => $usage_acc,
+                    ];
+                }
                 if ( $round === $max_rounds ) { break; }
 
                 // Ejecutar tool calls y preparar tool_outputs
                 $pending_tool_outputs = [];
                 $registered = function_exists('aichat_get_registered_tools') ? aichat_get_registered_tools() : [];
+                // Extra metadata for logging (optional)
+                $log_bot_slug = isset($extra['bot_slug']) ? sanitize_title((string)$extra['bot_slug']) : '';
+                $log_session  = isset($extra['session_id']) ? aichat_sanitize_session_id((string)$extra['session_id']) : null;
                 foreach ($tool_calls as $tc) {
                     $fname = $tc['name'];
                     $args_json = $tc['arguments'];
@@ -1516,17 +1733,25 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                     $wpdb->insert($tool_tbl,[
                         'request_uuid'=>$request_uuid,
                         'conversation_id'=>null,
-                        'session_id'=>null,
-                        'bot_slug'=>'',
+                        'session_id'=>$log_session,
+                        'bot_slug'=>$log_bot_slug,
                         'round'=>$round,
                         'call_id'=>$tc['id'],
                         'tool_name'=>$fname,
                         'arguments_json'=>$args_json,
                         'output_excerpt'=>$out_str,
                         'duration_ms'=>$elapsed_tool,
-                        'error_code'=>(strpos($out_str,'"error"')!==false ? 'error':null),
+                            'error_code'      => (strpos($out_str,'"error"')!==false ? 'error':null),
                         'created_at'=>current_time('mysql',1),
                     ],['%s','%d','%s','%s','%d','%s','%s','%s','%s','%d','%s','%s']);
+                    if ( ! empty($wpdb->last_error) ) {
+                        aichat_log_debug('[AIChat Responses][tool_exec] insert error', [
+                            'error' => $wpdb->last_error,
+                            'table' => $tool_tbl,
+                            'call_id' => $tc['id'],
+                            'tool' => $fname,
+                        ]);
+                    }
 
                     $pending_tool_outputs[] = [
                         'tool_call_id' => $tc['id'],

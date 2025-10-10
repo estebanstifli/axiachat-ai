@@ -614,6 +614,8 @@
       $input.val('');
 
       var $typing = appendTyping($messages);
+  // Programar secuencia temporal (solo para PRIMERA espera de respuesta)
+  scheduleThinkingStages($typing);
       lockInputs($input, $sendBtn, true);
 
       var payload = {
@@ -637,9 +639,15 @@
         if (DEBUG && response && response.data && response.data.debug) {
           console.info('[AIChat][debug]', response.data.debug);
         }
+        clearThinkingStages($typing);
         $typing.remove();
         // Caso límite (success true con limited)
         if (response && response.success && response.data) {
+          // Handshake tool_pending (Responses gpt-5*)
+          if (response.data.status === 'tool_pending' && Array.isArray(response.data.tool_calls)) {
+            handleToolPending($root, $messages, $input, $sendBtn, botSlug, sessionId, response.data);
+            return; // no continuar flujo normal
+          }
           var msg = typeof response.data.message !== 'undefined' ? String(response.data.message) : '';
           var isLimited = !!response.data.limited || (response.data.limit_type && /daily_total|per_user/.test(response.data.limit_type));
           if (msg) appendBot($messages, msg);
@@ -670,6 +678,79 @@
       .always(function(){
         lockInputs($input, $sendBtn, false);
         scrollToBottom($messages);
+      });
+    }
+
+    // Maneja estado tool_pending: muestra activity labels y lanza segunda llamada (continuation)
+    function handleToolPending($root, $messages, $input, $sendBtn, botSlug, sessionId, pendingData){
+      if (DEBUG) console.log('[AIChat] tool_pending recibido', pendingData);
+      lockInputs($input, $sendBtn, true);
+      var list = pendingData.tool_calls || [];
+      if (!list.length) return;
+      // Burbuja única para actividad de tools (sin la secuencia temporal de 0/3/6s que ya ocurrió antes)
+      var finished = false;
+      var afterToolsTimer = null;
+      var $bubble = appendSingleActivity($messages);
+
+      function setBubbleText(txt){
+        if (!$bubble || !$bubble.length) return;
+        var safe = escapeHtml(txt || '');
+        $bubble.html('<span class="activity-text">'+ safe +' <span class="dots">•••</span></span>');
+      }
+
+      var toolIndex = 0;
+      function showNextToolLabel(){
+        if (finished) return;
+        if (toolIndex >= list.length){
+          afterToolsTimer = setTimeout(function(){ if (!finished) setBubbleText('Processing results...'); }, 800);
+          return;
+        }
+        var tc = list[toolIndex++];
+        var label = tc.activity_label || ('Running '+ (tc.name||'tool'));
+        setBubbleText(label);
+        setTimeout(showNextToolLabel, 900);
+      }
+      setTimeout(showNextToolLabel, 400);
+
+      var contPayload = {
+        action: 'aichat_process_message',
+        nonce: AIChatVars.nonce,
+        bot_slug: botSlug,
+        continue_tool: 1,
+        response_id: pendingData.response_id,
+        tool_calls: JSON.stringify(list),
+        aichat_request_uuid: pendingData.request_uuid || '',
+        session_id: sessionId
+      };
+      $.ajax({
+        url: AIChatVars.ajax_url,
+        method: 'POST',
+        data: contPayload
+      }).done(function(res){
+        finished = true;
+        clearTimeout(afterToolsTimer);
+        var ok = res && res.success && res.data;
+        if (!ok){
+          if ($bubble) $bubble.remove();
+          appendError($messages, 'Tool continuation failed.');
+          return;
+        }
+        // Mostrar check y desvanecer la burbuja
+        if ($bubble){
+          $bubble.removeClass('typing').addClass('done');
+          $bubble.empty().append('<span class="activity-text">Done <span class="dots">✓</span></span>');
+          setTimeout(function(){ $bubble.fadeOut(220, function(){ $(this).remove(); }); }, 600);
+        }
+        var finalMsg = String(res.data.message || '');
+        if (finalMsg) appendBot($messages, finalMsg);
+        scrollToBottom($messages);
+      }).fail(function(jqXHR, textStatus){
+        finished = true;
+        clearTimeout(afterToolsTimer);
+        if ($bubble) $bubble.remove();
+        appendError($messages, 'Continuation error: '+ (textStatus||'unknown'));
+      }).always(function(){
+        lockInputs($input, $sendBtn, false);
       });
     }
 
@@ -707,6 +788,41 @@
 
     function appendTyping($messages) {
       var $el = $('<div class="message bot-message typing"><span class="dots">•••</span></div>');
+      $messages.append($el);
+      scrollToBottom($messages);
+      return $el;
+    }
+    // Programa la secuencia de 0/3/6s para la PRIMERA espera (antes de tool_pending o respuesta final)
+    function scheduleThinkingStages($bubble){
+      if (!$bubble || !$bubble.length) return;
+      var t3 = setTimeout(function(){
+        if (!$bubble.closest('body').length) return; // eliminado
+        $bubble.html('<span class="activity-text">Thinking <span class="dots">•••</span></span>');
+      }, 3000);
+      var t6 = setTimeout(function(){
+        if (!$bubble.closest('body').length) return;
+        $bubble.html('<span class="activity-text">Still working, almost there <span class="dots">•••</span></span>');
+      }, 6000);
+      $bubble.data('thinkingTimers', [t3,t6]);
+    }
+    function clearThinkingStages($bubble){
+      if (!$bubble || !$bubble.length) return;
+      var timers = $bubble.data('thinkingTimers') || [];
+      timers.forEach(function(id){ clearTimeout(id); });
+      $bubble.removeData('thinkingTimers');
+    }
+    // Nueva burbuja de actividad
+    function appendActivity($messages, text, extraClass){
+      var cls = 'message bot-message typing aichat-activity-bubble';
+      if (extraClass) cls += ' '+extraClass;
+      var $el = $('<div class="'+cls+'"><span class="dots">•••</span><span class="activity-text"> '+escapeHtml(text||'')+'</span></div>');
+      $messages.append($el);
+      scrollToBottom($messages);
+      return $el;
+    }
+    // Burbuja única inicial (solo puntos) para nueva estrategia
+    function appendSingleActivity($messages){
+      var $el = $('<div class="message bot-message typing aichat-activity-bubble"><span class="dots">•••</span></div>');
       $messages.append($el);
       scrollToBottom($messages);
       return $el;

@@ -1,14 +1,8 @@
 <?php
 if ( ! defined('ABSPATH') ) { exit; }
 
-/**
- * Admin page: Tools Settings
- * - Lists registered tools
- * - (Future) Assign tools to bots (editing bots.tools_json)
- */
 function aichat_tools_settings_page(){
   echo '<div class="wrap aichat-tools-settings">';
-  // Obtener bots para selector
   global $wpdb; $bots_table = $wpdb->prefix.'aichat_bots';
   $bots = $wpdb->get_results("SELECT slug,name FROM $bots_table ORDER BY name ASC", ARRAY_A);
   echo '<div id="aichat-tools-panel-header"><h1>'.esc_html__('AI Tools Settings','axiachat-ai').'</h1>';
@@ -18,7 +12,6 @@ function aichat_tools_settings_page(){
   echo '<button type="button" class="button button-primary" id="aichat-tools-add-rule"><span class="dashicons dashicons-plus"></span> '.esc_html__('New Rule','axiachat-ai').'</button>';
   echo '<button type="button" class="button button-secondary" id="aichat-tools-save" disabled>'.esc_html__('Save','axiachat-ai').'</button>';
   echo '</div>';
-  // Capabilities (macros/tools) selection UI container (populated via JS)
   echo '<div id="aichat-capabilities-card" class="card mb-4 shadow-sm" style="border:1px solid #e2e8f0; max-width:860px;">';
   echo '<div class="card-header bg-light d-flex align-items-center" style="border-bottom:1px solid #e2e8f0;">'
     .'<i class="bi bi-lightning-charge-fill text-warning me-2" aria-hidden="true"></i>'
@@ -35,8 +28,8 @@ function aichat_tools_settings_page(){
     .'</button>'
     .'<span id="aichat-capabilities-status" class="ms-2" style="font-size:12px;color:#555"></span>'
     .'</div>';
-  echo '</div>'; // body
-  echo '</div>'; // card
+  echo '</div>';
+  echo '</div>';
   echo '<p class="description">'.esc_html__('Create conditional rules that trigger automatic agent actions (navigate, speak a message, request info, etc.).','axiachat-ai').'</p>';
   echo '<div id="aichat-tools-builder"></div>';
   echo '<hr />';
@@ -52,11 +45,10 @@ function aichat_tools_settings_page(){
     }
     echo '</tbody></table>';
   } else {
-    // Fallback show atomic tools list if no macros defined yet
     if ( function_exists('aichat_get_registered_tools') ) {
       $tools = aichat_get_registered_tools();
       if ($tools) {
-  echo '<p><strong>'.esc_html__('No macros registered yet. Listing atomic tools instead.','axiachat-ai').'</strong></p>';
+        echo '<p><strong>'.esc_html__('No macros registered yet. Listing atomic tools instead.','axiachat-ai').'</strong></p>';
         echo '<table class="widefat striped"><thead><tr><th>'.esc_html__('Tool','axiachat-ai').'</th><th>'.esc_html__('Type','axiachat-ai').'</th><th>'.esc_html__('Description','axiachat-ai').'</th></tr></thead><tbody>';
         foreach($tools as $id=>$def){
           $name = isset($def['name']) ? $def['name'] : $id; $type = isset($def['type'])?$def['type']:'?'; $desc = isset($def['description'])?$def['description']:'';
