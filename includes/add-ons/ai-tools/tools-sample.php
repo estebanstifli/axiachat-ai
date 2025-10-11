@@ -135,7 +135,7 @@ aichat_register_tool_safe( 'aichat_send_email_admin', [
       $message = wp_strip_all_tags( $message );
     }
     // Restrict optional From to same domain as site to avoid spoofing
-    $home_host = parse_url( home_url(), PHP_URL_HOST );
+  $home_host = wp_parse_url( home_url(), PHP_URL_HOST );
     $from_name = isset($args['from_name']) ? sanitize_text_field( (string)$args['from_name'] ) : '';
     $from_email = isset($args['from_email']) ? sanitize_email( (string)$args['from_email'] ) : '';
     if ( $from_email && is_email($from_email) ) {
@@ -206,7 +206,7 @@ aichat_register_tool_safe( 'aichat_send_email_client', [
     if ( $html ) { $headers[] = 'Content-Type: text/html; charset=UTF-8'; $message = wp_kses_post( $message ); }
     else { $message = wp_strip_all_tags( $message ); }
     // Restrict From to site domain to avoid spoofing
-    $home_host = parse_url( home_url(), PHP_URL_HOST );
+  $home_host = wp_parse_url( home_url(), PHP_URL_HOST );
     $from_name = isset($args['from_name']) ? sanitize_text_field( (string)$args['from_name'] ) : '';
     $from_email = isset($args['from_email']) ? sanitize_email( (string)$args['from_email'] ) : '';
     if ( $from_email && is_email($from_email) ) {

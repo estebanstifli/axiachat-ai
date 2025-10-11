@@ -6,7 +6,8 @@ function aichat_tools_logs_page(){
   echo '<div class="wrap"><h1>'.esc_html__('AI Tools Logs','axiachat-ai').'</h1>';
   $exists = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name=%s", $table));
   if ( ! $exists ) { echo '<p>'.esc_html__('Tool calls table does not exist yet.','axiachat-ai').'</p></div>'; return; }
-  $rows = $wpdb->get_results("SELECT * FROM $table ORDER BY id DESC LIMIT 500");
+  // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name comes from $wpdb->prefix; no user input in query
+  $rows = $wpdb->get_results("SELECT * FROM {$table} ORDER BY id DESC LIMIT 500");
   if(!$rows){ echo '<p>'.esc_html__('No tool calls recorded yet.','axiachat-ai').'</p></div>'; return; }
   echo '<table class="widefat striped"><thead><tr>'
     .'<th>ID</th>'

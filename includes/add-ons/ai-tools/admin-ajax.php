@@ -17,6 +17,7 @@ add_action('wp_ajax_aichat_tools_save_rules', function(){
   check_ajax_referer('aichat_tools_nonce','nonce');
   $bot = isset($_POST['bot']) ? sanitize_title(wp_unslash($_POST['bot'])) : '';
   if ($bot==='') { wp_send_json_error(['message'=>'missing_bot'],400); }
+  // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON payload is decoded and sanitized per-field below
   $raw = isset($_POST['rules']) ? wp_unslash($_POST['rules']) : '[]';
   $arr = json_decode($raw,true); if(!is_array($arr)) $arr = [];
   $clean = [];
@@ -34,7 +35,8 @@ add_action('wp_ajax_aichat_tools_get_bot_tools', function(){
   global $wpdb; $bot_slug = isset($_POST['bot']) ? sanitize_title(wp_unslash($_POST['bot'])) : '';
   if ($bot_slug==='') { wp_send_json_error(['message'=>'missing_bot'],400); }
     $bots_table = $wpdb->prefix.'aichat_bots';
-  $row = $wpdb->get_row( $wpdb->prepare("SELECT tools_json FROM $bots_table WHERE slug=%s", $bot_slug), ARRAY_A );
+  // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is derived from $wpdb->prefix; values use placeholders
+  $row = $wpdb->get_row( $wpdb->prepare("SELECT tools_json FROM {$bots_table} WHERE slug=%s", $bot_slug), ARRAY_A );
   $selected = [];
   if($row && !empty($row['tools_json'])){ $tmp = json_decode((string)$row['tools_json'], true); if(is_array($tmp)) $selected = array_values(array_filter($tmp, 'is_string')); }
   $macros = function_exists('aichat_get_registered_macros') ? aichat_get_registered_macros() : [];
@@ -47,6 +49,7 @@ add_action('wp_ajax_aichat_tools_save_bot_tools', function(){
   check_ajax_referer('aichat_tools_nonce','nonce');
   global $wpdb; $bot_slug = isset($_POST['bot']) ? sanitize_title(wp_unslash($_POST['bot'])) : '';
   if ($bot_slug==='') { wp_send_json_error(['message'=>'missing_bot'],400); }
+  // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON payload is decoded and validated below
   $raw = isset($_POST['selected']) ? wp_unslash($_POST['selected']) : '[]'; $arr = json_decode($raw, true); if(!is_array($arr)) $arr=[];
   $macros = function_exists('aichat_get_registered_macros') ? aichat_get_registered_macros() : [];
   $tools  = function_exists('aichat_get_registered_tools') ? aichat_get_registered_tools() : [];
@@ -95,6 +98,7 @@ add_action('wp_ajax_aichat_tools_save_capability_settings', function(){
   $bot = isset($_POST['bot']) ? sanitize_title(wp_unslash($_POST['bot'])) : '';
   $cap = isset($_POST['cap']) ? sanitize_key(wp_unslash($_POST['cap'])) : '';
   if ($bot==='' || $cap==='') { wp_send_json_error(['message'=>'missing_params'],400); }
+  // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON payload is decoded and sanitized per-field below
   $raw = isset($_POST['settings']) ? wp_unslash($_POST['settings']) : '{}';
   $arr = json_decode($raw, true); if(!is_array($arr)) $arr = [];
   // Sanitize fields we know; start with system_policy

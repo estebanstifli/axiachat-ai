@@ -444,8 +444,9 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 aichat_log_debug("[AIChat Tools][$uid] start loop max_rounds={$max_rounds} tools=".count($active_tools));
                 $result = null; $final_answer = '';
                 while ( $round <= $max_rounds ) {
-                    $t_r0 = microtime(true);
                     aichat_log_debug("[AIChat Tools][$uid] round={$round} calling model={$model} msg_count=".count($acc_messages));
+                    // Start timer for this round
+                    $t_r0 = microtime(true);
                     $result = $this->call_openai_auto( $openai_key, $model, $acc_messages, $temperature, $max_tokens, [ 'tools'=>$active_tools ] );
                     $t_r1 = microtime(true);
                     if ( is_wp_error($result) ) { break; }
@@ -507,7 +508,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                             'output_excerpt'=>$out_str,
                             'duration_ms'=>$elapsed_tool,
                             'error_code'=>(strpos($out_str,'"error"')!==false ? 'error':null),
-                            'created_at'=>current_time('mysql',1),
+                            'created_at'=>current_time('mysql'),
                         ],[ '%s','%d','%s','%s','%d','%s','%s','%s','%s','%d','%s','%s']);
                         $tool_output_messages[] = [ 'role'=>'tool','tool_call_id'=>$call_id,'content'=>(string)$out_str ];
                     }
@@ -746,7 +747,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                     'output_excerpt'  => $out_str,
                     'duration_ms'     => $elapsed_tool,
                     'error_code'      => (strpos($out_str,'"error"')!==false ? 'error':null),
-                    'created_at'      => current_time('mysql',1),
+                    'created_at'      => current_time('mysql'),
                 ],['%s','%d','%s','%s','%d','%s','%s','%s','%s','%d','%s','%s']);
                 if ( ! empty($wpdb->last_error) ) {
                     aichat_log_debug('[AIChat Continue]['.$uid.'] tool_calls insert error', [
@@ -1515,19 +1516,21 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                     if (!is_array($t)) { continue; }
                     $t_type = isset($t['type']) ? (string)$t['type'] : '';
                     if ($t_type === 'function') {
-                        // Keep proper nested shape; strip unsupported keys like strict
+                        // Flatten to Responses function tool schema: top-level name/description/parameters
                         $fn = isset($t['function']) && is_array($t['function']) ? $t['function'] : [];
-                        $fn_name = isset($fn['name']) ? (string)$fn['name'] : 'unnamed_func';
-                        $fn_desc = isset($fn['description']) ? (string)$fn['description'] : '';
-                        $fn_params = isset($fn['parameters']) ? $fn['parameters'] : (object)[];
-                        $mapped[] = [
+                        $fn_name = isset($fn['name']) ? (string)$fn['name'] : '';
+                        if ($fn_name === '') { $fn_name = isset($t['name']) ? (string)$t['name'] : ''; }
+                        if ($fn_name === '') { $fn_name = 'unnamed_func'; }
+                        $fn_desc = isset($fn['description']) ? (string)$fn['description'] : ( isset($t['description']) ? (string)$t['description'] : '' );
+                        $fn_params = isset($fn['parameters']) ? $fn['parameters'] : ( isset($t['parameters']) ? $t['parameters'] : (object)[] );
+                        $entry = [
                             'type' => 'function',
-                            'function' => [
-                                'name' => $fn_name,
-                                'description' => $fn_desc,
-                                'parameters' => $fn_params,
-                            ],
+                            'name' => $fn_name,
+                            'description' => $fn_desc,
+                            'parameters' => $fn_params,
                         ];
+                        if ( isset($t['strict']) && !empty($t['strict']) ) { $entry['strict'] = true; }
+                        $mapped[] = $entry;
                     } elseif ($t_type === 'web_search') {
                         // Native tool: allow filters.allowed_domains if present
                         $entry = [ 'type' => 'web_search' ];
@@ -1553,7 +1556,8 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                         }
                     }
                 }
-                if ($mapped) { $tools = $mapped; }
+                // Always replace with normalized list to avoid leaking invalid shapes
+                $tools = $mapped;
             }
             // Permitir inyección de tools nativas (web_search) incluso si venimos sin tools
             $tools = apply_filters('aichat_openai_responses_tools', $tools, [ 'model'=>$model, 'bot'=>$extra['bot_slug'] ?? null ]);
@@ -1793,7 +1797,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                         'output_excerpt'=>$out_str,
                         'duration_ms'=>$elapsed_tool,
                             'error_code'      => (strpos($out_str,'"error"')!==false ? 'error':null),
-                        'created_at'=>current_time('mysql',1),
+                        'created_at'=>current_time('mysql'),
                     ],['%s','%d','%s','%s','%d','%s','%s','%s','%s','%d','%s','%s']);
                     if ( ! empty($wpdb->last_error) ) {
                         aichat_log_debug('[AIChat Responses][tool_exec] insert error', [

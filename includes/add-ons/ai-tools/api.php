@@ -164,7 +164,8 @@ add_filter('aichat_openai_responses_tools', function( $tools, $ctx ){
     if ($bot_slug === '') return $tools;
     // Load bot row to inspect selected capabilities (tools_json)
     global $wpdb; $bots_table = $wpdb->prefix.'aichat_bots';
-    $row = $wpdb->get_row( $wpdb->prepare("SELECT tools_json FROM $bots_table WHERE slug=%s", $bot_slug), ARRAY_A );
+    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name safe; slug uses placeholder
+    $row = $wpdb->get_row( $wpdb->prepare("SELECT tools_json FROM {$bots_table} WHERE slug=%s", $bot_slug), ARRAY_A );
     $selected = [];
     if ($row && !empty($row['tools_json'])){ $tmp = json_decode((string)$row['tools_json'], true); if(is_array($tmp)) $selected = array_values(array_filter($tmp, 'is_string')); }
     if ( empty($selected) ) return $tools;
