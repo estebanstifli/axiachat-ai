@@ -418,7 +418,7 @@
                 <i class="bi bi-gear me-2"></i> General
               </button>
             </h2>
-            <div id="g-b-${bot.id}" class="accordion-collapse collapse show">
+            <div id="g-b-${bot.id}" class="accordion-collapse collapse show" data-bs-parent="#acc-${bot.id}">
               <div class="accordion-body">
                 <div class="aichat-inline">
                   <div class="form-floating">
@@ -475,7 +475,7 @@
                 <i class="bi bi-cpu me-2"></i> Model
               </button>
             </h2>
-            <div id="m-b-${bot.id}" class="accordion-collapse collapse">
+            <div id="m-b-${bot.id}" class="accordion-collapse collapse" data-bs-parent="#acc-${bot.id}">
               <div class="accordion-body">
                 <div class="row g-3">
                   <div class="col-md-6">
@@ -531,7 +531,7 @@
                 <i class="bi bi-diagram-3 me-2"></i> Context
               </button>
             </h2>
-            <div id="c-b-${bot.id}" class="accordion-collapse collapse">
+            <div id="c-b-${bot.id}" class="accordion-collapse collapse" data-bs-parent="#acc-${bot.id}">
               <div class="accordion-body">
                 <fieldset class="mb-0">
                   <legend class="fw-semibold mb-2" style="font-size:14px;">Context Source</legend>
@@ -571,7 +571,7 @@
                 <i class="bi bi-sliders me-2"></i> Thresholds
               </button>
             </h2>
-            <div id="t-b-${bot.id}" class="accordion-collapse collapse">
+            <div id="t-b-${bot.id}" class="accordion-collapse collapse" data-bs-parent="#acc-${bot.id}">
               <div class="accordion-body">
                 <div class="row g-3">
                   <div class="col-md-4">
@@ -601,7 +601,7 @@
                 <i class="bi bi-palette me-2"></i> Appearance
               </button>
             </h2>
-            <div id="a-b-${bot.id}" class="accordion-collapse collapse">
+            <div id="a-b-${bot.id}" class="accordion-collapse collapse" data-bs-parent="#acc-${bot.id}">
               <div class="accordion-body">
                 <div class="row g-3">
                   <div class="col-md-4">
@@ -703,7 +703,7 @@
                 <i class="bi bi-tools me-2"></i> Actions
               </button>
             </h2>
-            <div id="x-b-${bot.id}" class="accordion-collapse collapse">
+            <div id="x-b-${bot.id}" class="accordion-collapse collapse" data-bs-parent="#acc-${bot.id}">
               <div class="accordion-body d-flex justify-content-between align-items-center">
                 <div class="d-flex gap-2">
                   <button type="button" class="button button-secondary aichat-action" data-action="duplicate" data-id="${bot.id}">
