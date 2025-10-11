@@ -159,6 +159,10 @@
        // Controles (derecha)
        var controlsHtml = '<div class="aichat-header-controls">';
        if (minimizable) controlsHtml += '<button type="button" class="aichat-btn aichat-btn-minimize" aria-label="Minimize">−</button>';
+       // Maximize button (toggle full-screen-like inside viewport)
+       controlsHtml += '<button type="button" class="aichat-btn aichat-btn-maximize" aria-label="Maximize" aria-pressed="false">'+
+         '<svg class="aichat-ico-max" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M3 5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5zm2-1a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1H5z"/></svg>'+
+         '</button>';
        if (closable)    controlsHtml += '<button type="button" class="aichat-btn aichat-btn-close" aria-label="Close">×</button>';
        controlsHtml += '</div>';
        headerHtml += controlsHtml;
@@ -196,8 +200,9 @@
       var $messages = $inner.find('.aichat-messages').first();
       var $input    = $inner.find('.aichat-input').first();
       var $sendBtn  = $inner.find('.aichat-send').first();
-      var $micBtn   = $inner.find('.aichat-mic').first();
-     var $ttsStop  = $inner.find('.aichat-tts-stop').first();
+  var $micBtn   = $inner.find('.aichat-mic').first();
+  var $ttsStop  = $inner.find('.aichat-tts-stop').first();
+  var $maxBtn   = $inner.find('.aichat-btn-maximize').first();
 
      // ===== GDPR CONSENT COMO MENSAJE =====
      // Nueva lógica: en lugar de overlay que tapa header, insertamos una "burbuja" dentro del área de mensajes
@@ -488,6 +493,8 @@
       // Altura del área de mensajes
       if (mHeight > 0) {
         $messages.css('height', mHeight + 'px');
+        // keep original configured height in data for restore when exiting maximized
+        $messages.data('origHeightPx', mHeight);
       }
 
       // Color de tema
@@ -548,7 +555,37 @@
       if (minimizable) {
         $inner.on('click', '.aichat-btn-minimize', function(e){
           e.preventDefault();
+          // unmaximize if minimizing
+          $root.removeClass('is-maximized');
           $inner.toggleClass('is-minimized');
+        });
+      }
+      // Maximize toggle (only for floating widgets)
+      if ($maxBtn && $maxBtn.length) {
+        $inner.on('click', '.aichat-btn-maximize', function(e){
+          e.preventDefault();
+          if (!$root.hasClass('is-global')) return;
+          var active = !$root.hasClass('is-maximized');
+          if (active) {
+            // ensure visible
+            $root.removeClass('is-superminimized');
+            $inner.removeClass('is-minimized');
+            $root.addClass('is-maximized');
+            // Allow messages panel to flex: remove fixed height if was set
+            try { $messages.css('height',''); } catch(_){}
+          } else {
+            $root.removeClass('is-maximized');
+            // Restore fixed height if it was configured
+            var oh = $messages.data('origHeightPx');
+            if (oh) { try { $messages.css('height', oh + 'px'); } catch(_){} }
+          }
+          var pressed = $root.hasClass('is-maximized');
+          $maxBtn.attr('aria-pressed', pressed ? 'true':'false')
+                .attr('aria-label', pressed ? 'Restore' : 'Maximize');
+          // keep scroll at bottom when opening
+          if (pressed) {
+            setTimeout(function(){ try{ var el=$inner.find('.aichat-messages')[0]; if(el) el.scrollTop=el.scrollHeight; }catch(e){} }, 60);
+          }
         });
       }
       if (closable) {

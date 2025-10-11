@@ -120,6 +120,9 @@
 }
 .aichat-btn:hover{ background: rgba(255,255,255,.28); }
 
+/* Maximize icon sizing */
+.aichat-btn .aichat-ico-max{ width: 16px; height: 16px; display:block }
+
 /* Mensajes */
 .aichat-messages {
   padding: 10px 12px;
@@ -291,6 +294,21 @@
   min-width:56px;
   min-height:56px;
   overflow:visible;
+}
+/* Maximized: fills viewport with safe paddings */
+.aichat-widget.is-global.is-maximized{
+  inset: 12px !important;
+  width: auto !important;
+  height: auto !important;
+  max-width: none !important;
+  left: 12px !important; right: 12px !important; top: 12px !important; bottom: 12px !important;
+}
+/* Ensure inner takes full height and messages flex to fill */
+.aichat-widget.is-global.is-maximized .aichat-inner{ height: 100%; }
+.aichat-widget.is-global.is-maximized .aichat-messages{
+  height: auto !important; /* override fixed heights */
+  flex: 1 1 auto;
+  min-height: 240px;
 }
 .aichat-widget.is-superminimized .aichat-inner{
   padding:0;
