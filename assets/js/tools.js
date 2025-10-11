@@ -36,7 +36,8 @@
       available: [], // array of {id,label,description,type:'macro'|'tool'}
       selected: [],
       loading: false,
-      dirty: false
+      dirty: false,
+      settings: {} // map capId -> { system_policy: string, ... }
     }
   };
 
@@ -216,15 +217,20 @@
     state.capabilities.available.forEach(cap=>{
       const id = cap.id;
       const checked = state.capabilities.selected.includes(id);
-      const $col = $('<div class="col-md-6 col-xl-4"/>');
-      const $card = $('<div class="aichat-cap border rounded p-2 h-100" style="background:#fff; border-color:#e2e8f0;"/>').appendTo($col);
+      const $col = $('<div class="col-md-6 col-xl-4"/>' );
+      const $card = $('<div class="aichat-cap border rounded p-2 h-100" style="background:#fff; border-color:#e2e8f0;"/>' ).appendTo($col);
       const icon = cap.type==='macro' ? 'bi-layers' : 'bi-gear';
-      const $label = $('<label class="d-flex align-items-start gap-2" style="cursor:pointer;" />').appendTo($card);
-      const $cb = $('<input type="checkbox" class="mt-1"/>').val(id).prop('checked',checked).appendTo($label);
+      const $top = $('<div class="d-flex align-items-start gap-2" />').appendTo($card);
+      const $label = $('<label class="d-flex align-items-start gap-2 flex-grow-1" style="cursor:pointer;" />').appendTo($top);
+      const $cb = $('<input type="checkbox" class="mt-1"/>' ).val(id).prop('checked',checked).appendTo($label);
       const $icon = $('<i class="bi '+icon+' text-primary" style="font-size:16px;" aria-hidden="true"></i>').appendTo($label);
-      const $textBox = $('<div class="flex-grow-1"/>').appendTo($label);
-      $('<div class="fw-semibold"/>').text(cap.label).appendTo($textBox);
-      if(cap.description){ $('<div class="text-muted small"/>').text(cap.description).appendTo($textBox); }
+      const $textBox = $('<div class="flex-grow-1"/>' ).appendTo($label);
+      $('<div class="fw-semibold"/>' ).text(cap.label).appendTo($textBox);
+      if(cap.description){ $('<div class="text-muted small"/>' ).text(cap.description).appendTo($textBox); }
+      // config button
+      const $cfgBtn = $('<button type="button" class="button button-small" title="Config"><i class="bi bi-sliders"></i> '+(window.aichat_tools_i18n?.config || 'Config')+'</button>');
+      $('<div class="ms-2"/>').append($cfgBtn).appendTo($top);
+      $cfgBtn.on('click', function(){ toggleCapabilityConfig(id, $card); });
       $cb.on('change', function(){
         const val = $(this).val();
         if($(this).is(':checked')){ if(!state.capabilities.selected.includes(val)) state.capabilities.selected.push(val); }
@@ -232,6 +238,9 @@
         state.capabilities.dirty = true;
         $('#aichat-capabilities-save').prop('disabled', false);
       });
+      // collapsed config area
+      const $cfgWrap = $('<div class="cap-config mt-2" style="display:none;" data-cap="'+id+'" />').appendTo($card);
+      renderCapabilityConfig($cfgWrap, id);
       $list.append($col);
     });
   }
@@ -263,12 +272,80 @@
         state.capabilities.available = [];
         state.capabilities.selected = [];
       }
-      renderCapabilities();
-      $('#aichat-capabilities-save').prop('disabled', true);
-      $('#aichat-capabilities-status').text('');
+      // Load per-capability settings then render UI
+      loadCapabilitySettings().always(function(){
+        renderCapabilities();
+        $('#aichat-capabilities-save').prop('disabled', true);
+        $('#aichat-capabilities-status').text('');
+      });
     }).fail(()=>{
       state.capabilities.loading=false; state.capabilities.available=[]; renderCapabilities();
     });
+  }
+
+  function loadCapabilitySettings(){
+    const dfd = $.Deferred();
+    $.ajax({
+      url: aichat_tools_ajax.ajax_url,
+      method: 'POST',
+      data: { action:'aichat_tools_get_capability_settings', nonce:aichat_tools_ajax.nonce, bot: currentBot() },
+      dataType:'json'
+    }).done(function(res){
+      if(res.success){ state.capabilities.settings = res.data.settings || {}; }
+      else { state.capabilities.settings = {}; }
+      dfd.resolve();
+    }).fail(function(){ state.capabilities.settings = {}; dfd.resolve(); });
+    return dfd.promise();
+  }
+
+  function toggleCapabilityConfig(capId, $card){
+    const $wrap = $card.find('.cap-config[data-cap="'+capId+'"]');
+    if(!$wrap.length) return;
+    if($wrap.is(':visible')){ $wrap.slideUp(120); }
+    else { $wrap.slideDown(120); }
+  }
+
+  function renderCapabilityConfig($wrap, capId){
+    $wrap.empty();
+    const cfg = state.capabilities.settings[capId] || {};
+    const $row = $('<div class="mb-2" />').appendTo($wrap);
+    $('<label class="form-label fw-semibold"/>').text((window.aichat_tools_i18n?.system_policy || 'System Policy')).appendTo($row);
+    const $ta = $('<textarea class="form-control" rows="3"/>').val(cfg.system_policy || '').appendTo($row);
+    // Optional domains allowlist for web search
+    if (capId === 'openai_web_search'){
+      const $domRow = $('<div class="mb-2" />').appendTo($wrap);
+      $('<label class="form-label fw-semibold"/>').text(window.aichat_tools_i18n?.domains || 'Allowed domains').appendTo($domRow);
+      const $dom = $('<input type="text" class="form-control" placeholder="example.com, another.com"/>').val((cfg.domains||[]).join(', ')).appendTo($domRow);
+      $wrap.data('domainsInput', $dom);
+    }
+    const $btn = $('<button type="button" class="button button-secondary mt-1"/>').text(window.aichat_tools_i18n?.save_policy || 'Save Policy').appendTo($wrap);
+    const $status = $('<span class="ms-2 small text-muted"/>').appendTo($wrap);
+    $btn.on('click', function(){
+      const payload = { system_policy: $ta.val() };
+      const $dom = $wrap.data('domainsInput');
+      if ($dom) {
+        payload.domains = $dom.val().split(',').map(s=>s.trim()).filter(Boolean);
+      }
+      saveCapabilitySettings(capId, payload, $status);
+    });
+  }
+
+  function saveCapabilitySettings(capId, settings, $status){
+    $status.text(window.aichat_tools_i18n?.saving || 'Saving...');
+    $.ajax({
+      url: aichat_tools_ajax.ajax_url,
+      method: 'POST',
+      data: { action:'aichat_tools_save_capability_settings', nonce:aichat_tools_ajax.nonce, bot: currentBot(), cap: capId, settings: JSON.stringify(settings) },
+      dataType:'json'
+    }).done(function(res){
+      if(res.success){
+        state.capabilities.settings[capId] = res.data.settings || settings;
+        $status.text(window.aichat_tools_i18n?.saved || 'Saved');
+        setTimeout(function(){ $status.text(''); }, 1200);
+      } else {
+        $status.text(window.aichat_tools_i18n?.error || 'Error');
+      }
+    }).fail(function(){ $status.text(window.aichat_tools_i18n?.error || 'Error'); });
   }
 
   function saveCapabilities(){

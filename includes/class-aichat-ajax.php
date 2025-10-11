@@ -1505,26 +1505,58 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             }
             // --- NUEVO: Multi-ronda tools para Responses ---
             $tools = ( isset($extra['tools']) && is_array($extra['tools']) ) ? $extra['tools'] : [];
-            // Normalizar formato tools (Chat → Responses). Responses parece requerir name/description al nivel superior.
+            // Normalizar formato tools (Chat → Responses).
+            // Responses espera:
+            //  - Function tools: { type: 'function', function: { name, description?, parameters } }
+            //  - Native tools (e.g. web_search): { type: 'web_search' }
             if ($tools) {
                 $mapped = [];
                 foreach ($tools as $t) {
-                    if (!is_array($t)) continue;
-                    if (($t['type'] ?? '') === 'function' && isset($t['function']) && is_array($t['function'])) {
-                        $fn = $t['function'];
+                    if (!is_array($t)) { continue; }
+                    $t_type = isset($t['type']) ? (string)$t['type'] : '';
+                    if ($t_type === 'function') {
+                        // Keep proper nested shape; strip unsupported keys like strict
+                        $fn = isset($t['function']) && is_array($t['function']) ? $t['function'] : [];
+                        $fn_name = isset($fn['name']) ? (string)$fn['name'] : 'unnamed_func';
+                        $fn_desc = isset($fn['description']) ? (string)$fn['description'] : '';
+                        $fn_params = isset($fn['parameters']) ? $fn['parameters'] : (object)[];
                         $mapped[] = [
                             'type' => 'function',
-                            'name' => $fn['name'] ?? 'unnamed_func',
-                            'description' => $fn['description'] ?? '',
-                            'parameters' => $fn['parameters'] ?? (object)[],
+                            'function' => [
+                                'name' => $fn_name,
+                                'description' => $fn_desc,
+                                'parameters' => $fn_params,
+                            ],
                         ];
+                    } elseif ($t_type === 'web_search') {
+                        // Native tool: allow filters.allowed_domains if present
+                        $entry = [ 'type' => 'web_search' ];
+                        if ( isset($t['filters']) && is_array($t['filters']) ) {
+                            $filters = $t['filters'];
+                            $out_filters = [];
+                            if ( isset($filters['allowed_domains']) && is_array($filters['allowed_domains']) ) {
+                                // sanitize to host-like strings
+                                $out_filters['allowed_domains'] = array_values(array_filter(array_map(function($d){
+                                    $d = trim((string)$d);
+                                    $d = preg_replace('/^https?:\/\//i','',$d); // strip scheme
+                                    $d = preg_replace('/\/$/','',$d); // strip trailing slash
+                                    return $d;
+                                }, $filters['allowed_domains'])));
+                            }
+                            if ($out_filters) { $entry['filters'] = $out_filters; }
+                        }
+                        $mapped[] = $entry;
                     } else {
-                        // Si ya viene normalizado o es otro tipo, intentar pasar tal cual.
-                        if (isset($t['name'])) { $mapped[] = $t; }
+                        // Unknown tool types are ignored for Responses to avoid API errors
+                        if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+                            aichat_log_debug('[AIChat Responses][tools] Ignoring unsupported tool type', [ 'type'=>$t_type ]);
+                        }
                     }
                 }
                 if ($mapped) { $tools = $mapped; }
             }
+            // Permitir inyección de tools nativas (web_search) incluso si venimos sin tools
+            $tools = apply_filters('aichat_openai_responses_tools', $tools, [ 'model'=>$model, 'bot'=>$extra['bot_slug'] ?? null ]);
             $has_tools = !empty($tools);
             $max_rounds = (int)apply_filters('aichat_tools_max_rounds', 3, null, null);
             if ($max_rounds < 1) $max_rounds = 1;
@@ -1554,6 +1586,11 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                     if ($has_tools) {
                         $payload['tools'] = $tools;
                         $payload['tool_choice'] = 'auto';
+                        // If web_search is present, ask API to include sources in output for transparency
+                        $has_ws = false; foreach($tools as $tt){ if(($tt['type'] ?? '')==='web_search'){ $has_ws = true; break; } }
+                        if ($has_ws) {
+                            $payload['include'] = [ 'web_search_call.action.sources' ];
+                        }
                     }
                     if (!empty($extra['reasoning']) && strtolower($extra['reasoning']) !== 'off') {
                         $payload['reasoning'] = [ 'effort' => $this->map_reasoning_effort($extra['reasoning']) ];
@@ -1583,7 +1620,9 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 $json_payload = wp_json_encode($payload);
                 $t_r0 = microtime(true);
                 if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
-                    aichat_log_debug('[AIChat Responses][round='.$round.'] request', [ 'has_tools'=>$has_tools?1:0, 'payload_len'=>strlen($json_payload) ]);
+                    $tool_meta = [ 'has_tools'=>$has_tools?1:0, 'payload_len'=>strlen($json_payload) ];
+                    if ($has_tools) { $tool_meta['tool_types'] = array_values(array_unique(array_map(function($x){return isset($x['type'])?$x['type']:'?';}, $tools))); }
+                    aichat_log_debug('[AIChat Responses][round='.$round.'] request', $tool_meta);
                 }
                 // Siempre usamos el endpoint base /responses ahora (previous_response_id maneja el hilo)
                 $post_endpoint = $endpoint;
@@ -1663,7 +1702,19 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                     }
                 }
 
+                // If no tool calls, decide whether to end or continue when response is incomplete due to token cap
                 if ( empty($tool_calls) ) {
+                    $status = isset($data['status']) ? (string)$data['status'] : '';
+                    $incomp_reason = isset($data['incomplete_details']['reason']) ? (string)$data['incomplete_details']['reason'] : '';
+                    if ( $status === 'incomplete' && $incomp_reason === 'max_output_tokens' && $round < $max_rounds ) {
+                        if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+                            aichat_log_debug('[AIChat Responses][round='.$round.'] incomplete due to max_output_tokens — continuing');
+                        }
+                        // Prepare to continue in the next loop iteration using previous_response_id
+                        $pending_tool_outputs = []; // will produce a minimal input_text fallback
+                        $round++;
+                        continue;
+                    }
                     break; // final answer reached
                 }
                 // NUEVO HANDSHAKE: si es la primera ronda y hay tool_calls, devolvemos estado tool_pending sin ejecutar herramientas todavía

@@ -747,7 +747,13 @@ function aichat_admin_menu() {
         'caps_save' => __('Save Capabilities','axiachat-ai'),
         'caps_saving' => __('Saving capabilities...','axiachat-ai'),
         'caps_saved' => __('Capabilities saved','axiachat-ai'),
-        'caps_error' => __('Error saving capabilities','axiachat-ai')
+        'caps_error' => __('Error saving capabilities','axiachat-ai'),
+        // Capability config UI
+        'config' => __('Config','axiachat-ai'),
+        'system_policy' => __('System Policy','axiachat-ai'),
+        'save_policy' => __('Save Policy','axiachat-ai')
+        ,
+        'domains' => __('Allowed domains','axiachat-ai')
       ]);
   }
 

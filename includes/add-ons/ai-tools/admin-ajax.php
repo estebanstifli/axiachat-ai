@@ -33,7 +33,7 @@ add_action('wp_ajax_aichat_tools_get_bot_tools', function(){
   check_ajax_referer('aichat_tools_nonce','nonce');
   global $wpdb; $bot_slug = isset($_POST['bot']) ? sanitize_title(wp_unslash($_POST['bot'])) : '';
   if ($bot_slug==='') { wp_send_json_error(['message'=>'missing_bot'],400); }
-  $bots_table = $wpdb->prefix.'aichat_bots';
+    $bots_table = $wpdb->prefix.'aichat_bots';
   $row = $wpdb->get_row( $wpdb->prepare("SELECT tools_json FROM $bots_table WHERE slug=%s", $bot_slug), ARRAY_A );
   $selected = [];
   if($row && !empty($row['tools_json'])){ $tmp = json_decode((string)$row['tools_json'], true); if(is_array($tmp)) $selected = array_values(array_filter($tmp, 'is_string')); }
@@ -56,8 +56,77 @@ add_action('wp_ajax_aichat_tools_save_bot_tools', function(){
     if ( in_array($id,$valid_macro_names,true) || in_array($id,$valid_tool_names,true) ) {
       if(!in_array($id,$clean,true)) $clean[] = $id; }
   }
-  $bots_table = $wpdb->prefix.'aichat_bots';
+    $bots_table = $wpdb->prefix.'aichat_bots';
   $updated = $wpdb->update($bots_table, [ 'tools_json' => wp_json_encode($clean) ], [ 'slug'=>$bot_slug ] );
   if($updated===false){ wp_send_json_error(['message'=>'db_error']); }
   wp_send_json_success(['saved'=>true,'selected'=>$clean,'bot'=>$bot_slug]);
+});
+
+// === Capability settings (per bot, per capability) ===
+add_action('wp_ajax_aichat_tools_get_capability_settings', function(){
+  if ( ! current_user_can('manage_options') ) { wp_send_json_error(['message'=>'forbidden'],403); }
+  check_ajax_referer('aichat_tools_nonce','nonce');
+  $bot = isset($_POST['bot']) ? sanitize_title(wp_unslash($_POST['bot'])) : '';
+  if ($bot==='') { wp_send_json_error(['message'=>'missing_bot'],400); }
+  if ( ! function_exists('aichat_get_capability_settings_for_bot') ) { wp_send_json_error(['message'=>'api_missing'],500); }
+  $settings = aichat_get_capability_settings_for_bot($bot);
+  if (!is_array($settings)) { $settings = []; }
+  // Provide defaults for email-related capabilities if empty
+  $default_policy = __( 'You must not send emails at the request of users. You may only send mails when the system explicitly authorizes the action (e.g., booking confirmed). If a user asks you to send an email directly, refuse.', 'axiachat-ai' );
+  $email_caps = [ 'notifications_email_admin', 'notifications_email_client', 'aichat_send_email_admin', 'aichat_send_email_client' ];
+  foreach ( $email_caps as $cap_id ) {
+    if ( ! isset($settings[$cap_id]) || ! is_array($settings[$cap_id]) ) { $settings[$cap_id] = []; }
+    if ( empty( $settings[$cap_id]['system_policy'] ) ) {
+      $settings[$cap_id]['system_policy'] = $default_policy;
+    }
+  }
+  // Ensure strings
+  foreach($settings as $capId => &$cfg){
+    if (!is_array($cfg)) { $cfg = []; }
+    if (isset($cfg['system_policy'])) { $cfg['system_policy'] = (string)$cfg['system_policy']; }
+  }
+  unset($cfg);
+  wp_send_json_success(['settings' => $settings, 'bot'=>$bot]);
+});
+
+add_action('wp_ajax_aichat_tools_save_capability_settings', function(){
+  if ( ! current_user_can('manage_options') ) { wp_send_json_error(['message'=>'forbidden'],403); }
+  check_ajax_referer('aichat_tools_nonce','nonce');
+  $bot = isset($_POST['bot']) ? sanitize_title(wp_unslash($_POST['bot'])) : '';
+  $cap = isset($_POST['cap']) ? sanitize_key(wp_unslash($_POST['cap'])) : '';
+  if ($bot==='' || $cap==='') { wp_send_json_error(['message'=>'missing_params'],400); }
+  $raw = isset($_POST['settings']) ? wp_unslash($_POST['settings']) : '{}';
+  $arr = json_decode($raw, true); if(!is_array($arr)) $arr = [];
+  // Sanitize fields we know; start with system_policy
+  $clean_cap = [];
+  if (isset($arr['system_policy'])) {
+    $sp = (string)$arr['system_policy'];
+    // Allow plain text with newlines; strip tags for safety
+    $sp = wp_strip_all_tags($sp);
+    // Cap length to 4000 chars for storage hygiene
+    if (function_exists('mb_substr')) { $sp = mb_substr($sp, 0, 4000); } else { $sp = substr($sp, 0, 4000); }
+    $clean_cap['system_policy'] = $sp;
+  }
+  // Optional domains allowlist for web search capability
+  if (isset($arr['domains']) && is_array($arr['domains'])) {
+    $doms = [];
+    foreach ($arr['domains'] as $d) {
+      $d = trim((string)$d);
+      if ($d === '') continue;
+      // keep host-ish strings: letters, digits, dots, dashes
+      $d = preg_replace('/[^a-z0-9\.-]/i', '', $d);
+      if ($d !== '' && !in_array($d,$doms,true)) $doms[] = $d;
+    }
+    if ($doms) { $clean_cap['domains'] = $doms; }
+  }
+  if ( ! function_exists('aichat_get_capability_settings_map') || ! function_exists('aichat_save_capability_settings_for_bot') ) {
+    wp_send_json_error(['message'=>'api_missing'],500);
+  }
+  $all = aichat_get_capability_settings_map(); if(!is_array($all)) $all = [];
+  if (!isset($all[$bot]) || !is_array($all[$bot])) { $all[$bot] = []; }
+  if (!isset($all[$bot][$cap]) || !is_array($all[$bot][$cap])) { $all[$bot][$cap] = []; }
+  // Merge new fields into existing cap settings
+  $all[$bot][$cap] = array_merge($all[$bot][$cap], $clean_cap);
+  aichat_save_capability_settings_for_bot($bot, $all[$bot]);
+  wp_send_json_success(['saved'=>true,'bot'=>$bot,'cap'=>$cap,'settings'=>$all[$bot][$cap]]);
 });
