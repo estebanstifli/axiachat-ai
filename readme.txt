@@ -4,13 +4,13 @@ Tags: chatbot, ai, openai, chat, assistant
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.1.5
+Stable tag: 1.1.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Short Description: Flexible AI chatbot with multiple bots, OpenAI & Claude, contextual embeddings (local or Pinecone), PDF ingestion, usage limits & GDPR tools.
 
 == Description ==
-AI Chat lets you add one or more AI‑powered chatbots to your WordPress site. Each bot can have its own model settings, instructions, UI colors, avatar and placement. It uses the OpenAI API (you must provide your own API key) and can augment answers with contextual data (documents, posts or imported PDF content) using a basic Retrieval Augmented Generation workflow.
+AxiaChat AI lets you add one or more AI‑powered chatbots to your WordPress site. Each bot can have its own model settings, instructions, UI colors, avatar and placement. It uses the OpenAI API (you must provide your own API key) and can augment answers with contextual data (documents, posts or imported PDF content) using a basic Retrieval Augmented Generation workflow.
 
 Conversation logs are stored locally (can be disabled) so you can review usage (see GDPR notes). All AI processing happens via direct calls from your server to OpenAI—no external SaaS proxy.
 
@@ -24,6 +24,7 @@ Conversation logs are stored locally (can be disabled) so you can review usage (
 * GDPR consent bubble inside the chat stream (blocks input until accepted)
 * Customizable UI: color, position, avatars, placeholder, start sentence, button label, draggable / minimizable panel (minimized by default optional)
 * Shortcode attribute overrides for quick per‑page customization
+* AI Tools: per‑bot capabilities (macros and atomic tools) including provider‑native web search, optional rules, and admin logs for tool calls
 * Action hooks: `aichat_after_response`, `aichat_conversation_saved` (extend for analytics, etc.)
 * Security: nonces + capability checks, prepared queries, escaping
 * Translation ready (text domain: axiachat-ai – formerly ai-chat) – Spanish included
@@ -31,17 +32,30 @@ Conversation logs are stored locally (can be disabled) so you can review usage (
 * Local vendor assets (Bootstrap / Icons) so no external CDN dependency
 
 == Installation ==
-1. Upload the `aichat` folder to `/wp-content/plugins/` (or install via Plugins > Add New).
+1. Upload the `axiachat-ai` folder to `/wp-content/plugins/` (or install via Plugins > Add New).
 2. Activate the plugin through the 'Plugins' screen.
-3. Go to AI Chat > Settings and add your OpenAI API key.
-4. Create or edit a Bot in AI Chat > Bots (set model, appearance, flags).
-5. (Optional) Add contextual content in AI Chat > Context (ingest PDFs or posts for embeddings).
+3. Go to AxiaChat AI > Settings and add your OpenAI API key.
+4. Create or edit a Bot in AxiaChat AI > Bots (set model, appearance, flags).
+5. (Optional) Add contextual content in AxiaChat AI > Context (ingest PDFs or posts for embeddings).
 6. Place a bot:
    * Inline: add `[aichat id="your-bot-slug"]` in a post or page.
    * Floating global widget: enable Global widget in Settings and select a bot.
 
 == Usage ==
-After installation, create at least one bot and (optionally) ingest context. Use the shortcode or enable the global widget. Adjust window control flags (closable, minimizable, draggable) in the bot settings.
+After installation, create at least one bot and (optionally) ingest context. Use the shortcode or enable the global widget. Adjust window control flags (closable, minimizable, draggable) in the bot settings. If you plan to let the assistant perform actions (search the web, send notifications, etc.), enable and configure AI Tools for that bot.
+
+== AI Tools (Capabilities, Macros & Rules) ==
+AxiaChat AI includes an optional “AI Tools” layer that lets the assistant perform controlled actions. You can enable prebuilt macros (groups of atomic tools) per bot and optionally restrict or authorize behavior.
+
+Highlights:
+* Provider‑native Web Search (OpenAI Responses): enable the `openai_web_search` macro to allow live web lookups. Optionally restrict to an Allowed Domains list per bot. When enabled, responses include cited sources when available.
+* Email notifications: safe defaults that send to site admin only, with policy gates and rate limits. Client emails require explicit server‑side authorization via a filter.
+* Rules (optional): define simple conditions to trigger automatic actions (e.g., ask follow‑up, speak a message, call a tool).
+* Tools Logs: review every tool call (duration, output excerpt, error) under the admin logs page.
+
+Notes:
+* On OpenAI GPT‑5* (Responses API), AxiaChat normalizes function tools to the required schema and passes the native `web_search` tool when enabled.
+* Tools are sandboxed by design and gated by policies; never expose secrets to models.
 
 == Easy Config Wizard ==
 Version 1.1.2 introduces an optional "Easy Config" wizard that appears after initial activation (or until completed). It performs:
@@ -233,6 +247,7 @@ No external JS/CDN calls are required; Bootstrap & Icons are bundled locally.
 
 == Roadmap ==
 == Roadmap ==
+== Roadmap ==
 * Conversation export / anonymize tooling
 * Expanded analytics dashboard
 * Additional AI providers (Azure OpenAI, Anthropic, etc.)
@@ -265,11 +280,21 @@ Yes (includes Spanish).
 Planned.
 
 == Screenshots ==
-1. Floating chat widget
-2. Bot configuration
-3. Context ingestion & indexing
+1. Bot configuration
+2. Context ingestion & indexing
+3. Usage / Costs
 
 == Changelog ==
+= 1.1.7 =
+* Added: Spanish (Spain) translations (es_ES).
+
+
+= 1.1.6 =
+* AI Tools: per‑bot capabilities & macros, including OpenAI native web search with optional domain allowlist
+* Normalized Tools schema for OpenAI Responses models (fixes missing `tools[0].name` errors)
+* AI Tools logs now stored in site‑local timezone for consistency
+* Admin UI/documentation improvements; coding standards cleanups
+
 = 1.1.3 =
 * AutoSync system (diff detection: modified/new/orphans) + queue merging
 * Manual “Run AutoSync Now” modal (modified / modified+new / full)

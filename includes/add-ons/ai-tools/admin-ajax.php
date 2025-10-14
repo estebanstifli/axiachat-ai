@@ -121,7 +121,8 @@ add_action('wp_ajax_aichat_tools_save_capability_settings', function(){
       $d = preg_replace('/[^a-z0-9\.-]/i', '', $d);
       if ($d !== '' && !in_array($d,$doms,true)) $doms[] = $d;
     }
-    if ($doms) { $clean_cap['domains'] = $doms; }
+    // Persist even if empty to allow clearing previous settings
+    $clean_cap['domains'] = $doms;
   }
   if ( ! function_exists('aichat_get_capability_settings_map') || ! function_exists('aichat_save_capability_settings_for_bot') ) {
     wp_send_json_error(['message'=>'api_missing'],500);
