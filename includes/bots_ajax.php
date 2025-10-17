@@ -57,7 +57,7 @@ function aichat_bots_defaults($over=[]){
     'provider'=>'openai','model'=>'gpt-5-nano','temperature'=>0.70,'max_tokens'=>2048,'reasoning'=>'off','verbosity'=>'medium',
   'context_mode'=>'page','context_id'=>0,
     'input_max_length'=>512,'max_messages'=>20,'context_max_length'=>4096,
-  'ui_color'=>'#1a73e8','ui_position'=>'br','ui_avatar_enabled'=>1,'ui_avatar_key'=>'avatar7','ui_icon_url'=>'','ui_start_sentence'=>'Hi! How can I help you?',
+  'ui_color'=>'#1a73e8','ui_position'=>'br','ui_avatar_enabled'=>1,'ui_avatar_key'=>'7','ui_icon_url'=>'','ui_start_sentence'=>'Hi! How can I help you?',
     /* nuevos por defecto */
     'ui_placeholder'  => 'Write your question...',
     'ui_button_send'  => 'Send',

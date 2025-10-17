@@ -3,7 +3,7 @@
  * Plugin Name:       AxiaChat AI
  * Plugin URI:        https://wpbotwriter.com/axiachat-ai
  * Description:       A customizable AI chatbot for WordPress with contextual embeddings, multi‑provider support and upcoming action rules.
- * Version:           1.1.7
+ * Version:           1.1.8
  * Requires at least: 5.0
  * Requires PHP:      7.4
  * Author:            estebandezafra
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Definir constantes del plugin
-define( 'AICHAT_VERSION', '1.1.7' );
+define( 'AICHAT_VERSION', '1.1.8' );
 define( 'AICHAT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AICHAT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define('AICHAT_DEBUG', true);
@@ -922,8 +922,12 @@ add_action('init', function(){
               if ( ! empty($row['ui_icon_url']) ) {
                 $avatar_url = esc_url_raw($row['ui_icon_url']);
               } elseif ( ! empty($row['ui_avatar_key']) ) {
-                $k = preg_replace('/[^a-z0-9_\-]/i','', $row['ui_avatar_key']);
-                if ($k) { $avatar_url = trailingslashit( AICHAT_PLUGIN_URL ) . 'assets/images/' . $k . '.png'; }
+                // Acepta '7' o 'avatar7' … hasta 22
+                $kraw = (string)$row['ui_avatar_key'];
+                if (preg_match('/^(?:avatar)?([1-9]|1[0-9]|2[0-2])$/i', $kraw, $mm)) {
+                  $num = $mm[1];
+                  $avatar_url = trailingslashit( AICHAT_PLUGIN_URL ) . 'assets/images/' . $num . '.png';
+                }
               }
             }
           $ui_map[$row['slug']] = [

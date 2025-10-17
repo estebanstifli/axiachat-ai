@@ -4,7 +4,7 @@ Tags: chatbot, ai, openai, chat, assistant
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.1.7
+Stable tag: 1.1.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Short Description: Flexible AI chatbot with multiple bots, OpenAI & Claude, contextual embeddings (local or Pinecone), PDF ingestion, usage limits & GDPR tools.
@@ -285,6 +285,10 @@ Planned.
 3. Usage / Costs
 
 == Changelog ==
+= 1.1.8 =
+* Added: new avatars to choose
+
+
 = 1.1.7 =
 * Added: Spanish (Spain) translations (es_ES).
 

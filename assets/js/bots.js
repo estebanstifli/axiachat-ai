@@ -383,15 +383,22 @@
       .map(o => `<option value="${String(o.id)}" ${String(bot.context_id)===String(o.id)?'selected':''}>${escapeHtml(o.text)}</option>`)
       .join('');
 
-    // Avatares desde assets/images/avatar1.png ... avatar9.png
+    // Avatares desde assets/images/1.png ... 22.png (compat: aceptar 'avatarN' legacy)
     const scriptEl = document.querySelector('script[src*="assets/js/bots.js"]');
     const pluginBase = scriptEl ? scriptEl.src.replace(/assets\/js\/bots\.js.*$/, '') : '';
     const imgBase = `${pluginBase}assets/images/`;
 
-    const avatars = Array.from({ length: 9 }, (_, idx) => {
-      const key = `avatar${idx + 1}`;
-      const url = `${imgBase}${key}.png`;
-      const isActive = (String(bot.ui_avatar_key) === key);
+    // Normaliza la clave actual: puede venir 'avatar7' (legacy) o '7' (nuevo)
+    const currentKeyRaw = String(bot.ui_avatar_key || '');
+    const matchLegacy = currentKeyRaw.match(/^(?:avatar)?(\d{1,2})$/i);
+    const currentNum = matchLegacy ? matchLegacy[1] : '';
+
+    const totalAvatars = 22;
+    const avatars = Array.from({ length: totalAvatars }, (_, idx) => {
+      const num = String(idx + 1);
+      const key = num; // almacenamos el valor numérico como nueva clave
+      const url = `${imgBase}${num}.png`;
+      const isActive = (String(currentNum) === num);
       const checked = isActive ? 'checked' : '';
       const activeCls = isActive ? ' active' : '';
       return `

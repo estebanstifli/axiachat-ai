@@ -101,8 +101,13 @@ function aichat_render_shortcode( $atts, $content = null, $tag = 'aichat' ) {
     $avatar_url = '';
     if (!empty($ui_icon_url)) {
         $avatar_url = esc_url_raw($ui_icon_url);
-    } elseif (preg_match('/^avatar([1-9])$/', (string)$ui_avatar_key)) {
-        $avatar_url = $plugin_base_url . 'assets/images/' . $ui_avatar_key . '.png';
+    } else {
+        // Acepta claves '7' o 'avatar7' … hasta 22
+        $m = [];
+        if (preg_match('/^(?:avatar)?([1-9]|1[0-9]|2[0-2])$/i', (string)$ui_avatar_key, $m)) {
+            $num = $m[1];
+            $avatar_url = $plugin_base_url . 'assets/images/' . $num . '.png';
+        }
     }
 
     // Overrides por shortcode si vinieran
