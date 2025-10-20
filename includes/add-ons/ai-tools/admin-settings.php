@@ -23,6 +23,11 @@ function aichat_tools_settings_page(){
     . esc_html__('Rules','axiachat-ai')
     . '    </button>'
     . '  </li>';
+  echo '  <li class="nav-item" role="presentation">'
+    . '    <button class="nav-link" id="tab-testtools" data-bs-toggle="tab" data-bs-target="#pane-testtools" type="button" role="tab" aria-controls="pane-testtools" aria-selected="false">'
+    . esc_html__('Test Tools','axiachat-ai')
+    . '    </button>'
+    . '  </li>';
   echo '</ul>';
 
   echo '<div class="tab-content aichat-tab-content-full" id="aichat-tools-tabcontent">';
@@ -86,6 +91,35 @@ function aichat_tools_settings_page(){
   echo '    </div>';
   echo '    <div id="aichat-tools-builder"></div>';
   echo '  </div>'; // end rules tab pane
+  
+  // Test Tools pane
+  echo '  <div class="tab-pane fade pt-3" id="pane-testtools" role="tabpanel" aria-labelledby="tab-testtools">';
+  echo '    <div class="card card100 mb-4 shadow-sm aichat-card-border">';
+  echo '      <div class="card-header bg-light d-flex align-items-center aichat-card-header-border">'
+    . '        <i class="bi bi-bug-fill text-danger me-2" aria-hidden="true"></i>'
+    . '        <strong>'.esc_html__('Test Underlying Tools','axiachat-ai').'</strong>'
+    . '      </div>';
+  echo '      <div class="card-body p-3">';
+  echo '        <div class="mb-3">';
+  echo '          <label for="aichat-testtool-select" class="form-label">'.esc_html__('Select a tool','axiachat-ai').'</label>';
+  echo '          <select id="aichat-testtool-select" class="form-select" disabled><option>'.esc_html__('Loading tools...','axiachat-ai').'</option></select>';
+  echo '        </div>';
+  echo '        <div id="aichat-testtool-desc" class="text-muted mb-2"></div>';
+  echo '        <div id="aichat-testtool-form" class="mb-3"></div>';
+  echo '        <div class="d-flex gap-2">';
+  echo '          <button type="button" class="button button-primary" id="aichat-testtool-run" disabled>'
+    . '            <i class="bi bi-play-fill" aria-hidden="true"></i> '.esc_html__('Test','axiachat-ai')
+    . '          </button>';
+  echo '          <span id="aichat-testtool-status" class="ms-2 aichat-status-text"></span>';
+  echo '        </div>';
+  echo '        <hr/>';
+  echo '        <div>';
+  echo '          <label class="form-label">'.esc_html__('Result','axiachat-ai').'</label>';
+  echo '          <pre id="aichat-testtool-result" style="background:#0b1020;color:#d7e1ff;padding:10px;border-radius:6px;overflow:auto;max-height:380px;"></pre>';
+  echo '        </div>';
+  echo '      </div>';
+  echo '    </div>';
+  echo '  </div>'; // end test tools pane
   echo '</div>'; // end tab-content
   echo '</div>';
 }

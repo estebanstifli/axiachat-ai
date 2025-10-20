@@ -38,6 +38,13 @@
       loading: false,
       dirty: false,
       settings: {} // map capId -> { system_policy: string, ... }
+    },
+    testTools: {
+      tools: {}, // id -> {name,description,schema}
+      loaded: false,
+      selected: '',
+      args: {},
+      running: false
     }
   };
 
@@ -206,6 +213,19 @@
     const $list = $('#aichat-capabilities-list');
     if(!$list.length) return;
     $list.empty();
+    // Dependency warning for SSA using server-provided flags
+    try {
+      const ssaMacrosPresent = state.capabilities.available?.some?.(c=>c.id==='ssa_availability' || c.id==='ssa_booking');
+      const addonEnabled = (window.aichat_tools_ajax?.ssa_addon_enabled|0) === 1;
+      const ssaActive = (window.aichat_tools_ajax?.ssa_active|0) === 1;
+      if (ssaMacrosPresent && addonEnabled && !ssaActive) {
+        $('<div class="col-12">\
+            <div class="notice notice-warning" style="padding:8px 12px; border-left:4px solid #dba617; background:#fff8e5;">\
+              <strong>Simply Schedule Appointments</strong> is not active. SSA capabilities will be visible but won\'t work until the SSA plugin is installed and activated.\
+            </div>\
+          </div>').appendTo($list);
+      }
+    } catch(e){}
     if(state.capabilities.loading){
       $('<div class="col-12"><em>Loading...</em></div>').appendTo($list);
       return;
@@ -281,6 +301,111 @@
     }).fail(()=>{
       state.capabilities.loading=false; state.capabilities.available=[]; renderCapabilities();
     });
+  }
+
+  // ==== Test Tools (Underlying tools) ====
+  function loadTestTools(){
+    const $sel = $('#aichat-testtool-select');
+    if(!$sel.length) return;
+    $sel.prop('disabled', true).empty().append($('<option/>').text('Loading tools...'));
+    $.ajax({
+      url: aichat_tools_ajax.ajax_url,
+      method: 'POST',
+      data: { action:'aichat_tools_list_all_tools', nonce:aichat_tools_ajax.nonce },
+      dataType:'json'
+    }).done(function(res){
+      state.testTools.tools = res.success ? (res.data.tools||{}) : {};
+      state.testTools.loaded = true;
+      renderTestToolsSelect();
+    }).fail(function(){ state.testTools.tools={}; state.testTools.loaded=true; renderTestToolsSelect(); });
+  }
+
+  function renderTestToolsSelect(){
+    const $sel = $('#aichat-testtool-select'); if(!$sel.length) return;
+    $sel.empty();
+    const ids = Object.keys(state.testTools.tools);
+    if(ids.length===0){ $sel.append($('<option/>').text('No tools available')); $sel.prop('disabled', true); return; }
+    $sel.append($('<option/>').attr('value','').text('Select a tool...'));
+    ids.sort().forEach(id=>{ const def = state.testTools.tools[id]; $sel.append($('<option/>').attr('value',id).text(def.name||id)); });
+    $sel.prop('disabled', false);
+  }
+
+  function renderTestToolDetails(){
+    const id = state.testTools.selected; const def = state.testTools.tools[id] || null;
+    const $desc = $('#aichat-testtool-desc'); const $form = $('#aichat-testtool-form');
+    const $run = $('#aichat-testtool-run');
+    $desc.text(''); $form.empty(); $run.prop('disabled', true);
+    if(!def) return;
+    if(def.description) $desc.text(def.description);
+    const schema = def.schema || {};
+    if((schema.type||'') !== 'object'){ $('<div class="text-muted"/>').text('This tool has no parameter object.').appendTo($form); $run.prop('disabled', false); return; }
+    const props = schema.properties || {};
+    const required = Array.isArray(schema.required) ? schema.required : [];
+    state.testTools.args = {};
+    Object.keys(props).forEach(key=>{
+      const spec = props[key] || {}; const t = (spec.type||'string');
+      const label = spec.description || key;
+      const $row = $('<div class="mb-2"/>').appendTo($form);
+      $('<label class="form-label fw-semibold"/>').text(label + (required.includes(key)?' *':'' )).appendTo($row);
+      let $input;
+      if(t==='integer' || t==='number'){
+        $input = $('<input type="number" class="form-control"/>');
+      } else if (t==='boolean'){
+        $input = $('<select class="form-select"/>').append('<option value="false">false</option><option value="true">true</option>');
+      } else if (t==='object'){
+        $input = $('<textarea class="form-control" rows="3"/>').attr('placeholder','{"key":"value"}');
+      } else if (t==='array'){
+        $input = $('<textarea class="form-control" rows="2"/>').attr('placeholder','[1,2,3]');
+      } else {
+        $input = $('<input type="text" class="form-control"/>' );
+        // Friendly placeholders for common datetime fields
+        const lowerKey = String(key).toLowerCase();
+        if (lowerKey === 'from' || lowerKey === 'to' || lowerKey === 'start'){
+          $input.attr('placeholder','YYYY-MM-DD HH:MM:SS');
+          let hint = 'Format: Y-m-d H:i:s (site local time). You can also use Y-m-d.';
+          if (lowerKey === 'from') hint += ' Default: now.';
+          if (lowerKey === 'to') hint += ' Default: now + 7 days.';
+          $('<div class="form-text text-muted small"/>')
+            .text(hint)
+            .appendTo($row);
+        }
+      }
+      $input.on('input change', function(){ captureArgValue(key, t, $(this).val()); });
+      $row.append($input);
+    });
+    $run.prop('disabled', false);
+  }
+
+  function captureArgValue(key, type, raw){
+    let val = raw;
+    try{
+      if(type==='integer'){ val = parseInt(raw,10); if(isNaN(val)) val = 0; }
+      else if(type==='number'){ val = parseFloat(raw); if(isNaN(val)) val = 0; }
+      else if(type==='boolean'){ val = String(raw) === 'true'; }
+      else if(type==='object' || type==='array'){ val = raw ? JSON.parse(raw) : (type==='object'? {} : []); }
+      else { val = String(raw||''); }
+    }catch(e){ /* ignore parse errors until submit */ }
+    state.testTools.args[key] = val;
+  }
+
+  function runTestTool(){
+    const id = state.testTools.selected; if(!id) return;
+    const $status = $('#aichat-testtool-status'); const $result = $('#aichat-testtool-result');
+    $status.text('Running...'); $result.text('');
+    $.ajax({
+      url: aichat_tools_ajax.ajax_url,
+      method: 'POST',
+      data: { action:'aichat_tools_run_tool', nonce:aichat_tools_ajax.nonce, tool: id, args: JSON.stringify(state.testTools.args||{}) },
+      dataType:'json'
+    }).done(function(res){
+      $status.text('');
+      if(res.success){
+        const out = (res.data && typeof res.data === 'object') ? res.data : res;
+        $result.text(JSON.stringify(out, null, 2));
+      } else {
+        $result.text(JSON.stringify({ok:false,error:'ajax_failed'}, null, 2));
+      }
+    }).fail(function(){ $status.text(''); $result.text(JSON.stringify({ok:false,error:'network'}, null, 2)); });
   }
 
   function loadCapabilitySettings(){
@@ -401,10 +526,13 @@
     if($('#aichat-tools-builder').length){
       loadRules();
       loadCapabilities();
+      loadTestTools();
       $('#aichat-tools-add-rule').on('click', addRule);
       $('#aichat-tools-save').on('click', saveRules);
       $('#aichat-tools-bot').on('change', function(){ state.rules=[]; render(); loadRules(); loadCapabilities(); });
       $('#aichat-capabilities-save').on('click', saveCapabilities);
+      $(document).on('change', '#aichat-testtool-select', function(){ state.testTools.selected = $(this).val(); renderTestToolDetails(); });
+      $(document).on('click', '#aichat-testtool-run', runTestTool);
     }
   });
 

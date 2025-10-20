@@ -35,6 +35,32 @@ if ( ! function_exists( 'aichat_register_tool' ) ) {
             return false;
         }
         if ( $tool['type'] === 'function' ) {
+            // Defensive normalization of JSON Schema
+            if ( is_array($tool['schema']) ) {
+                // Default to object if type omitted
+                if ( empty($tool['schema']['type']) ) {
+                    $tool['schema']['type'] = 'object';
+                }
+                // Ensure properties is an object when empty
+                if ( isset($tool['schema']['properties']) ) {
+                    if ( is_array($tool['schema']['properties']) && empty($tool['schema']['properties']) ) {
+                        // Convert [] → {} to satisfy OpenAI validator
+                        $tool['schema']['properties'] = (object) [];
+                    }
+                } else {
+                    // Provide empty object properties by default
+                    $tool['schema']['properties'] = (object) [];
+                }
+                // Coerce additionalProperties to boolean if present
+                if ( isset($tool['schema']['additionalProperties']) ) {
+                    $tool['schema']['additionalProperties'] = (bool) $tool['schema']['additionalProperties'];
+                }
+                // Ensure required is array if present
+                if ( isset($tool['schema']['required']) && ! is_array($tool['schema']['required']) ) {
+                    $tool['schema']['required'] = [];
+                }
+            }
+            // Validation after normalization
             if ( ! is_array( $tool['schema'] ) || empty( $tool['schema'] ) ) {
                 return false;
             }

@@ -153,6 +153,12 @@ function aichat_register_simple_settings() {
                 'sanitize_callback' => 'aichat_sanitize_checkbox',
                 'default' => 1,
             ] );
+            // Add-ons: Simply Schedule Appointments tools toggle (depends on AI Tools)
+            register_setting( $option_group, 'aichat_tools_ssa_enabled', [
+                'type' => 'boolean',
+                'sanitize_callback' => 'aichat_sanitize_checkbox',
+                'default' => 0,
+            ] );
         
 
 
@@ -444,13 +450,30 @@ https://sub.site2.net"><?php echo esc_textarea($embed_origins_raw); ?></textarea
                                     <i class="bi bi-puzzle-fill me-2"></i><strong><?php echo esc_html__('Add-ons', 'axiachat-ai'); ?></strong>
                                 </div>
                                 <div class="card-body">
-                                    <div class="aichat-checkbox-row mb-0">
+                                    <div class="aichat-checkbox-row mb-3">
                                         <input type="hidden" name="aichat_addon_ai_tools_enabled" value="0" />
                                         <label for="aichat_addon_ai_tools_enabled" class="aichat-checkbox-label">
                                             <input type="checkbox" id="aichat_addon_ai_tools_enabled" name="aichat_addon_ai_tools_enabled" value="1" <?php checked( (int) aichat_get_setting('aichat_addon_ai_tools_enabled'), 1 ); ?> />
                                             <span><?php echo esc_html__('Enable AI Tools (tools & macros system)', 'axiachat-ai'); ?></span>
                                         </label>
                                         <div class="form-text ms-0"><?php echo esc_html__('When enabled, exposes the AI Tools menus and allows bots to call registered tools/macros.', 'axiachat-ai'); ?></div>
+                                    </div>
+                                    <?php $ai_tools_enabled_flag = (int) aichat_get_setting('aichat_addon_ai_tools_enabled'); ?>
+                                    <div class="aichat-checkbox-row mb-0">
+                                        <input type="hidden" name="aichat_tools_ssa_enabled" value="0" />
+                                        <label for="aichat_tools_ssa_enabled" class="aichat-checkbox-label">
+                                            <input type="checkbox" id="aichat_tools_ssa_enabled" name="aichat_tools_ssa_enabled" value="1" <?php checked( (int) get_option('aichat_tools_ssa_enabled', 0), 1 ); ?> <?php disabled( ! $ai_tools_enabled_flag ); ?> />
+                                            <span><?php echo esc_html__('Enable Simply Schedule Appointments (SSA) tools', 'axiachat-ai'); ?></span>
+                                        </label>
+                                        <div class="form-text ms-0">
+                                            <?php
+                                            if ( ! $ai_tools_enabled_flag ) {
+                                                echo esc_html__( 'Requires AI Tools enabled. Turn on AI Tools above to activate SSA integration.', 'axiachat-ai' );
+                                            } else {
+                                                echo esc_html__( 'Registers tools/macros to list services, check availability and create bookings. Requires the SSA plugin.', 'axiachat-ai' );
+                                            }
+                                            ?>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -559,3 +582,32 @@ if ( ! function_exists( 'aichat_admin_api_key_notice' ) ) {
     add_action( 'admin_notices', 'aichat_admin_api_key_notice' );
     add_action( 'network_admin_notices', 'aichat_admin_api_key_notice' );
 }
+
+// Enforce SSA depends on AI Tools: if AI Tools is disabled, force SSA option to 0 when saving
+add_filter( 'pre_update_option_aichat_tools_ssa_enabled', function( $new, $old ) {
+    $ai_tools_enabled = (int) get_option( 'aichat_addon_ai_tools_enabled', 0 );
+    // If the setting is being saved in the same form submission, prefer POST over stored option
+    if ( isset( $_POST['aichat_addon_ai_tools_enabled'] ) ) {
+        $ai_tools_enabled = (int) $_POST['aichat_addon_ai_tools_enabled'];
+    }
+    if ( ! $ai_tools_enabled ) {
+        // If user tried to enable SSA while AI Tools is off, set a one-time notice
+        if ( ! empty( $new ) && $new !== '0' ) {
+            set_transient( 'aichat_ssa_dep_notice', 1, 60 );
+        }
+        return 0; // Hard-disable SSA when AI Tools are off
+    }
+    // Otherwise honor sanitized checkbox value
+    return ( ! empty( $new ) && $new !== '0' ) ? 1 : 0;
+}, 10, 2 );
+
+// Show notice if SSA couldn't be enabled because AI Tools was disabled
+add_action( 'admin_notices', function() {
+    if ( get_transient( 'aichat_ssa_dep_notice' ) ) {
+        delete_transient( 'aichat_ssa_dep_notice' );
+        echo '<div class="notice notice-warning is-dismissible"><p><strong>'
+            . esc_html__( 'AxiaChat AI', 'axiachat-ai' ) . ':</strong> '
+            . esc_html__( 'Simply Schedule Appointments tools require AI Tools to be enabled. Turn on AI Tools first.', 'axiachat-ai' )
+            . '</p></div>';
+    }
+});

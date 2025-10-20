@@ -1,5 +1,12 @@
 <?php
 // Moved sample tools from includes/tools-sample.php
+//
+// Convenciones de registro de tools:
+// - 'description' (MODELO): guía de uso para el LLM (cuándo/cómo usar la tool, formatos, restricciones).
+// - 'activity_label' (UI): texto visible en UI cuando la tool está "ejecutándose" (spinner/progreso).
+// - 'schema': parámetros con tipos + descriptions que el MODELO lee para construir llamadas correctas.
+// - 'name' y 'type': identificadores de la tool que ve el MODELO; mantener estables.
+// - Las descriptions en propiedades del schema deben ser explícitas (formato de fechas, unidades, rangos).
 if ( ! defined('ABSPATH') ) { exit; }
 
 if ( ! function_exists('aichat_register_tool_safe') ) {
@@ -21,7 +28,7 @@ function aichat_sample_get_wp_timezone(){
 
 aichat_register_tool_safe( 'util_get_datetime', [
   'type'=>'function','name'=>'util_get_datetime','description'=>'Get the current server date and time in ISO8601, human-readable and Unix timestamp forms. Optional timezone identifier.',
-  'activity_label'=>'Fetching current date & time...',
+  'activity_label'=>'Fetching current date & time...', // UI
   'schema'=>['type'=>'object','properties'=>[
     'timezone'=>['type'=>'string','description'=>'PHP timezone identifier, e.g., Europe/Madrid. Defaults to site timezone.'],
     'format'=>['type'=>'string','description'=>'Optional PHP date() format string for custom_format output.'],
@@ -34,7 +41,7 @@ aichat_register_tool_safe( 'util_get_datetime', [
 
 aichat_register_tool_safe( 'util_mortgage_payment', [
   'type'=>'function','name'=>'util_mortgage_payment','description'=>'Calculate monthly payment and summary for a fixed-rate amortizing loan (principal, annual interest %, years).',
-  'activity_label'=>'Calculating mortgage payment...',
+  'activity_label'=>'Calculating mortgage payment...', // UI
   'schema'=>['type'=>'object','properties'=>[
     'principal'=>['type'=>'number','description'=>'Loan principal amount (>=0).'],
     'annual_interest_percent'=>['type'=>'number','description'=>'Annual nominal interest rate in percent (e.g., 5.5).'],
@@ -48,31 +55,18 @@ aichat_register_tool_safe( 'util_mortgage_payment', [
 
 aichat_register_tool_safe( 'util_list_categories', [
   'type'=>'function','name'=>'util_list_categories','description'=>'MUST be called whenever the user asks (in English or Spanish) about blog categories. NEVER guess: always invoke this tool to fetch real categories with names, slugs and counts.',
-  'activity_label'=>'Fetching real blog categories...','schema'=>['type'=>'object','properties'=>[
+  'activity_label'=>'Fetching real blog categories...', // UI
+  'schema'=>['type'=>'object','properties'=>[
     'with_counts'=>['type'=>'boolean','description'=>'If true include post counts (default true).'],
     'limit'=>['type'=>'integer','description'=>'Optional max number of categories to return (default all).']
   ],'required'=>[],'additionalProperties'=>false],
   'callback'=>function($args){ $with_counts=isset($args['with_counts'])?(bool)$args['with_counts']:true; $limit=isset($args['limit'])?max(1,(int)$args['limit']):0; $tax_args=['taxonomy'=>'category','hide_empty'=>false]; $terms=get_terms($tax_args); if(is_wp_error($terms)){return ['error'=>'taxonomy_error','message'=>$terms->get_error_message()];} $out=[]; foreach($terms as $t){ $item=['name'=>$t->name,'slug'=>$t->slug]; if($with_counts){$item['count']=(int)$t->count;} $out[]=$item; if($limit && count($out)>=$limit) break; } return ['categories'=>$out,'total'=>count($out)]; },
   'timeout'=>5,'parallel'=>true,'max_calls'=>1]);
 
-if ( function_exists('aichat_ssa_disponibilidad') ) {
-  aichat_register_tool_safe( 'aichat_ssa_disponibilidad', [
-    'type'=>'function','name'=>'aichat_ssa_disponibilidad',
-    'description'=>'Fetch REAL appointment availability (start datetime slots) for Simply Schedule Appointments. Call whenever the user asks about availability. NEVER guess times.','activity_label'=>'Checking real appointment availability...',
-    'schema'=>['type'=>'object','properties'=>[
-      'appointment_type_id'=>['type'=>'integer','description'=>'(Optional) Appointment type ID.'],
-      'start'=>['type'=>'string','description'=>'Optional start (Y-m-d H:i:s). Defaults to now.'],
-      'end'=>['type'=>'string','description'=>'Optional end (Y-m-d H:i:s).'],
-      'limit'=>['type'=>'integer','description'=>'Optional max number of slots.'],
-    ],'required'=>[],'additionalProperties'=>false],
-    'callback'=>function($args){ if(!function_exists('aichat_ssa_disponibilidad')) return ['error'=>'ssa_not_loaded']; $appointment_type_id=isset($args['appointment_type_id'])?(int)$args['appointment_type_id']:null; $start=isset($args['start'])?trim($args['start']):null; $end=isset($args['end'])?trim($args['end']):null; $slots=call_user_func('aichat_ssa_disponibilidad',$appointment_type_id,$start,$end); if(is_string($slots)) return ['error'=>$slots]; if(!is_array($slots)) return ['error'=>'unexpected_return_type']; return ['slots'=>array_values($slots),'count'=>count($slots)]; },
-    'timeout'=>5,'parallel'=>false,'max_calls'=>1]);
-}
 
 if ( function_exists('aichat_register_macro') ) {
   aichat_register_macro(['name'=>'basic_utilities_demo','label'=>'Basic Utilities (Demo)','description'=>'Provides current datetime and mortgage payment calculation.','tools'=>['util_get_datetime','util_mortgage_payment']]);
-  aichat_register_macro(['name'=>'content_categories','label'=>'Content: Blog Categories','description'=>'Allows the assistant to list real WordPress blog categories (names, slugs, counts).','tools'=>['util_list_categories']]);
-  if ( function_exists('aichat_ssa_disponibilidad') ) { aichat_register_macro(['name'=>'appointments_availability','label'=>'Appointments: Availability','description'=>'Provides real booking availability slots.','tools'=>['aichat_ssa_disponibilidad']]); }
+  aichat_register_macro(['name'=>'content_categories','label'=>'Content: Blog Categories','description'=>'Allows the assistant to list real WordPress blog categories (names, slugs, counts).','tools'=>['util_list_categories']]);  
 }
 
 // === OpenAI Web Search (builtin tool for Responses models) ===
@@ -80,7 +74,7 @@ if ( function_exists('aichat_register_macro') ) {
 aichat_register_tool_safe('__builtin_openai_web_search', [
   'type' => 'custom',
   'name' => 'openai_web_search_builtin',
-  'description' => 'Builtin OpenAI Web Search tool (Responses models only). Selecting this enables web search on compatible models.',
+  'description' => 'Builtin OpenAI Web Search tool (Responses models only). Selecting this enables web search on compatible models.', // MODELO
   'callback' => '__return_null'
 ]);
 
@@ -88,7 +82,7 @@ if ( function_exists('aichat_register_macro') ) {
   aichat_register_macro([
     'name' => 'openai_web_search',
     'label' => 'OpenAI: Web Search',
-    'description' => 'Allows the assistant to use OpenAI built-in Web Search (Responses models only).',
+    'description' => 'Allows the assistant to use OpenAI built-in Web Search (Responses models only).', // UI/Admin
     'tools' => ['__builtin_openai_web_search']
   ]);
 }

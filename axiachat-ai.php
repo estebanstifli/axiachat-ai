@@ -37,7 +37,7 @@ if ( ! function_exists( 'aichat_log_debug' ) ) {
    * @param string $message  Short message (without prefix).
    * @param array  $context  Optional associative array (scalars preferred).
    */
-  function aichat_log_debug( $message, array $context = [] ) {
+  function aichat_log_debug( $message, array $context = [], $active_ai = false ) {
     if ( ! ( defined( 'AICHAT_DEBUG' ) && AICHAT_DEBUG ) ) {
       return;
     }
@@ -57,7 +57,15 @@ if ( ! function_exists( 'aichat_log_debug' ) ) {
         $message .= ' | ' . $json;
       }
     }
-    error_log( '[AIChat] ' . $message );
+    $line = '[AIChat] ' . $message;
+    error_log( $line );
+    // Optional secondary AI log file for model I/O, etc.
+    if ( $active_ai ) {
+      $ai_log = trailingslashit( WP_CONTENT_DIR ) . 'debug_ia.log';
+      // Use message_type = 3 to append to a specific file path.
+      // Suppress warnings if the file is not writable to avoid breaking normal flow.
+      @error_log( $line . "\n", 3, $ai_log );
+    }
   }
 }
 
@@ -81,6 +89,28 @@ if ( $aichat_ai_tools_enabled ) {
   if ( file_exists( $addon_dir . 'admin-logs.php' ) ) require_once $addon_dir . 'admin-logs.php';
   if ( file_exists( $addon_dir . 'admin-ajax.php' ) ) require_once $addon_dir . 'admin-ajax.php';
   if ( file_exists( $addon_dir . 'tools-sample.php' ) ) require_once $addon_dir . 'tools-sample.php';
+  // Conditionally load Simply Schedule Appointments add-on tools if enabled via option
+  $ssa_dir = trailingslashit( $addon_dir . 'simply-schedule-appointments' );
+  $ssa_enabled = (int) get_option( 'aichat_tools_ssa_enabled', 0 );
+  if ( $ssa_enabled ) {
+    if ( file_exists( $ssa_dir . 'loader.php' ) ) {
+      // Defer loader until all plugins are loaded to ensure SSA defines its API
+      add_action('plugins_loaded', function() use ($ssa_dir) {
+        $detected = ( function_exists('ssa') || class_exists('SSA_Appointment') || class_exists('Simply_Schedule_Appointments') );
+        if ( $detected ) {
+          require_once $ssa_dir . 'loader.php';
+        } else {
+          add_action('init', function() use ($ssa_dir) {
+            require_once $ssa_dir . 'loader.php';
+          }, 20);
+        }
+      }, 20);
+    } else {
+      // Loader missing; nothing to include
+    }
+  } else {
+    // SSA add-on disabled in settings
+  }
 }
 require_once AICHAT_PLUGIN_DIR . 'includes/class-aichat-ajax.php';
 require_once AICHAT_PLUGIN_DIR . 'includes/settings.php';
@@ -699,9 +729,14 @@ function aichat_admin_menu() {
     if ( $page === 'aichat-tools' && (int) get_option('aichat_addon_ai_tools_enabled', 1 ) === 1 ) {
       wp_enqueue_style('aichat-tools-css', AICHAT_PLUGIN_URL . 'assets/css/tools.css', ['aichat-admin'], AICHAT_VERSION);
       wp_enqueue_script('aichat-tools-js', AICHAT_PLUGIN_URL . 'assets/js/tools.js', ['jquery'], AICHAT_VERSION, true);
+      // Compute SSA environment flags for accurate UI notices
+      $ssa_addon_enabled = (int) get_option('aichat_tools_ssa_enabled', 0) === 1;
+      $ssa_active = function_exists('ssa') || class_exists('Simply_Schedule_Appointments') || class_exists('SSA_Appointment_Model');
       wp_localize_script('aichat-tools-js','aichat_tools_ajax', [
         'ajax_url' => admin_url('admin-ajax.php'),
-        'nonce'    => wp_create_nonce('aichat_tools_nonce')
+        'nonce'    => wp_create_nonce('aichat_tools_nonce'),
+        'ssa_addon_enabled' => $ssa_addon_enabled ? 1 : 0,
+        'ssa_active' => $ssa_active ? 1 : 0,
       ]);
       wp_localize_script('aichat-tools-js','aichat_tools_i18n', [
         'no_rules' => __('No rules defined yet. Use the + button to create the first one.','axiachat-ai'),

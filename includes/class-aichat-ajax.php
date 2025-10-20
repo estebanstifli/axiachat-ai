@@ -357,6 +357,27 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             }
 
             // 5) Llamar al proveedor
+            // Pretty log: request summary (system, prompt, tools) before calling provider
+            if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+                $pretty_user_prompt = $this->extract_question_from_user_message($current_user_msg['content'] ?? '', $message);
+                $tools_list = $this->extract_tool_names_for_log(isset($active_tools)?$active_tools:[]);
+                $hist_pairs = (int)floor(count($history_msgs) / 2);
+                $req_pretty = $this->format_pretty_request_log([
+                    'uid'          => $uid,
+                    'provider'     => $provider,
+                    'model'        => $model,
+                    'temperature'  => $temperature,
+                    'max_tokens'   => $max_tokens,
+                    'mode'         => $mode_arg,
+                    'context_count'=> $ctx_count,
+                    'history_pairs'=> $hist_pairs,
+                    'messages_total'=> count($messages),
+                    'system'       => (string)($system_msg['content'] ?? ''),
+                    'prompt'       => $pretty_user_prompt,
+                    'tools'        => $tools_list,
+                ]);
+                aichat_log_debug($req_pretty, [], true);
+            }
             // === USAGE LIMITS (antes de llamar al proveedor) ===
             if ( get_option('aichat_usage_limits_enabled', 1 ) ) {
                 global $wpdb; $conv_table = $wpdb->prefix.'aichat_conversations';
@@ -441,10 +462,10 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 $round = 1;
                 $acc_messages = $messages; // iremos añadiendo assistant + tool outputs
                 $registered = function_exists('aichat_get_registered_tools') ? aichat_get_registered_tools() : [];
-                aichat_log_debug("[AIChat Tools][$uid] start loop max_rounds={$max_rounds} tools=".count($active_tools));
+                aichat_log_debug("[AIChat Tools][$uid] start loop max_rounds={$max_rounds} tools=".count($active_tools), [], true);
                 $result = null; $final_answer = '';
                 while ( $round <= $max_rounds ) {
-                    aichat_log_debug("[AIChat Tools][$uid] round={$round} calling model={$model} msg_count=".count($acc_messages));
+                    aichat_log_debug("[AIChat Tools][$uid] round={$round} calling model={$model} msg_count=".count($acc_messages), [], true);
                     // Start timer for this round
                     $t_r0 = microtime(true);
                     $result = $this->call_openai_auto( $openai_key, $model, $acc_messages, $temperature, $max_tokens, [ 'tools'=>$active_tools ] );
@@ -453,7 +474,19 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                     if ( is_array($result) && isset($result['error']) ) { break; }
                     $raw_msg = (string)($result['message'] ?? '');
                     $has_tool_calls = ( is_array($result) && !empty($result['tool_calls']) );
-                    aichat_log_debug('[AIChat Tools]['.$uid.'] round='.$round.' finish answer_len='.mb_strlen($raw_msg).' tool_calls='.( $has_tool_calls ? count($result['tool_calls']) : 0 ).' time_ms='.round(($t_r1-$t_r0)*1000));
+                    // Pretty per-round log
+                    if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+                        $pretty_round = $this->format_pretty_response_log([
+                            'uid'        => $uid,
+                            'provider'   => 'openai',
+                            'model'      => $model,
+                            'answer'     => $raw_msg,
+                            'tool_calls' => $has_tool_calls ? count($result['tool_calls']) : 0,
+                            'usage'      => is_array($result['usage'] ?? null) ? $result['usage'] : [],
+                            'timings_ms' => [ 'round' => round(($t_r1-$t_r0)*1000) ],
+                        ]);
+                        aichat_log_debug("[AIChat Tools][$uid] Round={$round} summary\n".$pretty_round, [], true);
+                    }
                     // Si no hay tool calls o se alcanzó el límite, finalizamos
                     if ( ! $has_tool_calls ) { $final_answer = $raw_msg; break; }
                     if ( $round === $max_rounds ) { // alcanzamos límite sin respuesta textual final
@@ -494,7 +527,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                         }
                         $elapsed_tool = round((microtime(true)-$start_exec)*1000);
                         if ( mb_strlen($out_str) > 4000 ) { $out_str = mb_substr($out_str,0,4000).'…'; }
-                        aichat_log_debug('[AIChat Tools]['.$uid.'] round='.$round.' tool_exec fname='.$fname.' ms='.$elapsed_tool.' args_len='.strlen($raw_args));
+                        aichat_log_debug('[AIChat Tools]['.$uid.'] round='.$round.' tool_exec fname='.$fname.' ms='.$elapsed_tool.' args_len='.strlen($raw_args), [], true);
                         global $wpdb; $tool_tbl = $wpdb->prefix.'aichat_tool_calls';
                         $wpdb->insert($tool_tbl,[
                             'request_uuid'=>$request_uuid,
@@ -532,15 +565,29 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                         'bot_slug' => $bot_slug_r,
                         'model' => $model,
                     ];
+                    if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+                        aichat_log_debug('[AIChat Responses]['.$uid.'] tool_pending handshake response_id='.($result['response_id'] ?? '-').' tool_calls='.(is_array($result['tool_calls'] ?? null) ? count($result['tool_calls']) : 0), [], true);
+                    }
                     wp_send_json_success( $out );
                 }
                 if ( is_wp_error($result) ) { $final_answer = ''; }
                 elseif ( isset($result['error']) ) { $final_answer=''; } else { $final_answer = (string)($result['message'] ?? ''); }
+                if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+                    $pretty_resp_round = $this->format_pretty_response_log([
+                        'uid'        => $uid,
+                        'provider'   => 'openai',
+                        'model'      => $model,
+                        'answer'     => $final_answer,
+                        'tool_calls' => is_array($result['tool_calls'] ?? null) ? count($result['tool_calls']) : 0,
+                        'usage'      => is_array($result['usage'] ?? null) ? $result['usage'] : [],
+                    ]);
+                    aichat_log_debug('[AIChat Responses]['.$uid.'] per-call summary\n'.$pretty_resp_round, [], true);
+                }
             } elseif ( $provider === 'claude' ) {
-                aichat_log_debug("[AIChat AJAX][$uid] calling Claude model={$model}");
+                aichat_log_debug("[AIChat AJAX][$uid] calling Claude model={$model}", [], true);
                 $result = $this->call_claude_messages( $claude_key, $model, $messages, $temperature, $max_tokens );
                 if (isset($result['error'])) {
-                    aichat_log_debug("[AIChat AJAX][$uid] provider error (Claude): ".$result['error']);
+                    aichat_log_debug("[AIChat AJAX][$uid] provider error (Claude): ".$result['error'], [], true);
                     wp_send_json_error(['message'=>$result['error']], 500);
                 }
                 $answer = $result['message'];
@@ -557,20 +604,20 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 } else {
                     $error_message = __( 'Unknown error occurred.', 'axiachat-ai' );
                 }
-                aichat_log_debug("[AIChat AJAX][$uid] provider WP_Error: " . $error_message);
+                aichat_log_debug("[AIChat AJAX][$uid] provider WP_Error: " . $error_message, [], true);
                 wp_send_json_error( [ 'message' => $error_message ], 500 );
             }
             if ( is_array( $result ) && isset( $result['error'] ) ) {
-                aichat_log_debug("[AIChat AJAX][$uid] provider error: " . $result['error']);
+                aichat_log_debug("[AIChat AJAX][$uid] provider error: " . $result['error'], [], true);
                 wp_send_json_error( [ 'message' => (string)$result['error'] ], 500 );
             }
 
             $answer = is_array( $result ) && isset( $result['message'] ) ? (string) $result['message'] : '';
             $ans_preview = mb_substr( $answer, 0, 140 );
-            aichat_log_debug("[AIChat AJAX][$uid] raw answer len=" . mb_strlen($answer) . " time_ms=" . round(($t_call1-$t_call0)*1000) . " preview=" . str_replace(array("\n","\r"), ' ', $ans_preview));
+            aichat_log_debug("[AIChat AJAX][$uid] raw answer len=" . mb_strlen($answer) . " time_ms=" . round(($t_call1-$t_call0)*1000) . " preview=" . str_replace(array("\n","\r"), ' ', $ans_preview), [], true);
 
             if ( $answer === '' ) {
-                aichat_log_debug("[AIChat AJAX][$uid] ERROR: empty answer");
+                aichat_log_debug("[AIChat AJAX][$uid] ERROR: empty answer", [], true);
                 wp_send_json_error( [ 'message' => __( 'Model returned an empty response.', 'axiachat-ai' ) ], 500 );
             }
 
@@ -593,14 +640,14 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                         'total'=>$total_tokens,
                         'model'=>$model,
                         'provider'=>$provider
-                    ]);
+                    ], true);
                 }
                 if ( function_exists('aichat_calc_cost_micros') && $prompt_tokens !== null ) {
                     $cost_micros = aichat_calc_cost_micros($provider,$model,$prompt_tokens,$completion_tokens?:0);
                 }
             } else {
                 if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
-                    aichat_log_debug('[AIChat AJAX]['.$uid.'] usage tokens not present', ['model'=>$model,'provider'=>$provider]);
+                    aichat_log_debug('[AIChat AJAX]['.$uid.'] usage tokens not present', ['model'=>$model,'provider'=>$provider], true);
                 }
             }
 
@@ -631,6 +678,28 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             }
             if ( get_option( 'aichat_logging_enabled', 1 ) ) {
                 $this->maybe_log_conversation( get_current_user_id(), $session, $bot_slug, $page_id, $message, $answer, $model, $provider, $prompt_tokens, $completion_tokens, $total_tokens, $cost_micros );
+            }
+
+            // Pretty log: response summary (preview, usage, timings)
+            if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+                $tool_calls_count = 0;
+                if ( is_array($result) && isset($result['tool_calls']) && is_array($result['tool_calls']) ) {
+                    $tool_calls_count = count($result['tool_calls']);
+                }
+                $pretty_resp = $this->format_pretty_response_log([
+                    'uid'          => $uid,
+                    'provider'     => $provider,
+                    'model'        => $model,
+                    'answer'       => $answer,
+                    'tool_calls'   => $tool_calls_count,
+                    'usage'        => is_array($result['usage'] ?? null) ? $result['usage'] : [],
+                    'timings_ms'   => [
+                        'context'  => round( ($t_ctx1-$t_ctx0)*1000 ),
+                        'provider' => round( ($t_call1-$t_call0)*1000 ),
+                        'total'    => round( (microtime(true)-$t0)*1000 ),
+                    ],
+                ]);
+                aichat_log_debug($pretty_resp, [], true);
             }
 
             // 8) Respuesta (con debug opcional)
@@ -709,7 +778,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             if ($request_uuid === '' || $request_uuid === null) {
                 $request_uuid = wp_generate_uuid4();
                 if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
-                    aichat_log_debug('[AIChat Continue]['.$uid.'] missing aichat_request_uuid; generated fallback', ['request_uuid'=>$request_uuid]);
+                    aichat_log_debug('[AIChat Continue]['.$uid.'] missing aichat_request_uuid; generated fallback', ['request_uuid'=>$request_uuid], true);
                 }
             }
             foreach ( $tool_calls as $tc ) {
@@ -732,7 +801,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 }
                 $elapsed_tool = round((microtime(true)-$start_exec)*1000);
                 if ( mb_strlen($out_str) > 4000 ) { $out_str = mb_substr($out_str,0,4000).'…'; }
-                aichat_log_debug('[AIChat Continue]['.$uid.'] tool_exec name='.$name.' ms='.$elapsed_tool.' args_len='.strlen($args_json));
+                aichat_log_debug('[AIChat Continue]['.$uid.'] tool_exec name='.$name.' ms='.$elapsed_tool.' args_len='.strlen($args_json), [], true);
                 // Persistir log de tool call (continuation path)
                 global $wpdb; $tool_tbl = $wpdb->prefix.'aichat_tool_calls';
                 $wpdb->insert($tool_tbl,[
@@ -755,7 +824,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                         'table' => $tool_tbl,
                         'call_id' => $call_id,
                         'tool' => $name,
-                    ]);
+                    ], true);
                 }
                 $pending_tool_outputs[] = [ 'tool_call_id'=>$call_id, 'output'=>$out_str ];
             }
@@ -805,6 +874,16 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             }
             if ($final_text === '') {
                 $final_text = '(empty response)';
+            }
+            if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+                $pretty_cont = $this->format_pretty_response_log([
+                    'uid'        => $uid,
+                    'provider'   => 'openai',
+                    'model'      => $model,
+                    'answer'     => $final_text,
+                    'tool_calls' => count($pending_tool_outputs),
+                ]);
+                    aichat_log_debug('[AIChat Continue]['.$uid.'] final summary\n'.$pretty_cont, [], true);
             }
             $final_text = aichat_replace_link_placeholder( $final_text );
             $final_text = $this->sanitize_answer_html( $final_text );
@@ -889,9 +968,9 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
 
             if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
                 if ( isset($body['usage']) ) {
-                    aichat_log_debug('OpenAI chat usage', ['usage'=>$body['usage'], 'model'=>$model]);
+                    aichat_log_debug('OpenAI chat usage', ['usage'=>$body['usage'], 'model'=>$model], true);
                 } else {
-                    aichat_log_debug('OpenAI chat no usage field', ['model'=>$model]);
+                    aichat_log_debug('OpenAI chat no usage field', ['model'=>$model], true);
                 }
             }
 
@@ -1014,7 +1093,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                     'temperature'=>$temperature,
                     'size_chars'=>strlen($json_payload),
                     'preview'=> $dbg
-                ]);
+                ], true);
             }
 
             // Lista de fallback si 404 (model not found)
@@ -1044,7 +1123,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 ]);
                 if (is_wp_error($res)) {
                     $last_error = $res->get_error_message();
-                    aichat_log_debug('[AIChat Claude][HTTP_ERR] '.$last_error);
+                    aichat_log_debug('[AIChat Claude][HTTP_ERR] '.$last_error, [], true);
                     continue;
                 }
                 $code   = wp_remote_retrieve_response_code($res);
@@ -1056,7 +1135,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                     'payload_len'=>strlen($json_payload),
                     'resp_len'=>strlen($raw),
                     'resp_preview'=>mb_substr($raw,0,500)
-                ]));
+                ]), [], true);
                 // Si 404 y hay más intentos → probar siguiente
                 if ($code === 404 && $idx < count($attempts)-1) {
                     $last_error = '404 model not found: '.$mdl_try;
@@ -1091,7 +1170,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 }
                 // Si hubo fallback exitoso, log y devolver
                 if ($mdl_try !== $primary) {
-                    aichat_log_debug('[AIChat Claude] Fallback model used: '.$mdl_try.' (original='.$primary.')');
+                    aichat_log_debug('[AIChat Claude] Fallback model used: '.$mdl_try.' (original='.$primary.')', [], true);
                 }
                 // Claude usage structure: usage: { input_tokens:X, output_tokens:Y }
                 $usage = [];
@@ -1552,7 +1631,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                     } else {
                         // Unknown tool types are ignored for Responses to avoid API errors
                         if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
-                            aichat_log_debug('[AIChat Responses][tools] Ignoring unsupported tool type', [ 'type'=>$t_type ]);
+                            aichat_log_debug('[AIChat Responses][tools] Ignoring unsupported tool type', [ 'type'=>$t_type ], true);
                         }
                     }
                 }
@@ -1626,7 +1705,23 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
                     $tool_meta = [ 'has_tools'=>$has_tools?1:0, 'payload_len'=>strlen($json_payload) ];
                     if ($has_tools) { $tool_meta['tool_types'] = array_values(array_unique(array_map(function($x){return isset($x['type'])?$x['type']:'?';}, $tools))); }
-                    aichat_log_debug('[AIChat Responses][round='.$round.'] request', $tool_meta);
+                    aichat_log_debug('[AIChat Responses][round='.$round.'] request', $tool_meta, true);
+                    // Pretty request snapshot
+                    $req_pretty = $this->format_pretty_request_log([
+                        'uid'           => $request_uuid,
+                        'provider'      => 'openai',
+                        'model'         => $model,
+                        'temperature'   => $temperature,
+                        'max_tokens'    => $max_tokens,
+                        'mode'          => 'responses',
+                        'context_count' => 0,
+                        'history_pairs' => 0,
+                        'messages_total'=> is_array($messages)?count($messages):0,
+                        'system'        => $instructions_field,
+                        'prompt'        => is_string($input_field)?mb_substr($input_field,0,1200):'',
+                        'tools'         => $this->extract_tool_names_for_log(isset($extra['tools'])?$extra['tools']:[]),
+                    ]);
+                    aichat_log_debug($req_pretty, [], true);
                 }
                 // Siempre usamos el endpoint base /responses ahora (previous_response_id maneja el hilo)
                 $post_endpoint = $endpoint;
@@ -1693,16 +1788,27 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
 
                 if ($text_frag !== '') { $final_text .= ($final_text?"\n\n":'').$text_frag; }
                 if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
-                    aichat_log_debug('[AIChat Responses][round='.$round.'] result', [ 'text_len'=>strlen($text_frag), 'tool_calls'=>count($tool_calls), 'ms'=>round(($t_r1-$t_r0)*1000) ]);
+                    aichat_log_debug('[AIChat Responses][round='.$round.'] result', [ 'text_len'=>strlen($text_frag), 'tool_calls'=>count($tool_calls), 'ms'=>round(($t_r1-$t_r0)*1000) ], true);
+                    // Pretty response snapshot for the round
+                    $pretty_round = $this->format_pretty_response_log([
+                        'uid'        => $request_uuid,
+                        'provider'   => 'openai',
+                        'model'      => $model,
+                        'answer'     => $text_frag,
+                        'tool_calls' => count($tool_calls),
+                        'usage'      => isset($data['usage']) && is_array($data['usage']) ? $data['usage'] : [],
+                        'timings_ms' => [ 'round' => round(($t_r1-$t_r0)*1000) ],
+                    ]);
+                    aichat_log_debug($pretty_round, [], true);
                     // Log raw (truncado) siempre para diagnóstico avanzado
                     $raw_dbg = (strlen($raw) > 3000) ? substr($raw,0,3000).'…' : $raw;
-                    aichat_log_debug('[AIChat Responses][round='.$round.'] raw_body', [ 'len'=>strlen($raw), 'body'=>$raw_dbg ]);
+                    aichat_log_debug('[AIChat Responses][round='.$round.'] raw_body', [ 'len'=>strlen($raw), 'body'=>$raw_dbg ], true);
                 }
 
                 if ( $text_frag === '' && empty($tool_calls) ) {
                     // Log específico de vacío
                     if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
-                        aichat_log_debug('[AIChat Responses][round='.$round.'] empty_output_no_tools');
+                        aichat_log_debug('[AIChat Responses][round='.$round.'] empty_output_no_tools', [], true);
                     }
                 }
 
@@ -1712,7 +1818,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                     $incomp_reason = isset($data['incomplete_details']['reason']) ? (string)$data['incomplete_details']['reason'] : '';
                     if ( $status === 'incomplete' && $incomp_reason === 'max_output_tokens' && $round < $max_rounds ) {
                         if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
-                            aichat_log_debug('[AIChat Responses][round='.$round.'] incomplete due to max_output_tokens — continuing');
+                            aichat_log_debug('[AIChat Responses][round='.$round.'] incomplete due to max_output_tokens — continuing', [], true);
                         }
                         // Prepare to continue in the next loop iteration using previous_response_id
                         $pending_tool_outputs = []; // will produce a minimal input_text fallback
@@ -1781,7 +1887,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                     $elapsed_tool = round((microtime(true)-$start_exec)*1000);
                     if ( mb_strlen($out_str) > 4000 ) { $out_str = mb_substr($out_str,0,4000).'…'; }
                     if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
-                        aichat_log_debug('[AIChat Responses][tool_exec] name='.$fname.' ms='.$elapsed_tool.' args_len='.strlen($args_json));
+                        aichat_log_debug('[AIChat Responses][tool_exec] name='.$fname.' ms='.$elapsed_tool.' args_len='.strlen($args_json), [], true);
                     }
                     // Log en tabla tool_calls
                     global $wpdb; $tool_tbl = $wpdb->prefix.'aichat_tool_calls';
@@ -1805,7 +1911,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                             'table' => $tool_tbl,
                             'call_id' => $tc['id'],
                             'tool' => $fname,
-                        ]);
+                        ], true);
                     }
 
                     $pending_tool_outputs[] = [
@@ -1870,7 +1976,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                     'messages_count'=> isset($payload['messages']) ? count($payload['messages']) : 0,
                     'size_chars'=> strlen(wp_json_encode($payload)),
                     'preview'=>$dbg,
-                ]);
+                ], true);
             }
             $res = wp_remote_post( $endpoint, [
                 'headers' => [
@@ -1973,9 +2079,9 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                     ' endpoint='.$endpoint.
                     ' meta='.wp_json_encode($meta).
                     ' body_raw='.$body_trim
-                );
+                , [], true);
             } catch (\Throwable $e) {
-                aichat_log_debug('[AIChat AJAX][OpenAI '.$kind.'] log error: '.$e->getMessage());
+                aichat_log_debug('[AIChat AJAX][OpenAI '.$kind.'] log error: '.$e->getMessage(), [], true);
             }
         }
 
@@ -2019,6 +2125,168 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
 
             // 4) Sin texto localizado
             return '';
+        }
+
+        /**
+         * Extracts the user's question text from the composed user message content.
+         * Falls back to original message if parsing fails. Removes CONTEXT and helper hints.
+         */
+        protected function extract_question_from_user_message( $user_content, $original_message ) {
+            $uc = is_string($user_content) ? (string)$user_content : '';
+            if ($uc === '') { return (string)$original_message; }
+            // Try to locate QUESTION: marker used by aichat_build_messages
+            $pos = stripos($uc, "QUESTION:");
+            if ($pos !== false) {
+                $q = trim(substr($uc, $pos + strlen('QUESTION:')));
+            } else {
+                // Fallback: remove CONTEXT block if present
+                $q = preg_replace('/^CONTEXT:.*?\n\n/s', '', $uc);
+                $q = trim((string)$q);
+            }
+            // Remove LINK instruction hint line (any language) if present
+            if (strpos($q, '[LINK]') !== false) {
+                $lines = preg_split('/\r\n|\r|\n/', $q);
+                $lines = array_values(array_filter($lines, function($ln){ return strpos($ln, '[LINK]') === false; }));
+                $q = trim(implode("\n", $lines));
+            }
+            $q = trim((string)$q);
+            if ($q === '') { $q = (string)$original_message; }
+            // Cap length for logs
+            if (mb_strlen($q) > 1200) { $q = mb_substr($q, 0, 1200) . '…'; }
+            return $q;
+        }
+
+        /**
+         * Returns a simple array of tool names/types for logging.
+         */
+        protected function extract_tool_names_for_log( $tools ) {
+            $out = [];
+            if (is_array($tools)) {
+                foreach ($tools as $t) {
+                    if (!is_array($t)) continue;
+                    $type = isset($t['type']) ? (string)$t['type'] : '';
+                    if ($type === 'function') {
+                        $fn = isset($t['function']) && is_array($t['function']) ? $t['function'] : [];
+                        $name = isset($fn['name']) ? (string)$fn['name'] : ( isset($t['name']) ? (string)$t['name'] : '' );
+                        $out[] = $name !== '' ? ('function:'.$name) : 'function';
+                    } elseif ($type !== '') {
+                        $out[] = $type;
+                    }
+                }
+            }
+            return $out;
+        }
+
+        /**
+         * Builds a multi-line pretty request summary for debug.log.
+         */
+        protected function format_pretty_request_log( $data ) {
+            $uid   = $data['uid'] ?? '-';
+            $prov  = $data['provider'] ?? '-';
+            $model = $data['model'] ?? '-';
+            $temp  = isset($data['temperature']) ? (float)$data['temperature'] : null;
+            $mx    = isset($data['max_tokens']) ? (int)$data['max_tokens'] : null;
+            $mode  = $data['mode'] ?? 'auto';
+            $ctx   = isset($data['context_count']) ? (int)$data['context_count'] : 0;
+            $hist  = isset($data['history_pairs']) ? (int)$data['history_pairs'] : 0;
+            $msgs  = isset($data['messages_total']) ? (int)$data['messages_total'] : 0;
+            $sys   = is_string($data['system'] ?? null) ? (string)$data['system'] : '';
+            $prm   = is_string($data['prompt'] ?? null) ? (string)$data['prompt'] : '';
+            $tools = is_array($data['tools'] ?? null) ? $data['tools'] : [];
+            // Truncate long system text
+            if (mb_strlen($sys) > 1500) { $sys = mb_substr($sys, 0, 1500) . '…'; }
+            // Compose
+            $lines = [];
+            $lines[] = "[AIChat Request][$uid]";
+            $lines[] = "provider=$prov model=$model temp=".($temp===null?'':$temp)." max_tokens=".($mx===null?'':$mx);
+            $lines[] = "mode=$mode ctx=$ctx history_pairs=$hist messages_total=$msgs";
+            if (!empty($tools)) {
+                $lines[] = "tools(".count($tools)."): ".implode(', ', array_slice($tools,0,20));
+            } else {
+                $lines[] = "tools(0)";
+            }
+            $lines[] = "SYSTEM:\n".$sys;
+            $lines[] = "PROMPT:\n".$prm;
+            return implode("\n", $lines);
+        }
+
+        /**
+         * Builds a multi-line pretty response summary for debug.log.
+         */
+        protected function format_pretty_response_log( $data ) {
+            $uid   = $data['uid'] ?? '-';
+            $prov  = $data['provider'] ?? '-';
+            $model = $data['model'] ?? '-';
+            $ans   = is_string($data['answer'] ?? null) ? (string)$data['answer'] : '';
+            $tcc   = isset($data['tool_calls']) ? (int)$data['tool_calls'] : 0;
+            $usage = is_array($data['usage'] ?? null) ? $data['usage'] : [];
+            $tim   = is_array($data['timings_ms'] ?? null) ? $data['timings_ms'] : [];
+            $ans_prev = $ans;
+            if (mb_strlen($ans_prev) > 800) { $ans_prev = mb_substr($ans_prev, 0, 800) . '…'; }
+            $lines = [];
+            $lines[] = "[AIChat Response][$uid] provider=$prov model=$model tools=$tcc";
+            if ($usage) {
+                $lines[] = "USAGE: ". wp_json_encode($usage);
+            }
+            if ($tim) {
+                $lines[] = "TIMINGS(ms): ". wp_json_encode($tim);
+            }
+            $lines[] = "ANSWER:\n".$ans_prev;
+            return implode("\n", $lines);
+        }
+
+        /**
+         * El modelo a veces imprime literalmente la salida de una tool (JSON o bloque ```json```)
+         * antes de la respuesta redactada. Este helper elimina cualquier bloque de código
+         * al inicio y también un objeto/array JSON “sueltos” al principio.
+         */
+        protected function strip_leading_tool_payloads( $text ) {
+            if (!is_string($text) || $text === '') return $text;
+            $orig = $text;
+            $maxIters = 2; // por si hay más de un bloque encadenado
+            while ($maxIters-- > 0) {
+                $text = ltrim($text);
+                if ($text === '') break;
+                // 1) Bloque con triple comillas ```...```
+                if (preg_match('/^```[a-zA-Z0-9_-]*\s*\n(.*?)\n```/s', $text, $m)) {
+                    $before = $text;
+                    $candidate = trim((string)$m[1]);
+                    // Si el contenido parece JSON (empieza por { o [), lo recortamos
+                    if ($candidate !== '' && ($candidate[0] === '{' || $candidate[0] === '[')) {
+                        $text = (string)substr($text, strlen($m[0]));
+                        continue;
+                    } else {
+                        // No parece un payload JSON, no tocar
+                        $text = $before;
+                    }
+                }
+                // 2) Objeto/array JSON al inicio sin fence
+                $first = substr($text, 0, 1);
+                if ($first === '{' || $first === '[') {
+                    // Intentar localizar el cierre del bloque inicial y validar JSON
+                    $endPos = false;
+                    // Buscamos un doble salto de línea como posible separación entre JSON y respuesta
+                    $doubleNl = strpos($text, "\n\n");
+                    if ($doubleNl !== false) {
+                        $jsonChunk = substr($text, 0, $doubleNl);
+                        $decoded = json_decode($jsonChunk, true);
+                        if (is_array($decoded)) {
+                            // Heurística: si contiene claves típicas de tool (ok|error|slots|data)
+                            $keys = array_keys($decoded);
+                            $keysStr = implode(',', $keys);
+                            if (preg_match('/\bok\b|\berror\b|\bslots\b|\bdata\b/i', $keysStr)) {
+                                $text = substr($text, $doubleNl);
+                                continue;
+                            }
+                        }
+                    }
+                }
+                break; // nada que limpiar
+            }
+            // Si limpiamos todo y quedó vacío, retorna original para no dejar al usuario sin respuesta
+            $trimmed = trim($text);
+            if ($trimmed === '') return $orig;
+            return $text;
         }
     }
 

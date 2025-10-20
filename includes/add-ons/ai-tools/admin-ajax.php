@@ -135,3 +135,65 @@ add_action('wp_ajax_aichat_tools_save_capability_settings', function(){
   aichat_save_capability_settings_for_bot($bot, $all[$bot]);
   wp_send_json_success(['saved'=>true,'bot'=>$bot,'cap'=>$cap,'settings'=>$all[$bot][$cap]]);
 });
+
+// === Test Tools: list and run underlying tools ===
+add_action('wp_ajax_aichat_tools_list_all_tools', function(){
+  if ( ! current_user_can('manage_options') ) { wp_send_json_error(['message'=>'forbidden'],403); }
+  check_ajax_referer('aichat_tools_nonce','nonce');
+  if ( ! function_exists('aichat_get_registered_tools') ) { wp_send_json_error(['message'=>'api_missing'],500); }
+  $tools = aichat_get_registered_tools();
+  // Filter: only atomic function tools for now
+  $out = [];
+  foreach($tools as $id=>$def){
+    if (($def['type'] ?? '') !== 'function') continue;
+    $out[$id] = [
+      'name' => $def['name'] ?? $id,
+      'description' => $def['description'] ?? '',
+      'schema' => $def['schema'] ?? [],
+    ];
+  }
+  wp_send_json_success(['tools'=>$out]);
+});
+
+add_action('wp_ajax_aichat_tools_run_tool', function(){
+  if ( ! current_user_can('manage_options') ) { wp_send_json_error(['message'=>'forbidden'],403); }
+  check_ajax_referer('aichat_tools_nonce','nonce');
+  $tool_id = isset($_POST['tool']) ? sanitize_key(wp_unslash($_POST['tool'])) : '';
+  // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- arguments JSON parsed & sanitized
+  $raw_args = isset($_POST['args']) ? wp_unslash($_POST['args']) : '{}';
+  $args = json_decode($raw_args, true); if(!is_array($args)) $args = [];
+  if ($tool_id==='') { wp_send_json_error(['message'=>'missing_tool'],400); }
+  if ( ! function_exists('aichat_get_registered_tools') ) { wp_send_json_error(['message'=>'api_missing'],500); }
+  $tools = aichat_get_registered_tools();
+  if ( ! isset($tools[$tool_id]) ) { wp_send_json_error(['message'=>'unknown_tool'],400); }
+  $def = $tools[$tool_id];
+  if ( ($def['type'] ?? '') !== 'function' || ! is_callable($def['callback']) ) { wp_send_json_error(['message'=>'not_callable'],400); }
+  // Best-effort sanitization against declared schema types
+  if ( isset($def['schema']) && is_array($def['schema']) && isset($def['schema']['properties']) ) {
+    $props = $def['schema']['properties'];
+    if ( is_array($props) || is_object($props) ) {
+      foreach($props as $k=>$spec){
+        $v = isset($args[$k]) ? $args[$k] : null;
+        $t = is_array($spec) && isset($spec['type']) ? $spec['type'] : '';
+        switch($t){
+          case 'integer': $args[$k] = is_numeric($v) ? (int)$v : 0; break;
+          case 'number': $args[$k] = is_numeric($v) ? (float)$v : 0; break;
+          case 'boolean': $args[$k] = (bool)$v; break;
+          case 'string': $args[$k] = is_string($v)? sanitize_text_field($v) : ( is_scalar($v)? (string)$v : '' ); break;
+          case 'object': $args[$k] = is_array($v)? $v : []; break;
+          case 'array': $args[$k] = is_array($v)? array_values($v) : []; break;
+          default: /* leave as is */ break;
+        }
+      }
+    }
+  }
+  try {
+    $out = call_user_func( $def['callback'], $args, [ 'source'=>'admin_test_tools' ] );
+    if ( is_wp_error($out) ) {
+      wp_send_json_success(['ok'=>false,'error'=>$out->get_error_code(),'message'=>$out->get_error_message(),'result'=>null]);
+    }
+    wp_send_json_success(['ok'=>true,'result'=>$out]);
+  } catch( \Throwable $e ) {
+    wp_send_json_success(['ok'=>false,'error'=>'exception','message'=>$e->getMessage()]);
+  }
+});
