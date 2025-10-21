@@ -120,7 +120,7 @@ if ( ! function_exists( 'aichat_ssa_disponibilidad' ) ) {
 	 * @param string|null $end
 	 * @return array|string
 	 */
-	function aichat_ssa_disponibilidad( $appointment_type_id = null, $start = null, $end = null ) {
+	function aichat_ssa_disponibilidad(  = null, $start = null, $end = null ) {
 		if ( ! function_exists( 'ssa' ) ) {
 			return 'ssa_not_loaded';
 		}

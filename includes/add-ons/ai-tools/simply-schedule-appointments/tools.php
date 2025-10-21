@@ -29,8 +29,8 @@ if ( function_exists('aichat_log_debug') ) { aichat_log_debug('SSA tools: starti
 aichat_register_tool_safe( 'aichat_ssa_list_services', [
   'type' => 'function',
   'name' => 'aichat_ssa_list_services',
-  // description (para el MODELO): describe claramente el output y cuándo usarla.
-  'description' => 'List Simply Schedule Appointments appointment types (id, title, duration in minutes).',
+  // description (MODEL-facing): generic so it works with any Agenda plugin.
+  'description' => 'List the Agenda appointment types (id, title, duration in minutes).',
   // activity_label (para la UI): texto breve de estado mientras corre la tool.
   'activity_label' => 'Listing appointment types...',
   // properties must be a JSON object, not an array
@@ -50,27 +50,27 @@ if ( function_exists('aichat_log_debug') ) { aichat_log_debug('SSA tools: regist
 aichat_register_tool_safe( 'aichat_ssa_get_availability', [
   'type' => 'function',
   'name' => 'aichat_ssa_get_availability',
-  // description (MODELO): detalla formatos de fecha y zona horaria esperada.
-  'description' => 'Get upcoming available time slots for a given SSA appointment type. Optional date range (Y-m-d H:i:s, site local time).',
+  // description (MODEL-facing): generic (Agenda). Mentions time format and optionality.
+  'description' => 'Query available Agenda time slots for an appointment type. Optional date range (Y-m-d H:i:s, site local time). If no type is provided, use the default.',
   'activity_label' => 'Fetching appointment availability...',
   'schema' => [
     'type'=>'object',
     'properties' => [
-      // Las descriptions de propiedades son leídas por el MODELO para construir args correctos.
-      'appointment_type_id' => [ 'type'=>'integer', 'description'=>'SSA appointment type ID' ],
-      'from' => [ 'type'=>'string', 'description'=>'Start of range (Y-m-d H:i:s) in site local time; Y-m-d accepted' ],
-      'to'   => [ 'type'=>'string', 'description'=>'End of range (Y-m-d H:i:s) in site local time; Y-m-d accepted' ],
-      'starts_only' => [ 'type'=>'boolean', 'description'=>'If true, return only start datetimes (Y-m-d H:i:s) instead of full start/end slots' ],
+  // Property descriptions are read by the MODEL to build correct arguments.
+  'appointment_type_id' => [ 'type'=>'integer', 'description'=>'Agenda appointment type ID (optional; defaults to 1).', 'default'=>1 ],
+  'from' => [ 'type'=>'string', 'description'=>'Range start (Y-m-d H:i:s) in site local time; Y-m-d accepted' ],
+  'to'   => [ 'type'=>'string', 'description'=>'Range end (Y-m-d H:i:s) in site local time; Y-m-d accepted' ],
+  'starts_only' => [ 'type'=>'boolean', 'description'=>'If true, return only start datetimes (Y-m-d H:i:s) instead of full start/end slots' ],
     ],
-    'required' => ['appointment_type_id'],
+    'required' => [],
     'additionalProperties' => false
   ],
   'callback' => function( $args ){
-    $sid = isset($args['appointment_type_id']) ? (int)$args['appointment_type_id'] : 0;
+    $sid = isset($args['appointment_type_id']) ? (int)$args['appointment_type_id'] : 1;
+    if ($sid <= 0) { $sid = 1; }
     $from = isset($args['from']) ? (string)$args['from'] : null;
     $to   = isset($args['to']) ? (string)$args['to'] : null;
     $starts_only = !empty($args['starts_only']);
-    if ( $sid <= 0 ) return [ 'ok'=>false, 'error'=>'invalid_service' ];
     $slots = aichat_ssa_get_upcoming_slots( $sid, $from, $to, $starts_only );
     // Normalize response keys depending on mode
     if ($starts_only) {
@@ -89,26 +89,27 @@ if ( function_exists('aichat_log_debug') ) { aichat_log_debug('SSA tools: regist
 aichat_register_tool_safe( 'aichat_ssa_create_appointment', [
   'type' => 'function',
   'name' => 'aichat_ssa_create_appointment',
-  // description (MODELO): explica precondiciones y formato estricto del campo start y customer.
-  'description' => 'Create an appointment in Simply Schedule Appointments. Requires appointment_type_id, customer info and a selected start datetime (Y-m-d H:i:s) in site local time.',
+  // description (MODEL-facing): generic (Agenda). appointment_type_id optional with default value.
+  'description' => 'Create an appointment in the Agenda. Requires start datetime and customer info. The appointment type is optional (defaults to 1).',
   'activity_label' => 'Creating appointment...',
   'schema' => [
     'type'=>'object',
     'properties' => [
-      // Las descriptions aquí guían al MODELO; mantener nombres/formatos exactos.
-      'appointment_type_id' => [ 'type'=>'integer', 'description'=>'SSA appointment type ID' ],
-      'start' => [ 'type'=>'string', 'description'=>'Selected slot start (Y-m-d H:i:s) in site local time; Y-m-d accepted' ],
-      'customer' => [ 'type'=>'object', 'description'=>'Customer info', 'properties'=>[
+  // Property descriptions guide the MODEL; keep names/formats exact.
+  'appointment_type_id' => [ 'type'=>'integer', 'description'=>'Agenda appointment type ID (optional; defaults to 1).', 'default'=>1 ],
+  'start' => [ 'type'=>'string', 'description'=>'Selected slot start (Y-m-d H:i:s) in site local time; Y-m-d accepted' ],
+  'customer' => [ 'type'=>'object', 'description'=>'Customer info', 'properties'=>[
         'name'  => [ 'type'=>'string' ],
         'email' => [ 'type'=>'string' ],
         'phone' => [ 'type'=>'string' ],
       ], 'required'=>['email'], 'additionalProperties'=>false ],
     ],
-    'required' => ['appointment_type_id','start','customer'],
+    'required' => ['start','customer'],
     'additionalProperties' => false
   ],
   'callback' => function( $args, $ctx = [] ){
-    $sid = isset($args['appointment_type_id']) ? (int)$args['appointment_type_id'] : 0;
+    $sid = isset($args['appointment_type_id']) ? (int)$args['appointment_type_id'] : 1;
+    if ($sid <= 0) { $sid = 1; }
     $start = isset($args['start']) ? (string)$args['start'] : '';
     $cust = isset($args['customer']) && is_array($args['customer']) ? $args['customer'] : [];
     // Route via booking agent helper so it handles timezone and availability validations
