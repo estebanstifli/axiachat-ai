@@ -18,11 +18,7 @@ function aichat_tools_settings_page(){
     . esc_html__('Capabilities','axiachat-ai')
     . '    </button>'
     . '  </li>';
-  echo '  <li class="nav-item" role="presentation">'
-    . '    <button class="nav-link" id="tab-rules" data-bs-toggle="tab" data-bs-target="#pane-rules" type="button" role="tab" aria-controls="pane-rules" aria-selected="false">'
-    . esc_html__('Rules','axiachat-ai')
-    . '    </button>'
-    . '  </li>';
+  // Rules tab temporarily hidden
   echo '  <li class="nav-item" role="presentation">'
     . '    <button class="nav-link" id="tab-testtools" data-bs-toggle="tab" data-bs-target="#pane-testtools" type="button" role="tab" aria-controls="pane-testtools" aria-selected="false">'
     . esc_html__('Test Tools','axiachat-ai')
@@ -51,6 +47,16 @@ function aichat_tools_settings_page(){
     . '        </div>';
   echo '      </div>';
   echo '    </div>';
+  // Friendly callout inviting capability requests
+  echo '    <div class="alert alert-info mt-2" role="alert" style="max-width: 980px;">'
+    . '      <i class="bi bi-lightbulb me-2" aria-hidden="true"></i>'
+    .        esc_html__("Need a capability that's not listed? Tell me what your bot should do — I love building useful integrations for the community. I'll gladly add it for free if it helps others too.",'axiachat-ai')
+    . '      <a class="ms-1" href="'.esc_url('https://wpbotwriter.com/log-a-support-ticket/').'" target="_blank" rel="noopener">'
+    .        esc_html__('Request a capability →','axiachat-ai')
+    . '      </a>'
+    . '    </div>';
+  // Hidden builder placeholder required by assets/js/tools.js to initialize capabilities/test tools
+  echo '    <div id="aichat-tools-builder" style="display:none"></div>';
   echo '    <h2>'.esc_html__('Available Capabilities / Macros','axiachat-ai').'</h2>';
   $macros = function_exists('aichat_get_registered_macros') ? aichat_get_registered_macros() : [];
   if ( $macros ) {
@@ -82,15 +88,7 @@ function aichat_tools_settings_page(){
   }
   echo '  </div>'; // end capabilities tab pane
 
-  // Rules pane
-  echo '  <div class="tab-pane fade pt-3" id="pane-rules" role="tabpanel" aria-labelledby="tab-rules">';
-  echo '    <p class="description">'.esc_html__('Create conditional rules that trigger automatic agent actions (navigate, speak a message, request info, etc.).','axiachat-ai').'</p>';
-  echo '    <div class="d-flex gap-2 mb-2">';
-  echo '      <button type="button" class="button button-primary" id="aichat-tools-add-rule"><span class="dashicons dashicons-plus"></span> '.esc_html__('New Rule','axiachat-ai').'</button>';
-  echo '      <button type="button" class="button button-secondary" id="aichat-tools-save" disabled>'.esc_html__('Save','axiachat-ai').'</button>';
-  echo '    </div>';
-  echo '    <div id="aichat-tools-builder"></div>';
-  echo '  </div>'; // end rules tab pane
+  // Rules pane temporarily hidden
   
   // Test Tools pane
   echo '  <div class="tab-pane fade pt-3" id="pane-testtools" role="tabpanel" aria-labelledby="tab-testtools">';

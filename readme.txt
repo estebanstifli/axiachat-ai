@@ -4,7 +4,7 @@ Tags: chatbot, ai, openai, chat, assistant
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.1.8
+Stable tag: 1.1.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Short Description: Flexible AI chatbot with multiple bots, OpenAI & Claude, contextual embeddings (local or Pinecone), PDF ingestion, usage limits & GDPR tools.
@@ -13,6 +13,8 @@ Short Description: Flexible AI chatbot with multiple bots, OpenAI & Claude, cont
 AxiaChat AI lets you add one or more AI‑powered chatbots to your WordPress site. Each bot can have its own model settings, instructions, UI colors, avatar and placement. It uses the OpenAI API (you must provide your own API key) and can augment answers with contextual data (documents, posts or imported PDF content) using a basic Retrieval Augmented Generation workflow.
 
 Conversation logs are stored locally (can be disabled) so you can review usage (see GDPR notes). All AI processing happens via direct calls from your server to OpenAI—no external SaaS proxy.
+
+Professional setup offer: Because this plugin is new, I'm happy to personally help you configure prompts, context (embeddings), and capabilities so your bot performs reliably for your use case. If you'd like assistance, please reach out: https://wpbotwriter.com/log-a-support-ticket/
 
 == Features ==
 * Multiple bots with individual configuration (model, temperature, context mode, UI appearance)
@@ -30,6 +32,8 @@ Conversation logs are stored locally (can be disabled) so you can review usage (
 * Translation ready (text domain: axiachat-ai – formerly ai-chat) – Spanish included
 * Clean uninstall (removes options; keeps conversation tables unless you delete them manually)
 * Local vendor assets (Bootstrap / Icons) so no external CDN dependency
+
+Need a capability that's not listed? Tell me what your bot should do — I love building useful integrations for the community. I'll gladly add it for free if it helps others too. Request a capability → https://wpbotwriter.com/log-a-support-ticket/
 
 == Installation ==
 1. Upload the `axiachat-ai` folder to `/wp-content/plugins/` (or install via Plugins > Add New).
@@ -285,13 +289,15 @@ Planned.
 3. Usage / Costs
 
 == Changelog ==
+= 1.1.9 =
+* Added: Tools Test for debug
+* Added: Compatibility with the Simply Schedule Appointments booking plugin
+
 = 1.1.8 =
 * Added: new avatars to choose
 
-
 = 1.1.7 =
 * Added: Spanish (Spain) translations (es_ES).
-
 
 = 1.1.6 =
 * AI Tools: per‑bot capabilities & macros, including OpenAI native web search with optional domain allowlist
