@@ -529,11 +529,25 @@ function aichat_build_messages( $question, $contexts = [], $instructions = '', $
         $now_fmt, $offset, $tz_name, $wday
     );
 
+    // Resolver tokens/funciones SOLO en las instrucciones del bot (no en la política fija)
+    $resolved_instr = aichat_resolve_instruction_tokens(
+        (string)$system,
+        [
+            'site_name' => function_exists('get_bloginfo') ? get_bloginfo('name') : '',
+            'site_url'  => function_exists('home_url') ? home_url() : '',
+            'date'      => $now_fmt,
+            'tz'        => $tz_name,
+            'weekday'   => $wday,
+            'bot_name'  => isset($opts['bot_name']) ? (string)$opts['bot_name'] : '',
+        ]
+    );
+
     // Inyectar SIEMPRE la fecha/hora al principio. Luego la política de seguridad si no estuviera ya.
     if ( stripos( $system, 'SECURITY & PRIVACY POLICY:' ) === false ) {
-        $system = $datetime_line . "\n\n" . $security_policy . "\n\n" . $system;
+        $system = $datetime_line . "\n\n" . $security_policy . "\n\n" . $resolved_instr;
     } else {
-        $system = $datetime_line . "\n\n" . $system;
+        // Si las instrucciones ya incluyen la política, solo añadimos fecha/hora y aplicamos tokens sobre todo el texto de instrucciones
+        $system = $datetime_line . "\n\n" . $resolved_instr;
     }
 
     // Filtro final para personalización completa del prompt final
@@ -686,4 +700,116 @@ function aichat_get_current_contexts() {
         return $GLOBALS['aichat_contexts'];
     }
     return [];
+}
+
+/**
+ * Resuelve tokens y funciones seguras dentro del texto de instrucciones del bot (System instructions).
+ *
+ * Soporta:
+ *  - Tokens simples: {{site.name}}, {{site.url}}, {{date}}, {{tz}}, {{weekday}}, {{bot.name}}
+ *  - Funciones permitidas: {{fn:identifier(arg1=val1, arg2="val2")}}
+ *
+ * Seguridad:
+ *  - Sin eval. Solo funciones del registro allowlist (filtro 'aichat_system_functions_registry').
+ *  - Validación/normalización de argumentos según schema por función (types: string|integer|boolean; patrones regex opcionales; defaults).
+ *  - Salida saneada (texto plano) y truncada por longitud máxima definida por función (por defecto 300 chars).
+ */
+function aichat_resolve_instruction_tokens( $text, array $ctx = [] ){
+    if (!is_string($text) || $text === '') return $text;
+
+    // 1) Reemplazo de tokens simples
+    $map = [
+        'site.name' => (string)($ctx['site_name'] ?? ''),
+        'site.url'  => (string)($ctx['site_url'] ?? ''),
+        'date'      => (string)($ctx['date'] ?? ''),
+        'tz'        => (string)($ctx['tz'] ?? ''),
+        'weekday'   => (string)($ctx['weekday'] ?? ''),
+        'bot.name'  => (string)($ctx['bot_name'] ?? ''),
+    ];
+    if ( function_exists('apply_filters') ) {
+        $map = apply_filters('aichat_instruction_tokens_map', $map, $ctx, $text);
+    }
+    $out = preg_replace_callback('/\{\{\s*([a-zA-Z0-9_\.\-]+)\s*\}\}/', function($m) use ($map){
+        $key = $m[1];
+        return array_key_exists($key, $map) ? (string)$map[$key] : $m[0];
+    }, $text);
+
+    // 2) Llamadas a funciones seguras: {{fn:identifier(arg1=val1, arg2="val2")}}
+    $registry = [];
+    if ( function_exists('apply_filters') ) {
+        $registry = apply_filters('aichat_system_functions_registry', []);
+        if (!is_array($registry)) $registry = [];
+    }
+    $out = preg_replace_callback('/\{\{\s*fn:([a-zA-Z0-9_]+)\s*\((.*?)\)\s*\}\}/', function($m) use ($registry){
+        $id = $m[1]; $rawArgs = $m[2];
+        if (!isset($registry[$id]) || !is_array($registry[$id])) return $m[0];
+        $def = $registry[$id];
+        $schema = isset($def['schema']) && is_array($def['schema']) ? $def['schema'] : [];
+        $maxLen = isset($def['max_len']) ? max(1,(int)$def['max_len']) : 300;
+        $cb = $def['callback'] ?? null; if(!is_callable($cb)) return $m[0];
+        $args = aichat_parse_named_args($rawArgs);
+        $clean = aichat_validate_named_args($args, $schema);
+        try{
+            $res = call_user_func($cb, $clean);
+            // Normalizar salida a texto plano
+            if (is_array($res) || is_object($res)) { $res = wp_json_encode($res); }
+            $res = (string)$res;
+            $res = wp_strip_all_tags($res, true);
+            if (strlen($res) > $maxLen) { $res = substr($res, 0, $maxLen - 3) . '...'; }
+            return $res;
+        }catch(\Throwable $e){ return $m[0]; }
+    }, $out);
+
+    return $out;
+}
+
+/**
+ * Parsea lista de argumentos con formato: key=value, key2="value with spaces", flag=true
+ */
+function aichat_parse_named_args( $raw ){
+    $raw = trim((string)$raw);
+    if ($raw === '') return [];
+    $parts = preg_split('/\s*,\s*/', $raw);
+    $args = [];
+    foreach($parts as $p){
+        if($p==='') continue;
+        $kv = explode('=', $p, 2);
+        $k = trim($kv[0]); if($k==='') continue;
+        $v = isset($kv[1]) ? trim($kv[1]) : '';
+        // Quitar comillas si están
+        if ((str_starts_with($v,'"') && str_ends_with($v,'"')) || (str_starts_with($v,"'") && str_ends_with($v,"'"))) {
+            $v = substr($v, 1, -1);
+        }
+        // Normalizar booleanos
+        if (preg_match('/^(true|false)$/i',$v)) { $v = strtolower($v)==='true'; }
+        // Números enteros
+        elseif (preg_match('/^-?\d+$/',$v)) { $v = (int)$v; }
+        $args[$k] = $v;
+    }
+    return $args;
+}
+
+/**
+ * Valida/normaliza args según schema simple: ['field'=>['type'=>'string|integer|boolean','pattern'=>'regex','min'=>int,'max'=>int,'default'=>..]]
+ */
+function aichat_validate_named_args( array $args, array $schema ){
+    $out = [];
+    foreach($schema as $key=>$spec){
+        $type = $spec['type'] ?? 'string';
+        $val = array_key_exists($key,$args) ? $args[$key] : ($spec['default'] ?? null);
+        if ($type==='integer'){
+            $val = is_int($val) ? $val : (int)$val;
+            if (isset($spec['min']) && $val < $spec['min']) $val = $spec['min'];
+            if (isset($spec['max']) && $val > $spec['max']) $val = $spec['max'];
+        } elseif ($type==='boolean'){
+            $val = (bool)$val;
+        } else { // string
+            $val = (string)$val;
+            if (!empty($spec['pattern'])){
+                if (!preg_match('/'.$spec['pattern'].'/',$val)) { $val = $spec['default'] ?? ''; }
+            }
+        }
+        $out[$key] = $val;
+    }
+    return $out;
 }

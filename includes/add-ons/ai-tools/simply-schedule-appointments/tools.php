@@ -148,3 +148,76 @@ if ( function_exists('aichat_register_macro') ) {
 } else {
   if ( function_exists('aichat_log_debug') ) { aichat_log_debug('SSA tools: macro API missing (aichat_register_macro)'); }
 }
+
+  // === System instructions functions registry: add a safe SSA availability summary ===
+  if ( function_exists('add_filter') ) {
+    add_filter('aichat_system_functions_registry', function($reg){
+      if (!is_array($reg)) $reg = [];
+      if ( function_exists('aichat_ssa_is_active') && function_exists('aichat_ssa_get_upcoming_slots') && aichat_ssa_is_active() ) {
+        $reg['ssa_availability'] = [
+          'callback' => 'aichat_sysfn_ssa_availability',
+          'schema' => [
+            'appointment_type_id' => [ 'type'=>'integer', 'min'=>1, 'default'=>1 ],
+            'from' => [ 'type'=>'string', 'pattern'=>'^\d{4}-\d{2}-\d{2}(\s\d{2}:\d{2}:\d{2})?$', 'default'=>'' ],
+            'to'   => [ 'type'=>'string', 'pattern'=>'^\d{4}-\d{2}-\d{2}(\s\d{2}:\d{2}:\d{2})?$', 'default'=>'' ],
+            'starts_only' => [ 'type'=>'boolean', 'default'=>true ],
+            // Optional shortcut: when provided and both from/to are empty, use [now, now + days] range in site local time
+            'days' => [ 'type'=>'integer', 'min'=>1, 'max'=>60, 'default'=>0 ],
+            // Allow larger lists when needed (capped to keep system prompt reasonable)
+            'limit' => [ 'type'=>'integer', 'min'=>1, 'max'=>200, 'default'=>3 ]
+          ],
+          // Increase default max length so long lists aren't truncated when embedded in System instructions.
+          // Allow overriding via filter if needed.
+          'max_len' => apply_filters('aichat_sysfn_ssa_availability_max_len', 4000)
+        ];
+      }
+      return $reg;
+    });
+
+    if ( ! function_exists('aichat_sysfn_ssa_availability') ) {
+      function aichat_sysfn_ssa_availability( $args ){
+        $sid = isset($args['appointment_type_id']) ? (int)$args['appointment_type_id'] : 1;
+        if ($sid <= 0) $sid = 1;
+        $from = isset($args['from']) && is_string($args['from']) ? trim($args['from']) : '';
+        $to   = isset($args['to'])   && is_string($args['to'])   ? trim($args['to'])   : '';
+        $starts_only = !empty($args['starts_only']);
+        $days = isset($args['days']) ? (int)$args['days'] : 0;
+        // If days > 0 and no explicit from/to provided, compute a local-time range [now, now + days]
+        if ($days > 0 && $from === '' && $to === '') {
+          // Prefer wp_date with site timezone; fallback to date_i18n with local timestamps
+          if ( function_exists('wp_date') ) {
+            try { $tz = function_exists('wp_timezone') ? wp_timezone() : null; } catch (\Throwable $e) { $tz = null; }
+            $now_gmt = function_exists('current_time') ? current_time('timestamp', true) : time();
+            $from = wp_date('Y-m-d H:i:s', $now_gmt, $tz ?: null);
+            $to   = wp_date('Y-m-d H:i:s', $now_gmt + ($days * DAY_IN_SECONDS), $tz ?: null);
+          } else {
+            // Legacy fallback
+            $now_local = function_exists('current_time') ? current_time('timestamp') : time();
+            $from = date_i18n('Y-m-d H:i:s', $now_local, false);
+            $to   = date_i18n('Y-m-d H:i:s', $now_local + ($days * DAY_IN_SECONDS), false);
+          }
+        }
+        $limit = isset($args['limit']) ? max(1, (int)$args['limit']) : 3;
+        try{
+          $slots = aichat_ssa_get_upcoming_slots( $sid, $from ?: null, $to ?: null, $starts_only );
+          if (!is_array($slots)) return '';
+          if ($starts_only) {
+            $list = array_slice(array_map(function($s){ return is_string($s)? $s : (is_array($s)&&isset($s['start'])?$s['start']:''); }, $slots), 0, $limit);
+            $list = array_values(array_filter($list, function($s){ return $s !== ''; }));
+            if (empty($list)) return 'No upcoming starts available.';
+            return 'Next starts: ' . implode(', ', array_map('sanitize_text_field', $list)) . " (total: " . count($slots) . ")";
+          }
+          // full slots with start/end
+          $list = [];
+          foreach($slots as $slot){
+            if (is_array($slot) && isset($slot['start'],$slot['end'])){
+              $list[] = sanitize_text_field($slot['start']) . '–' . sanitize_text_field($slot['end']);
+              if (count($list) >= $limit) break;
+            }
+          }
+          if (empty($list)) return 'No upcoming slots available.';
+          return 'Next slots: ' . implode(', ', $list) . " (total: " . count($slots) . ")";
+        }catch(\Throwable $e){ return ''; }
+      }
+    }
+  }

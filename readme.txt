@@ -4,7 +4,7 @@ Tags: chatbot, ai, openai, chat, assistant
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.1.9
+Stable tag: 1.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Short Description: Flexible AI chatbot with multiple bots, OpenAI & Claude, contextual embeddings (local or Pinecone), PDF ingestion, usage limits & GDPR tools.
@@ -289,6 +289,10 @@ Planned.
 3. Usage / Costs
 
 == Changelog ==
+= 1.2.0 =
+* Added: Tokens and tools in system instructions
+* Fix: In some installations, the MySQL foreign key was failing
+
 = 1.1.9 =
 * Added: Tools Test for debug
 * Added: Compatibility with the Simply Schedule Appointments booking plugin

@@ -3,7 +3,7 @@
  * Plugin Name:       AxiaChat AI
  * Plugin URI:        https://wpbotwriter.com/axiachat-ai
  * Description:       A customizable AI chatbot for WordPress with contextual embeddings, multi‑provider support and upcoming action rules.
- * Version:           1.1.9
+ * Version:           1.2.0
  * Requires at least: 5.0
  * Requires PHP:      7.4
  * Author:            estebandezafra
@@ -19,10 +19,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Definir constantes del plugin
-define( 'AICHAT_VERSION', '1.1.9' );
+define( 'AICHAT_VERSION', '1.2.0' );
 define( 'AICHAT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AICHAT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
-define('AICHAT_DEBUG', false);
+define('AICHAT_DEBUG', true);
+define('AICHAT_DEBUG_SYS_MAXLEN', 0); // sin truncado
 
 // Nota: Eliminado load_plugin_textdomain manual.
 // Para WordPress.org, las traducciones de 'axiachat-ai' se cargarán automáticamente
@@ -249,7 +250,7 @@ function aichat_activation() {
     UNIQUE KEY uniq_post_ctx_chunk (post_id, id_context, chunk_index),
     KEY idx_context (id_context),
     KEY idx_post_context (post_id,id_context),
-    CONSTRAINT fk_chunks_context FOREIGN KEY (id_context) REFERENCES $contexts_table(id) ON DELETE SET NULL
+    FOREIGN KEY (id_context) REFERENCES $contexts_table(id) ON DELETE SET NULL
   ) $charset_collate;";
 
     dbDelta( $chunks_sql );

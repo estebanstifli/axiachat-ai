@@ -206,7 +206,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
 
             // 3) Construir mensajes (system + historial + user actual) para primera fase
             // Base (system + user actual con CONTEXTO)
-            $base = aichat_build_messages( $message, $contexts, $instructions );
+            $base = aichat_build_messages( $message, $contexts, $instructions, null, [ 'bot_name' => $bot_name ] );
             $system_msg       = isset($base[0]) ? $base[0] : [ 'role'=>'system', 'content'=>'' ];
             $current_user_msg = isset($base[1]) ? $base[1] : [ 'role'=>'user',   'content'=>(string)$message ];
 
@@ -377,6 +377,11 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                     'tools'        => $tools_list,
                 ]);
                 aichat_log_debug($req_pretty, [], true);
+                // Optional full SYSTEM dump without truncation for diagnostics
+                if ( defined('AICHAT_DEBUG_LOG_SYSTEM_FULL') && (bool) constant('AICHAT_DEBUG_LOG_SYSTEM_FULL') ) {
+                    $sys_full = (string)($system_msg['content'] ?? '');
+                    aichat_log_debug("[AIChat SYSTEM FULL][$uid]\n".$sys_full, [], true);
+                }
             }
             // === USAGE LIMITS (antes de llamar al proveedor) ===
             if ( get_option('aichat_usage_limits_enabled', 1 ) ) {
@@ -1352,7 +1357,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 ] );
             }
 
-            $base = aichat_build_messages( $message, $contexts, $instructions );
+            $base = aichat_build_messages( $message, $contexts, $instructions, null, [ 'bot_name' => ($bot['name'] ?? '') ] );
             $system_msg       = $base[0] ?? [ 'role'=>'system', 'content'=>'' ];
             $current_user_msg = $base[1] ?? [ 'role'=>'user', 'content'=>$message ];
 
@@ -1840,6 +1845,10 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                         'tools'         => $this->extract_tool_names_for_log(isset($extra['tools'])?$extra['tools']:[]),
                     ]);
                     aichat_log_debug($req_pretty, [], true);
+                    // Optional full SYSTEM dump without truncation for diagnostics (Responses path)
+                    if ( defined('AICHAT_DEBUG_LOG_SYSTEM_FULL') && (bool) constant('AICHAT_DEBUG_LOG_SYSTEM_FULL') ) {
+                        aichat_log_debug("[AIChat SYSTEM FULL][$request_uuid]\n".$instructions_field, [], true);
+                    }
                 }
                 // Siempre usamos el endpoint base /responses ahora (previous_response_id maneja el hilo)
                 $post_endpoint = $endpoint;
@@ -2311,8 +2320,10 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             $sys   = is_string($data['system'] ?? null) ? (string)$data['system'] : '';
             $prm   = is_string($data['prompt'] ?? null) ? (string)$data['prompt'] : '';
             $tools = is_array($data['tools'] ?? null) ? $data['tools'] : [];
-            // Truncate long system text
-            if (mb_strlen($sys) > 1500) { $sys = mb_substr($sys, 0, 1500) . '…'; }
+            // Truncate long system text (configurable)
+            // You can override via constant AICHAT_DEBUG_SYS_MAXLEN (set to 0 or negative to disable truncation)
+            $maxSys = defined('AICHAT_DEBUG_SYS_MAXLEN') ? (int) constant('AICHAT_DEBUG_SYS_MAXLEN') : 1500;
+            if ($maxSys > 0 && mb_strlen($sys) > $maxSys) { $sys = mb_substr($sys, 0, $maxSys) . '…'; }
             // Compose
             $lines = [];
             $lines[] = "[AIChat Request][$uid]";
