@@ -394,3 +394,20 @@
 .aichat-tts-overlay-btn svg { width: 24px; height: 24px; }
 
 .aichat-gdpr-overlay{ position:absolute; inset:0; background:rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center; z-index:20; font-family:inherit; padding:1rem; } .aichat-gdpr-box{ background:#fff; color:#222; border-radius:8px; padding:1rem 1.25rem; max-width:320px; width:100%; box-shadow:0 4px 16px rgba(0,0,0,.25); font-size:14px; line-height:1.4; } .aichat-gdpr-box .aichat-gdpr-text{margin-bottom:.75rem;} .aichat-gdpr-box .aichat-gdpr-accept{ background:#0073aa; color:#fff; border:0; padding:.5rem .9rem; border-radius:4px; cursor:pointer; font-size:14px; } .aichat-gdpr-box .aichat-gdpr-accept:hover{background:#005f8a;}
+
+/* Enlace compacto estilizado para Google Calendar (prettified server-side) */
+.aichat-gcal-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #e8f0fe;       /* azul muy claro */
+  color: #1a73e8;            /* azul Google-like */
+  text-decoration: none;
+  font-weight: 600;
+}
+.aichat-gcal-link:hover {
+  filter: brightness(.97);
+  text-decoration: underline;
+}

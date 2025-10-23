@@ -3,7 +3,7 @@
  * Plugin Name:       AxiaChat AI
  * Plugin URI:        https://wpbotwriter.com/axiachat-ai
  * Description:       A customizable AI chatbot for WordPress with contextual embeddings, multi‑provider support and upcoming action rules.
- * Version:           1.2.0
+ * Version:           1.2.1
  * Requires at least: 5.0
  * Requires PHP:      7.4
  * Author:            estebandezafra
@@ -19,10 +19,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Definir constantes del plugin
-define( 'AICHAT_VERSION', '1.2.0' );
+define( 'AICHAT_VERSION', '1.2.1' );
 define( 'AICHAT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AICHAT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
-define('AICHAT_DEBUG', true);
+define('AICHAT_DEBUG', false);
 define('AICHAT_DEBUG_SYS_MAXLEN', 0); // sin truncado
 
 // Nota: Eliminado load_plugin_textdomain manual.
@@ -919,6 +919,56 @@ if ( ! function_exists('aichat_get_ip') ) {
   }
 }
 
+if ( ! function_exists('aichat_normalize_origin') ) {
+  /**
+   * Normaliza un valor origin o URL a la forma scheme://host[:port]
+   */
+  function aichat_normalize_origin( $origin ) {
+    if ( ! $origin ) { return ''; }
+    $parts = wp_parse_url( $origin );
+    if ( ! $parts || empty( $parts['scheme'] ) || empty( $parts['host'] ) ) { return ''; }
+    $scheme = strtolower( $parts['scheme'] );
+    $host   = strtolower( $parts['host'] );
+    $port   = isset( $parts['port'] ) ? ':' . $parts['port'] : '';
+    return $scheme . '://' . $host . $port;
+  }
+}
+
+if ( ! function_exists('aichat_collect_embed_allowed_origins') ) {
+  /**
+   * Devuelve lista de origins permitidos (normalizados) combinando defaults + opción almacenada
+   */
+  function aichat_collect_embed_allowed_origins() {
+    $defaults = [];
+    $candidates = [ get_home_url(), get_site_url() ];
+    if ( is_multisite() ) {
+      $candidates[] = network_home_url();
+      $candidates[] = network_site_url();
+    }
+    foreach ( $candidates as $candidate ) {
+      $norm = aichat_normalize_origin( $candidate );
+      if ( $norm !== '' ) { $defaults[] = $norm; }
+    }
+
+    $raw_opt = get_option( 'aichat_embed_allowed_origins', '' );
+    if ( is_string( $raw_opt ) ) {
+      $allowed_custom = preg_split( '/\r\n|\r|\n/', $raw_opt );
+    } else {
+      $allowed_custom = (array) $raw_opt;
+    }
+    $normalized_custom = [];
+    foreach ( $allowed_custom as $entry ) {
+      $entry = trim( (string) $entry );
+      if ( $entry === '' ) { continue; }
+      $norm = aichat_normalize_origin( $entry );
+      if ( $norm !== '' ) { $normalized_custom[] = $norm; }
+    }
+
+    $merged = array_unique( array_merge( $defaults, $normalized_custom ) );
+    return apply_filters( 'aichat_embed_allowed_origins', $merged, $defaults, $normalized_custom );
+  }
+}
+
 // ========== EMBED (Script) Nonce endpoint & origin allowlist ==========
 // Simple JSON endpoint: /?aichat_embed_nonce=1  --> { nonce:"..." }
 // Only returns nonce if HTTP_ORIGIN is empty (same-origin) or allowed in stored option list.
@@ -927,14 +977,16 @@ add_action('init', function(){
   nocache_headers();
   header('Content-Type: application/json; charset=utf-8');
   $origin = isset($_SERVER['HTTP_ORIGIN']) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_ORIGIN'] ) ) : '';
-  $raw_opt = get_option('aichat_embed_allowed_origins', '');
-  if (is_string($raw_opt)) { $allowed = preg_split('/\r\n|\r|\n/', $raw_opt); } else { $allowed = (array)$raw_opt; }
-  $allowed_norm = [];
-  foreach($allowed as $o){ $o = trim($o); if ($o==='') continue; $allowed_norm[] = rtrim($o,'/'); }
-  $ok = true;
-  if ($origin) { $norm_origin = rtrim($origin,'/'); if (!in_array($norm_origin,$allowed_norm,true)) { $ok = false; } }
-  if (! $ok) { echo wp_json_encode(['error'=>'origin_not_allowed']); exit; }
-  if ($origin) { header('Access-Control-Allow-Origin: '.$origin); header('Vary: Origin'); }
+  $allowed_norm = aichat_collect_embed_allowed_origins();
+  $norm_origin = $origin ? aichat_normalize_origin( $origin ) : '';
+  if ( $origin && ( $norm_origin === '' || ! in_array( $norm_origin, $allowed_norm, true ) ) ) {
+    echo wp_json_encode(['error'=>'origin_not_allowed']);
+    exit;
+  }
+  if ( $origin ) {
+    header('Access-Control-Allow-Origin: '.$origin);
+    header('Vary: Origin');
+  }
 
   $nonce = wp_create_nonce('aichat_ajax');
 
@@ -1001,25 +1053,13 @@ add_filter('init', function(){
     return;
   }
 
-  // Compare against site home to allow first-party even if not listed (avoid breaking admin pages served from same domain).
-  $site_base = rtrim( get_home_url(), '/' );
-  $norm_origin = rtrim( $origin, '/' );
-  if ( strtolower($norm_origin) === strtolower($site_base) ) {
-    // First-party; no need to consult embed allowlist.
-    return;
+  $norm_origin = aichat_normalize_origin( $origin );
+  if ( $norm_origin === '' ) {
+    wp_send_json_error( [ 'message' => 'Invalid origin header' ], 400 );
   }
 
-  // Cross-origin: enforce allowlist
-  $raw_opt = get_option('aichat_embed_allowed_origins', '');
-  if ( is_string($raw_opt) ) {
-    $allowed = preg_split('/\r\n|\r|\n/', $raw_opt);
-  } else { $allowed = (array) $raw_opt; }
-  $allowed_norm = [];
-  foreach ( $allowed as $o ) {
-    $o = trim($o);
-    if ($o === '') continue;
-    $allowed_norm[] = rtrim($o,'/');
-  }
+  // Enforce allowlist (incluye defaults por dominio actual)
+  $allowed_norm = aichat_collect_embed_allowed_origins();
   if ( ! in_array( $norm_origin, $allowed_norm, true ) ) {
     wp_send_json_error( [ 'message' => 'Embedding origin not allowed' ], 403 );
   }

@@ -813,3 +813,33 @@ function aichat_validate_named_args( array $args, array $schema ){
     }
     return $out;
 }
+
+/**
+ * Reemplaza URLs conocidas en texto plano por enlaces compactos y seguros.
+ * Por ahora: Google Calendar "render?action=TEMPLATE".
+ *
+ * - Solo actúa sobre texto plano; si detecta etiquetas <a>, no modifica para evitar anidar anchors.
+ * - Allowlist estricto por dominio y ruta.
+ * - Devuelve el mismo texto si no hay coincidencias.
+ */
+function aichat_pretty_known_links( $text ){
+    $s = (string)$text;
+    if ($s === '') return $s;
+    // Si ya hay anchors, ser conservadores y no modificar
+    if (stripos($s, '<a') !== false) return $s;
+
+    // Buscar URLs de Google Calendar render
+    $label = function_exists('apply_filters') ? apply_filters('aichat_gcal_link_label', __('Google Calendar','axiachat-ai')) : __('Google Calendar','axiachat-ai');
+    $pattern = '/\bhttps:\/\/calendar\.google\.com\/calendar\/render\?[^\s<]+/i';
+    $s = preg_replace_callback($pattern, function($m) use ($label){
+        $url = $m[0];
+        // Validación adicional: requerir action=TEMPLATE en query
+        if (stripos($url, 'action=TEMPLATE') === false) { return $url; }
+        // Componer anchor con target seguro
+        $href = esc_url($url);
+        $title = esc_attr__('Add to Google Calendar','axiachat-ai');
+        return '<a class="aichat-gcal-link" href="'.$href.'" target="_blank" rel="noopener nofollow" title="'.$title.'">'.esc_html($label).'</a>';
+    }, $s);
+
+    return $s;
+}

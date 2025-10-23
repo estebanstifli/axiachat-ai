@@ -250,7 +250,10 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             }
             if ( ! empty( $intercept['abort'] ) ) {
                 $answer = isset($intercept['immediate_response']) ? (string)$intercept['immediate_response'] : __( 'No response available.', 'axiachat-ai' );
-                $answer = $this->sanitize_answer_html( aichat_replace_link_placeholder( $answer ) );
+                // Reemplazo [LINK] y embellecer enlaces conocidos antes de sanear
+                $answer = aichat_replace_link_placeholder( $answer );
+                if ( function_exists('aichat_pretty_known_links') ) { $answer = aichat_pretty_known_links( $answer ); }
+                $answer = $this->sanitize_answer_html( $answer );
                 if ( get_option( 'aichat_logging_enabled', 1 ) ) {
                     $this->maybe_log_conversation( get_current_user_id(), $session, $bot['slug'], $page_id, $message, $answer, $model, $provider, null, null, null, null );
                 }
@@ -339,7 +342,9 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                     $answer = __( 'No response available.', 'axiachat-ai' );
                 }
                 // Sanitizar y log opcional
-                $answer = $this->sanitize_answer_html( aichat_replace_link_placeholder( $answer ) );
+                $answer = aichat_replace_link_placeholder( $answer );
+                if ( function_exists('aichat_pretty_known_links') ) { $answer = aichat_pretty_known_links( $answer ); }
+                $answer = $this->sanitize_answer_html( $answer );
                 if ( get_option( 'aichat_logging_enabled', 1 ) ) {
                     $this->maybe_log_conversation( get_current_user_id(), $session, $bot_slug, $page_id, $message, $answer, $model, $provider, null, null, null, null );
                 }
@@ -635,8 +640,11 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 wp_send_json_error( [ 'message' => __( 'Model returned an empty response.', 'axiachat-ai' ) ], 500 );
             }
 
-            // 6) Reemplazo [LINK]
+            // 6) Reemplazo [LINK] y embellecer enlaces conocidos
             $answer = aichat_replace_link_placeholder( $answer );
+            if ( function_exists('aichat_pretty_known_links') ) {
+                $answer = aichat_pretty_known_links( $answer );
+            }
 
             // 6.1) Sanitizar HTML permitido (permitimos <a>, <strong>, <em>, listas, etc.)
             $answer = $this->sanitize_answer_html( $answer );
@@ -973,6 +981,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 aichat_log_debug('[AIChat Continue]['.$uid.'] final summary\n'.$pretty_cont, [], true);
             }
             $final_text = aichat_replace_link_placeholder( $final_text );
+            if ( function_exists('aichat_pretty_known_links') ) { $final_text = aichat_pretty_known_links( $final_text ); }
             $final_text = $this->sanitize_answer_html( $final_text );
 
             // Actualizar la última conversación con la respuesta final y vincular tool_calls por request_uuid
@@ -1384,6 +1393,10 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             $answer = (string)($result['message'] ?? '');
             if ($answer === '') return new WP_Error('aichat_empty_answer','Empty answer');
             $answer = aichat_replace_link_placeholder( $answer );
+            // Convert known plain URLs (e.g., Google Calendar) into compact, safe anchors
+            if ( function_exists('aichat_pretty_known_links') ) {
+                $answer = aichat_pretty_known_links( $answer );
+            }
             $answer = $this->sanitize_answer_html( $answer );
 
             // HOOK: respuesta antes de persistir (flujo interno)
@@ -1566,7 +1579,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
          */
         protected function sanitize_answer_html( $html ) {
             $allowed = [
-                'a'      => [ 'href' => true, 'target' => true, 'rel' => true, 'title' => true ],
+                'a'      => [ 'href' => true, 'target' => true, 'rel' => true, 'title' => true, 'class' => true ],
                 'strong' => [], 'em' => [], 'b' => [], 'i' => [],
                 'br'     => [], 'p' => [], 'ul' => [], 'ol' => [], 'li' => [],
                 'code'   => [], 'pre' => [],
