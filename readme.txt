@@ -1,4 +1,4 @@
-=== AxiaChat AI ===
+=== AxiaChat AI – Free AI Chatbot for WordPress (Answers Customers Automatically) ===
 Contributors: estebandezafra
 Tags: chatbot, ai, openai, chat, assistant
 Requires at least: 5.0
