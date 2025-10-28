@@ -64,13 +64,14 @@
 }
 .aichat-header.with-avatar{
   justify-content: flex-start;
-  padding-left: 52px; /* espacio para avatar (32px) + margen */
+  padding-left: 84px; /* espacio para avatar (60px) + margen */
+  min-height: 72px;   /* altura suficiente para 60px de avatar + padding */
 }
 .aichat-avatar-badge{
   position: absolute;
-  left: 8px;
+  left: 10px;
   top: 8px;
-  width: 32px; height: 32px;
+  width: 60px; height: 60px;
   border-radius: 50%;
   border: 2px solid #fff;
   box-shadow: 0 2px 6px rgba(0,0,0,.15);
@@ -78,16 +79,21 @@
   background: #fff;
 }
 .aichat-header-text{
-  display: inline-flex; 
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 .aichat-header-title{
-  color: rgba(255,255,255,0.8); /* gris claro para el nombre */
-  font-weight: 600;
+  color: rgba(255,255,255,0.9); /* un poco más legible */
+  font-weight: 700;
+}
+.aichat-header-subtitle{
+  color: rgba(255,255,255,0.85);
+  font-weight: 500;
+  font-size: 12.5px;
+  line-height: 1.2;
 }
 .aichat-start-sentence{
   color: #fff; /* blanco para el mensaje */
@@ -102,6 +108,10 @@
   display: inline-flex;
   gap: 6px;
   align-items: center;
+}
+.aichat-header .aichat-header-controls .aichat-btn{
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 .aichat-btn{
   appearance: none;
@@ -119,6 +129,14 @@
   cursor: pointer;
 }
 .aichat-btn:hover{ background: rgba(255,255,255,.28); }
+
+/* Mejora targets táctiles en móviles */
+@media (max-width: 600px){
+  .aichat-header .aichat-header-controls{ gap: 8px; }
+  .aichat-header .aichat-header-controls .aichat-btn{
+    width: 32px; height: 32px; font-size: 18px;
+  }
+}
 
 /* Maximize icon sizing */
 .aichat-btn .aichat-ico-max{ width: 16px; height: 16px; display:block }
@@ -289,12 +307,17 @@
 
 /* Super minimizado: solo avatar (o un círculo) */
 .aichat-widget.is-superminimized{
-  width:56px !important;
-  height:56px !important;
-  min-width:56px;
-  min-height:56px;
+  width:60px !important;
+  height:60px !important;
+  min-width:60px;
+  min-height:60px;
   overflow:visible;
 }
+/* Explicit corner anchoring for super-minimized with safe-area insets */
+.aichat-widget.is-global.is-superminimized.pos-bottom-right{ right: max(12px, env(safe-area-inset-right, 0px)); bottom: calc(62px + env(safe-area-inset-bottom, 0px)); left:auto; top:auto; }
+.aichat-widget.is-global.is-superminimized.pos-bottom-left{  left:  max(12px, env(safe-area-inset-left, 0px));  bottom: calc(62px + env(safe-area-inset-bottom, 0px)); right:auto; top:auto; }
+.aichat-widget.is-global.is-superminimized.pos-top-right{    right: max(12px, env(safe-area-inset-right, 0px)); top:    calc(12px + env(safe-area-inset-top, 0px));    left:auto; bottom:auto; }
+.aichat-widget.is-global.is-superminimized.pos-top-left{     left:  max(12px, env(safe-area-inset-left, 0px));  top:    calc(12px + env(safe-area-inset-top, 0px));     right:auto; bottom:auto; }
 /* Maximized: fills viewport with safe paddings */
 .aichat-widget.is-global.is-maximized{
   inset: 12px !important;
@@ -312,8 +335,8 @@
 }
 .aichat-widget.is-superminimized .aichat-inner{
   padding:0;
-  width:56px;
-  height:56px;
+  width:60px;
+  height:60px;
   background:transparent;
   border:none;
   box-shadow:none;
@@ -324,7 +347,7 @@
 .aichat-widget.is-superminimized .aichat-tts-overlay{ display:none !important; }
 .aichat-super-avatar{
   position:relative;
-  width:56px; height:56px;
+  width:60px; height:60px;
   border-radius:50%;
   background:#0073aa;
   display:flex; align-items:center; justify-content:center;

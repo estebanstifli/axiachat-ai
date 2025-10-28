@@ -105,7 +105,8 @@
       var mHeight   = parseInt($root.data('height'), 10) || 0;
       var title       = $root.data('title') || 'AI Chat';
       var placeholder  = $root.data('placeholder') || 'Write your question...';
-      var startSentence = $root.data('startSentence') || '';
+  var startSentence = $root.data('startSentence') || '';
+  var role         = $root.data('role') || 'AI Agent Specialist';
       var sendLabel    = $root.data('buttonSend') || 'Send'; // nuevo
       // Ventana
       var closable      = !!parseInt($root.data('closable') || 0, 10);
@@ -141,19 +142,19 @@
         var headerCls = 'aichat-header' + (avatarEnabled && avatarUrl ? ' with-avatar' : '');
         var headerHtml;
         if (avatarEnabled && avatarUrl) {
-          // Solo avatar + start sentence (sin nombre)
+          // Avatar + nombre (arriba) + rol (debajo)
           headerHtml =
             '<img class="aichat-avatar-badge" src="'+ escapeHtml(avatarUrl) +'" alt="'+ escapeHtml(title) +'">' +
-            (startSentence
-              ? '<span class="aichat-header-text"><span class="aichat-start-sentence">'+ escapeHtml(startSentence) +'</span></span>'
-              : '');
+            '<span class="aichat-header-text">'+
+              '<span class="aichat-header-title">'+ escapeHtml(title) +'</span>'+
+              '<span class="aichat-header-subtitle">'+ escapeHtml(role) +'</span>'+
+            '</span>';
         } else {
-          // Nombre (gris) + “: ” + start sentence (blanca) si existe
+          // Nombre + rol en dos líneas
           headerHtml = 
             '<span class="aichat-header-text">' +
-              (startSentence
-                ? '<span class="aichat-header-title">'+ escapeHtml(title) +': </span><span class="aichat-start-sentence">'+ escapeHtml(startSentence) +'</span>'
-                : '<span class="aichat-header-title">'+ escapeHtml(title) +'</span>') +
+              '<span class="aichat-header-title">'+ escapeHtml(title) +'</span>'+
+              '<span class="aichat-header-subtitle">'+ escapeHtml(role) +'</span>'+
             '</span>';
         }
        // Controles (derecha)
@@ -269,9 +270,10 @@
        }
      } catch(e){ if (DEBUG) console.warn('[AIChat][GDPR] error consent message', e); }
 
-     // Sesión y carga de historial
+  // Sesión y carga de historial
      var sessionId = getOrCreateSessionId();
-     loadHistory($messages, botSlug, sessionId);
+  // Carga historial y, si viene vacío, muestra mensaje de bienvenida (si definido)
+  loadHistory($messages, botSlug, sessionId, startSentence);
 
      // ----- Voz (STT/TTS) por instancia -----
      var recognition = null;
@@ -485,17 +487,41 @@
       $root.removeClass('pos-bottom-right pos-bottom-left pos-top-right pos-top-left');
       $root.addClass('pos-' + position);
 
-      // Ancho del contenedor (flotante)
-      if (width > 0) {
-        $root.css('width', width + 'px');
+      // Size helpers: clamp width/height to min and viewport
+      function applySizing(){
+        try {
+          var vw = window.innerWidth || document.documentElement.clientWidth || 1024;
+          var vh = window.innerHeight || document.documentElement.clientHeight || 768;
+          var pad = 20; // viewport padding used in CSS
+          var minW = 300, minH = 300;
+          var cfgW = width > 0 ? width : 0;
+          var cfgH = mHeight > 0 ? mHeight : 0;
+
+          // Width: clamp to [minW, vw - 2*pad]
+          if (cfgW > 0) {
+            var w = Math.max(minW, cfgW);
+            w = Math.min(w, Math.max(minW, vw - pad*2));
+            $root.css('width', w + 'px');
+          }
+
+          // Height: clamp to [minH, available]
+          // Available message height = viewport - header - inputbar - margins
+          if (!$root.hasClass('is-maximized') && cfgH > 0) {
+            var headerH = $inner.find('.aichat-header').outerHeight() || 56;
+            var inputH  = $inner.find('.aichat-inputbar').outerHeight() || 56;
+            var chrome  = headerH + inputH + 24; // internal padding/margins
+            var avail = Math.max(120, vh - chrome - pad);
+            var h = Math.max(minH, cfgH);
+            h = Math.min(h, avail);
+            $messages.css('height', h + 'px');
+            // keep original configured height in data for restore when exiting maximized
+            $messages.data('origHeightPx', cfgH);
+          }
+        } catch(_){ /* noop */ }
       }
 
-      // Altura del área de mensajes
-      if (mHeight > 0) {
-        $messages.css('height', mHeight + 'px');
-        // keep original configured height in data for restore when exiting maximized
-        $messages.data('origHeightPx', mHeight);
-      }
+      // Initial sizing
+      applySizing();
 
       // Color de tema
       if (color) {
@@ -505,7 +531,7 @@
 
       // Estado inicial minimizado
       if (minimizedDefault) $inner.addClass('is-minimized');
-      if (superMinimizedDefault) {
+  if (superMinimizedDefault) {
         // Reutiliza lógica de creación avatar si no existe
         if (!$root.find('.aichat-super-avatar').length){
           var avatarHtml;
@@ -519,6 +545,8 @@
           $root.append(avatarHtml);
         }
         $root.addClass('is-superminimized');
+        // Snap to the configured corner even on first render
+        try { animateToCorner($root, position); } catch(_){}
       }
 
       // ---------- 5) Eventos ----------
@@ -586,12 +614,25 @@
           if (pressed) {
             setTimeout(function(){ try{ var el=$inner.find('.aichat-messages')[0]; if(el) el.scrollTop=el.scrollHeight; }catch(e){} }, 60);
           }
+          // Reapply sizing when leaving maximized
+          if (!pressed) {
+            setTimeout(applySizing, 30);
+          }
         });
       }
       if (closable) {
         // Super-minimizado: alterna clase en el contenedor raíz
         $inner.on('click', '.aichat-btn-close', function(e){
           e.preventDefault();
+          // Si estaba maximizado, salir del estado maximizado antes de super-minimizar
+          if ($root.hasClass('is-maximized')) {
+            $root.removeClass('is-maximized');
+            // Restaurar altura fija de mensajes si existía
+            try {
+              var oh = $messages.data('origHeightPx');
+              if (oh) { $messages.css('height', oh + 'px'); }
+            } catch(_){ }
+          }
           // Crear contenedor avatar si no existe
           if (!$root.find('.aichat-super-avatar').length){
             var avatarHtml;
@@ -611,7 +652,7 @@
             return;
           }
 
-          // Añade estado super-minimizado primero (para tener tamaño final 56x56 al calcular destino)
+          // Añade estado super-minimizado primero (para tener tamaño final 60x60 al calcular destino)
           $root.addClass('is-superminimized');
 
           // Animar regreso a la esquina configurada si el usuario había arrastrado el widget (left/top inline)
@@ -621,6 +662,8 @@
         $root.on('click', '.aichat-super-avatar', function(e){
           e.preventDefault();
           $root.removeClass('is-superminimized');
+          // Limpiar estilos inline para que vuelvan a aplicar las clases pos-*
+          try { $root.css({ left:'', top:'', right:'', bottom:'' }); } catch(_){ }
         });
       }
 
@@ -630,6 +673,12 @@
       }
 
       if (DEBUG) console.log('[AIChat] instancia lista idx=', idx);
+
+      // Re-clamp on window resize (debounced)
+      (function(){
+        var t=null; function onResize(){ if(t) clearTimeout(t); t=setTimeout(applySizing, 100); }
+        window.addEventListener('resize', onResize, {passive:true});
+      })();
     });
 
     // ---------- helpers de envío y UI ----------
@@ -904,6 +953,11 @@
       var $doc = $(document);
       $handle.css('cursor','move');
       $handle.on('mousedown.aichat touchstart.aichat', function(ev){
+        // No iniciar arrastre si el toque/click es sobre controles interactivos
+        var $t = $(ev.target);
+        if ($t.closest('.aichat-header-controls, .aichat-btn, button, a, input, select, textarea, label').length){
+          return; // deja pasar el evento a los handlers de los botones
+        }
         var e = ev.type.startsWith('touch') ? ev.originalEvent.touches[0] : ev;
         dragging = true;
         $root.addClass('dragging');
@@ -944,10 +998,11 @@
           bottom: 'auto'
         });
 
-        // Dimensiones finales (ya en modo superminimizado 56x56)
+  // Dimensiones finales (ya en modo superminimizado 60x60)
         var w = $root.outerWidth();
         var h = $root.outerHeight();
-        var pad = 20; // margen estándar usado en CSS
+  var pad = 20; // margen estándar usado en CSS
+  var extraBottom = $root.hasClass('is-superminimized') ? 50 : 0; // elevar avatar en bottom
         var targetLeft, targetTop;
         var vw = window.innerWidth;
         var vh = window.innerHeight;
@@ -957,10 +1012,10 @@
           case 'top-right':
             targetLeft = vw - pad - w; targetTop = pad; break;
           case 'bottom-left':
-            targetLeft = pad; targetTop = vh - pad - h; break;
+            targetLeft = pad; targetTop = vh - pad - h - extraBottom; break;
           case 'bottom-right':
           default:
-            targetLeft = vw - pad - w; targetTop = vh - pad - h; break;
+            targetLeft = vw - pad - w; targetTop = vh - pad - h - extraBottom; break;
         }
 
         // Si ya está prácticamente en destino, sólo limpiar estilos
@@ -973,8 +1028,14 @@
         }
 
         $root.animate({ left: targetLeft, top: targetTop }, 300, 'swing', function(){
-          // Al terminar: eliminar estilos inline y dejar que las clases (pos-*) gobiernen
+          // Si terminamos en super-minimized, mantenemos left/top inline para evitar "rebote"
+          if ($root.hasClass('is-superminimized')) {
+            // Asegurar que right/bottom no interfieran con inline left/top
+            $root.css({ right:'auto', bottom:'auto' });
+          } else {
+            // En estados normales, limpiar para que pos-* gobierne
             $root.css({ left:'', top:'', right:'', bottom:'' });
+          }
         });
       } catch(err){
         // Fallback silencioso: si algo falla, limpiar estilos para no dejar estado roto
@@ -982,7 +1043,7 @@
       }
     }
     // Carga historial del servidor y lo pinta
-    function loadHistory($messages, botSlug, sessionId){
+    function loadHistory($messages, botSlug, sessionId, welcomeText){
       $.ajax({
         url: AIChatVars.ajax_url,
         method: 'POST',
@@ -994,6 +1055,12 @@
           appendBot($messages, String(it.a||''));     // bot → HTML sanitizado
         });
         scrollToBottom($messages);
+        try {
+          if (Array.isArray(res.data.items) && res.data.items.length === 0 && welcomeText && String(welcomeText).trim() !== ''){
+            appendBot($messages, escapeHtml(welcomeText));
+            scrollToBottom($messages);
+          }
+        } catch(_){ }
       });
     }
 

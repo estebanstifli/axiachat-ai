@@ -61,11 +61,14 @@ function aichat_bots_defaults($over=[]){
     /* nuevos por defecto */
     'ui_placeholder'  => 'Write your question...',
     'ui_button_send'  => 'Send',
+  'ui_width'             => 380,
+  'ui_height'            => 380,
     'ui_closable'           => 1,
     'ui_minimizable'        => 1,
     'ui_draggable'          => 1,
     'ui_minimized_default'  => 0,
   'ui_superminimized_default' => 0,
+    'ui_role' => 'AI Agent Specialist',
     'is_active'=>1,'created_at'=>$now,'updated_at'=>$now
   ];
   return array_merge($d,$over);
@@ -136,10 +139,13 @@ function aichat_bots_sanitize_patch($patch,$row=null){
   if (isset($patch['ui_avatar_key']))     $out['ui_avatar_key']     = sanitize_text_field($patch['ui_avatar_key']);
   if (isset($patch['ui_icon_url']))       $out['ui_icon_url']       = esc_url_raw($patch['ui_icon_url']);
   if (isset($patch['ui_start_sentence'])) $out['ui_start_sentence'] = sanitize_text_field($patch['ui_start_sentence']);
+  if (isset($patch['ui_role']))           $out['ui_role']           = sanitize_text_field($patch['ui_role']);
 
   /* nuevos campos UI */
   if (isset($patch['ui_placeholder']))    $out['ui_placeholder']    = sanitize_text_field($patch['ui_placeholder']);
   if (isset($patch['ui_button_send']))    $out['ui_button_send']    = sanitize_text_field($patch['ui_button_send']);
+  if (isset($patch['ui_width']))          { $w = intval($patch['ui_width']);  $w = max(300, min(1200, $w)); $out['ui_width'] = $w; }
+  if (isset($patch['ui_height']))         { $h = intval($patch['ui_height']); $h = max(300, min(1200, $h)); $out['ui_height'] = $h; }
   if (isset($patch['ui_closable']))           $out['ui_closable']          = intval(!!$patch['ui_closable']);
   if (isset($patch['ui_minimizable']))        $out['ui_minimizable']       = intval(!!$patch['ui_minimizable']);
   if (isset($patch['ui_draggable']))          $out['ui_draggable']         = intval(!!$patch['ui_draggable']);

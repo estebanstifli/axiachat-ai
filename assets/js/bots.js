@@ -196,9 +196,10 @@
     ui_avatar_key: null,
     ui_icon_url: '',
     ui_start_sentence: 'Hi! How can I help you?',
-    /* nuevos por defecto en UI */
-    ui_placeholder: 'Escribe tu pregunta...',
-    ui_button_send: 'Enviar',
+    /* new UI defaults */
+    ui_placeholder: 'Type your question...',
+    ui_button_send: 'Send',
+    ui_role: 'AI Agent Specialist',
   // Restored window control flags
   ui_closable: 1,
   ui_minimizable: 1,
@@ -394,7 +395,7 @@
     const currentNum = matchLegacy ? matchLegacy[1] : '';
 
     const totalAvatars = 22;
-    const avatars = Array.from({ length: totalAvatars }, (_, idx) => {
+  const avatars = Array.from({ length: totalAvatars }, (_, idx) => {
       const num = String(idx + 1);
       const key = num; // almacenamos el valor numérico como nueva clave
       const url = `${imgBase}${num}.png`;
@@ -402,7 +403,7 @@
       const checked = isActive ? 'checked' : '';
       const activeCls = isActive ? ' active' : '';
       return `
-        <label class="aichat-avatar me-2 mb-2${activeCls}" title="${key}">
+        <label class="aichat-avatar${activeCls}" title="${key}">
           <input type="radio" class="aichat-field d-none"
                  data-field="ui_avatar_key" data-id="${bot.id}"
                  name="ui_avatar_key-${bot.id}" value="${key}" ${checked}>
@@ -531,77 +532,7 @@
             </div>
           </div>
 
-          <!-- Context -->
-          <div class="accordion-item">
-            <h2 class="accordion-header" id="c-h-${bot.id}">
-              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#c-b-${bot.id}">
-                <i class="bi bi-diagram-3 me-2"></i> Context
-              </button>
-            </h2>
-            <div id="c-b-${bot.id}" class="accordion-collapse collapse" data-bs-parent="#acc-${bot.id}">
-              <div class="accordion-body">
-                <fieldset class="mb-0">
-                  <legend class="fw-semibold mb-2" style="font-size:14px;">Context Source</legend>
-                  <div class="d-flex flex-column gap-2">
-                    <div class="form-check">
-                      <input class="form-check-input ctx-mode" type="radio" name="ctx-mode-${bot.id}" id="ctx-emb-${bot.id}" value="embeddings" data-id="${bot.id}" ${bot.context_mode==='embeddings'?'checked':''}>
-                      <label class="form-check-label fw-semibold" for="ctx-emb-${bot.id}">Use Embeddings</label>
-                      <div class="aichat-inline mt-2" id="emb-wrap-${bot.id}" style="${bot.context_mode==='embeddings'?'':'display:none;'}">
-                        <div class="form-floating">
-                          <select class="form-select aichat-field" data-field="context_id" data-id="${bot.id}" id="emb-sel-${bot.id}">
-                            ${embHTML}
-                          </select>
-                          <label for="emb-sel-${bot.id}">Embeddings Context</label>
-                        </div>
-                      </div>
-                      <div class="form-text-muted">Select a pre-indexed context to ground answers.</div>
-                    </div>
-                    <div class="form-check">
-                      <input class="form-check-input ctx-mode" type="radio" name="ctx-mode-${bot.id}" id="ctx-page-${bot.id}" value="page" data-id="${bot.id}" ${bot.context_mode==='page'?'checked':''}>
-                      <label class="form-check-label fw-semibold" for="ctx-page-${bot.id}">Use the content of the current page/post</label>
-                      <div class="form-text-muted">Automatically feed visible page content to the assistant.</div>
-                    </div>
-                    <div class="form-check">
-                      <input class="form-check-input ctx-mode" type="radio" name="ctx-mode-${bot.id}" id="ctx-none-${bot.id}" value="none" data-id="${bot.id}" ${bot.context_mode==='none'?'checked':''}>
-                      <label class="form-check-label fw-semibold" for="ctx-none-${bot.id}">No extra context</label>
-                    </div>
-                  </div>
-                </fieldset>
-              </div>
-            </div>
-          </div>
-
-          <!-- Thresholds -->
-          <div class="accordion-item">
-            <h2 class="accordion-header" id="t-h-${bot.id}">
-              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#t-b-${bot.id}">
-                <i class="bi bi-sliders me-2"></i> Thresholds
-              </button>
-            </h2>
-            <div id="t-b-${bot.id}" class="accordion-collapse collapse" data-bs-parent="#acc-${bot.id}">
-              <div class="accordion-body">
-                <div class="row g-3">
-                  <div class="col-md-4">
-                    <label class="form-label" for="inmax-${bot.id}">Input Max Length</label>
-                    <input id="inmax-${bot.id}" type="number" class="form-control aichat-field" data-field="input_max_length" data-id="${bot.id}" value="${parseInt(bot.input_max_length||512,10)}">
-                    <div class="form-text">Maximum characters per user input.</div>
-                  </div>
-                  <div class="col-md-4">
-                    <label class="form-label" for="mxmsg-${bot.id}">Max Messages</label>
-                    <input id="mxmsg-${bot.id}" type="number" class="form-control aichat-field" data-field="max_messages" data-id="${bot.id}" value="${parseInt(bot.max_messages||20,10)}">
-                    <div class="form-text">Historical messages sent to the model.</div>
-                  </div>
-                  <div class="col-md-4">
-                    <label class="form-label" for="ctxmax-${bot.id}">Context Max Length</label>
-                    <input id="ctxmax-${bot.id}" type="number" class="form-control aichat-field" data-field="context_max_length" data-id="${bot.id}" value="${parseInt(bot.context_max_length||4096,10)}">
-                    <div class="form-text">Truncate external context below this length.</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Appearance -->
+          <!-- Appearance (moved between Model and Context) -->
           <div class="accordion-item">
             <h2 class="accordion-header" id="a-h-${bot.id}">
               <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#a-b-${bot.id}">
@@ -685,9 +616,38 @@
                   </div>
                 </div>
 
+                <!-- Role/subtitle under the name -->
+                <div class="row g-3 mt-1">
+                  <div class="col-md-12">
+                    <label class="form-label" for="role-${bot.id}">Role / subtitle (under the bot name)</label>
+                    <input id="role-${bot.id}" type="text" class="form-control aichat-field"
+                           data-field="ui_role" data-id="${bot.id}" value="${escapeHtml(bot.ui_role||'AI Agent Specialist')}">
+                  </div>
+                </div>
+
+                <!-- Size: width/height -->
+                <div class="row g-3 mt-1">
+                  <div class="col-md-6">
+                    <label class="form-label" for="w-${bot.id}">Widget width (px)</label>
+          <input id="w-${bot.id}" type="number" min="300" max="1200" class="form-control aichat-field"
+            data-field="ui_width" data-id="${bot.id}" value="${parseInt(bot.ui_width||380,10)}">
+                    <div class="form-text">Minimum 300px; auto-clamped to viewport on small screens.</div>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label" for="h-${bot.id}">Messages area height (px)</label>
+          <input id="h-${bot.id}" type="number" min="300" max="1200" class="form-control aichat-field"
+            data-field="ui_height" data-id="${bot.id}" value="${parseInt(bot.ui_height||380,10)}">
+                    <div class="form-text">Minimum 300px; auto-clamped to visible space under header/input.</div>
+                  </div>
+                </div>
+
                 <div class="mt-3" id="avatar-wrap-${bot.id}" style="${bot.ui_avatar_enabled?'':'display:none;'}">
                   <div class="mb-2 fw-semibold">Pick an avatar</div>
-                  <div class="d-flex flex-wrap">${avatars}</div>
+                  <div class="aichat-ava-picker">
+                    <button type="button" class="aichat-ava-arrow left" data-bot="${bot.id}" aria-label="Scroll left">‹</button>
+                    <div class="aichat-ava-strip" id="ava-strip-${bot.id}" data-bot="${bot.id}" role="listbox">${avatars}</div>
+                    <button type="button" class="aichat-ava-arrow right" data-bot="${bot.id}" aria-label="Scroll right">›</button>
+                  </div>
                   <div class="mt-2">
                     <label class="form-label" for="icon-${bot.id}">Custom Icon URL</label>
                     <input id="icon-${bot.id}" type="url" class="form-control aichat-field" data-field="ui_icon_url" data-id="${bot.id}" value="${escapeHtml(bot.ui_icon_url||'')}">
@@ -702,6 +662,78 @@
               </div>
             </div>
           </div>
+
+          <!-- Context -->
+          <div class="accordion-item">
+            <h2 class="accordion-header" id="c-h-${bot.id}">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#c-b-${bot.id}">
+                <i class="bi bi-diagram-3 me-2"></i> Context
+              </button>
+            </h2>
+            <div id="c-b-${bot.id}" class="accordion-collapse collapse" data-bs-parent="#acc-${bot.id}">
+              <div class="accordion-body">
+                <fieldset class="mb-0">
+                  <legend class="fw-semibold mb-2" style="font-size:14px;">Context Source</legend>
+                  <div class="d-flex flex-column gap-2">
+                    <div class="form-check">
+                      <input class="form-check-input ctx-mode" type="radio" name="ctx-mode-${bot.id}" id="ctx-emb-${bot.id}" value="embeddings" data-id="${bot.id}" ${bot.context_mode==='embeddings'?'checked':''}>
+                      <label class="form-check-label fw-semibold" for="ctx-emb-${bot.id}">Use Embeddings</label>
+                      <div class="aichat-inline mt-2" id="emb-wrap-${bot.id}" style="${bot.context_mode==='embeddings'?'':'display:none;'}">
+                        <div class="form-floating">
+                          <select class="form-select aichat-field" data-field="context_id" data-id="${bot.id}" id="emb-sel-${bot.id}">
+                            ${embHTML}
+                          </select>
+                          <label for="emb-sel-${bot.id}">Embeddings Context</label>
+                        </div>
+                      </div>
+                      <div class="form-text-muted">Select a pre-indexed context to ground answers.</div>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input ctx-mode" type="radio" name="ctx-mode-${bot.id}" id="ctx-page-${bot.id}" value="page" data-id="${bot.id}" ${bot.context_mode==='page'?'checked':''}>
+                      <label class="form-check-label fw-semibold" for="ctx-page-${bot.id}">Use the content of the current page/post</label>
+                      <div class="form-text-muted">Automatically feed visible page content to the assistant.</div>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input ctx-mode" type="radio" name="ctx-mode-${bot.id}" id="ctx-none-${bot.id}" value="none" data-id="${bot.id}" ${bot.context_mode==='none'?'checked':''}>
+                      <label class="form-check-label fw-semibold" for="ctx-none-${bot.id}">No extra context</label>
+                    </div>
+                  </div>
+                </fieldset>
+              </div>
+            </div>
+          </div>
+
+          <!-- Thresholds -->
+          <div class="accordion-item">
+            <h2 class="accordion-header" id="t-h-${bot.id}">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#t-b-${bot.id}">
+                <i class="bi bi-sliders me-2"></i> Thresholds
+              </button>
+            </h2>
+            <div id="t-b-${bot.id}" class="accordion-collapse collapse" data-bs-parent="#acc-${bot.id}">
+              <div class="accordion-body">
+                <div class="row g-3">
+                  <div class="col-md-4">
+                    <label class="form-label" for="inmax-${bot.id}">Input Max Length</label>
+                    <input id="inmax-${bot.id}" type="number" class="form-control aichat-field" data-field="input_max_length" data-id="${bot.id}" value="${parseInt(bot.input_max_length||512,10)}">
+                    <div class="form-text">Maximum characters per user input.</div>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label" for="mxmsg-${bot.id}">Max Messages</label>
+                    <input id="mxmsg-${bot.id}" type="number" class="form-control aichat-field" data-field="max_messages" data-id="${bot.id}" value="${parseInt(bot.max_messages||20,10)}">
+                    <div class="form-text">Historical messages sent to the model.</div>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label" for="ctxmax-${bot.id}">Context Max Length</label>
+                    <input id="ctxmax-${bot.id}" type="number" class="form-control aichat-field" data-field="context_max_length" data-id="${bot.id}" value="${parseInt(bot.context_max_length||4096,10)}">
+                    <div class="form-text">Truncate external context below this length.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          
 
           <!-- Actions -->
           <div class="accordion-item">
@@ -736,6 +768,8 @@
     $panel.html(html);
     updateModelTokenInfo(bot.id);
     refreshPreview(bot);
+    // Initialize avatar arrows state
+    setTimeout(()=>{ try{ updateAvaScroll(bot.id); }catch(e){} }, 50);
   }
 
   // -------------- Events ----------------
@@ -800,13 +834,14 @@
         val = $el.val();
       }
 
-      if (['temperature','max_tokens','input_max_length','max_messages','context_max_length'].includes(field)) {
+      if (['temperature','max_tokens','input_max_length','max_messages','context_max_length','ui_width','ui_height'].includes(field)) {
         const num = Number(val);
         val = isFinite(num) ? num : val;
       }
 
       if (field === 'ui_avatar_enabled') {
         $(`#avatar-wrap-${id}`).toggle(!!val);
+        try { updateAvaScroll(id); } catch(e){}
       }
 
       if (field === 'slug') {
@@ -873,7 +908,34 @@
     if (rail) {
       rail.addEventListener('scroll', updateArrows, {passive:true});
       window.addEventListener('resize', updateArrows, {passive:true});
+      // Also update avatar arrows on resize for current bot
+      window.addEventListener('resize', function(){ try{ if(activeId!=null) updateAvaScroll(activeId); }catch(e){} }, {passive:true});
     }
+
+    // Avatar arrows: scroll strip (robust, smooth scrolling)
+    $(document).on('click.aichat', '.aichat-ava-arrow', function(e){
+      e.preventDefault(); e.stopPropagation();
+      const botId = $(this).data('bot');
+      const el = document.getElementById(`ava-strip-${botId}`);
+      if(!el) return;
+      const dir = this.classList.contains('left') ? -1 : 1;
+      const firstItem = el.querySelector('.aichat-avatar');
+      const itemW = firstItem ? (firstItem.getBoundingClientRect().width || 0) : 0;
+      const gap = 8; // CSS gap
+      // Prefer ~3 items per step, min 60% of visible width
+      const step = Math.max((itemW + gap) * 3, el.clientWidth * 0.6, 240);
+      if (typeof el.scrollBy === 'function') {
+        el.scrollBy({ left: dir * step, behavior: 'smooth' });
+      } else {
+        // Fallback jQuery animation
+        const $list = $(el);
+        $list.animate({ scrollLeft: $list.scrollLeft() + dir*step }, 200);
+      }
+      setTimeout(()=> updateAvaScroll(botId), 260);
+    });
+    $(document).on('scroll.aichat', '.aichat-ava-strip', function(){
+      const m = this.id.match(/ava-strip-(\d+)/); if(m) updateAvaScroll(m[1]);
+    });
 
     // Acciones
     $(document).on('click.aichat', '#aichat-panel .aichat-action', function(){
@@ -950,6 +1012,19 @@
     const canR = (rail.scrollWidth - rail.clientWidth - rail.scrollLeft) > 5;
     $prev.toggle(canL);
     $next.toggle(canR);
+  }
+
+  // ===== Avatar strip arrows helpers =====
+  function updateAvaScroll(botId){
+    const list = document.getElementById(`ava-strip-${botId}`);
+    if(!list) return;
+    const leftBtn = document.querySelector(`.aichat-ava-arrow.left[data-bot="${botId}"]`);
+    const rightBtn = document.querySelector(`.aichat-ava-arrow.right[data-bot="${botId}"]`);
+    if(!leftBtn || !rightBtn) return;
+    const maxScroll = list.scrollWidth - list.clientWidth;
+    const pos = list.scrollLeft;
+    leftBtn.disabled = pos <= 0;
+    rightBtn.disabled = pos >= (maxScroll - 2);
   }
 
   // ===== Template list scroll helpers (no inline styles) =====

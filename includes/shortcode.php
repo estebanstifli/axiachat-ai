@@ -73,8 +73,9 @@ function aichat_render_shortcode( $atts, $content = null, $tag = 'aichat' ) {
     $ui_color  = aichat_pick($bot, ['ui_color','color','theme_color','primary_color'], '#0073aa');
     $ui_title  = aichat_pick($bot, ['ui_title','title','name'], 'AI Chat');
     $ui_ph     = aichat_pick($bot, ['ui_placeholder','placeholder'], 'Escribe tu pregunta...');
-    $ui_width  = intval( aichat_pick($bot, ['ui_width','width'], 320) );
-    $ui_height = intval( aichat_pick($bot, ['ui_height','height','messages_height'], 280) );
+    $ui_width  = intval( aichat_pick($bot, ['ui_width','width'], 380) );
+    $ui_height = intval( aichat_pick($bot, ['ui_height','height','messages_height'], 380) );
+    $ui_role   = aichat_pick($bot, ['ui_role','role','subtitle'], 'AI Agent Specialist');
 
     // Avatares
     $ui_avatar_enabled = intval( aichat_pick($bot, ['ui_avatar_enabled'], 0) );
@@ -172,10 +173,10 @@ function aichat_render_shortcode( $atts, $content = null, $tag = 'aichat' ) {
     $html = sprintf(
         '<div class="%s" %s '.
         'data-bot="%s" data-type="%s" data-title="%s" data-placeholder="%s" '.
-        'data-layout="%s" data-position="%s" data-color="%s" '.
+    'data-layout="%s" data-position="%s" data-color="%s" '.
         'data-width="%d" data-height="%d" '.
         'data-avatar-enabled="%d" data-avatar-url="%s" '.
-        'data-start-sentence="%s" data-button-send="%s" '.
+    'data-start-sentence="%s" data-role="%s" data-button-send="%s" '.
         'data-closable="%d" data-minimizable="%d" data-draggable="%d" data-minimized-default="%d" data-superminimized-default="%d"></div>',
         esc_attr( implode(' ', $classes) ),
         $style,
@@ -191,7 +192,8 @@ function aichat_render_shortcode( $atts, $content = null, $tag = 'aichat' ) {
         $ui_avatar_enabled ? 1 : 0,
         esc_attr( $avatar_url ),
         esc_attr( $ui_start_sentence ),
-        esc_attr( $ui_button_send ),
+    esc_attr( $ui_role ),
+    esc_attr( $ui_button_send ),
         $ui_closable ? 1 : 0,
         $ui_minimizable ? 1 : 0,
         $ui_draggable ? 1 : 0,

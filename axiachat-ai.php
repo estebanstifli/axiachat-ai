@@ -367,8 +367,11 @@ function aichat_bots_maybe_create(){
     ui_avatar_key VARCHAR(32) DEFAULT NULL,
     ui_icon_url VARCHAR(255) DEFAULT NULL,
     ui_start_sentence VARCHAR(255) DEFAULT NULL,
+  ui_role VARCHAR(120) NOT NULL DEFAULT 'AI Agent Specialist',
     ui_placeholder VARCHAR(255) NOT NULL DEFAULT 'Write your question...',
     ui_button_send VARCHAR(64) NOT NULL DEFAULT 'Send',
+  ui_width INT NOT NULL DEFAULT 380,
+  ui_height INT NOT NULL DEFAULT 380,
     ui_closable TINYINT(1) NOT NULL DEFAULT 1,
     ui_minimizable TINYINT(1) NOT NULL DEFAULT 1,
     ui_draggable TINYINT(1) NOT NULL DEFAULT 1,
@@ -444,6 +447,21 @@ add_action('admin_init', function(){
   $bots_cols = $wpdb->get_col("SHOW COLUMNS FROM $bots_table",0);
   if ( $bots_cols && ! in_array('tools_json',$bots_cols,true) ) {
     $wpdb->query("ALTER TABLE $bots_table ADD COLUMN tools_json LONGTEXT NULL AFTER context_max_length");
+  }
+  // Add ui_width/ui_height if missing
+  if ( $bots_cols && ! in_array('ui_width',$bots_cols,true) ) {
+    $wpdb->query("ALTER TABLE $bots_table ADD COLUMN ui_width INT NOT NULL DEFAULT 380 AFTER ui_button_send");
+  }
+  // refresh columns list for subsequent check
+  $bots_cols = $wpdb->get_col("SHOW COLUMNS FROM $bots_table",0);
+  if ( $bots_cols && ! in_array('ui_height',$bots_cols,true) ) {
+    // place after ui_width when possible
+    $wpdb->query("ALTER TABLE $bots_table ADD COLUMN ui_height INT NOT NULL DEFAULT 380 AFTER ui_width");
+  }
+  // Add ui_role if missing
+  $bots_cols = $wpdb->get_col("SHOW COLUMNS FROM $bots_table",0);
+  if ( $bots_cols && ! in_array('ui_role',$bots_cols,true) ) {
+    $wpdb->query("ALTER TABLE $bots_table ADD COLUMN ui_role VARCHAR(120) NOT NULL DEFAULT 'AI Agent Specialist' AFTER ui_start_sentence");
   }
   $cols = $wpdb->get_results("SHOW COLUMNS FROM $table LIKE 'chunk_index'");
   if (empty($cols)) {
