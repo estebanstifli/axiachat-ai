@@ -4,7 +4,7 @@ Tags: chatbot, ai, openai, chat, assistant
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.2.1
+Stable tag: 1.2.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Short Description: Flexible AI chatbot with multiple bots, OpenAI & Claude, contextual embeddings (local or Pinecone), PDF ingestion, usage limits & GDPR tools.
@@ -139,6 +139,13 @@ User prompts (and selected context snippets) are sent to OpenAI. Content may con
 * Assets only enqueued when needed; versioned with filemtime
 * Embedding/PDF ingestion can be heavy—schedule during low traffic
 * Lightweight front‑end footprint otherwise
+
+== Changelog ==
+
+= 1.2.2 =
+* Admin: Improved Bots accordion behavior — clicking an open section now closes it (allowing zero-open state) while keeping “at most one open” when opening another.
+* Admin: Reduced console noise; detailed accordion debug logs are now disabled by default and can be re-enabled with ?aichat_debug=1.
+* Preview: Stabilized homepage preview and suppressed duplicate global widget when previewing a specific bot.
 
 
 == Bundled Libraries ==

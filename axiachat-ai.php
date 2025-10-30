@@ -3,7 +3,7 @@
  * Plugin Name:       AxiaChat AI
  * Plugin URI:        https://wpbotwriter.com/axiachat-ai
  * Description:       A customizable AI chatbot for WordPress with contextual embeddings, multi‑provider support and upcoming action rules.
- * Version:           1.2.1
+ * Version:           1.2.2
  * Requires at least: 5.0
  * Requires PHP:      7.4
  * Author:            estebandezafra
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Definir constantes del plugin
-define( 'AICHAT_VERSION', '1.2.1' );
+define( 'AICHAT_VERSION', '1.2.3' );
 define( 'AICHAT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AICHAT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define('AICHAT_DEBUG', false);
@@ -740,7 +740,8 @@ function aichat_admin_menu() {
         'nonce'                 => wp_create_nonce('aichat_bots_nonce'),
         'embedding_options'     => $embedding_options,
         'instruction_templates' => $instruction_templates,
-        'preview_url'           => home_url('/?aichat_preview=1&bot='),
+        // Preview now renders over the real homepage with the widget injected
+        'preview_url'           => home_url('/?aichat_preview_home=1&bot='),
       ]);
     }
 
@@ -887,6 +888,40 @@ add_action('template_redirect', function () {
   </html>
   <?php
   exit;
+});
+
+// Vista previa sobre la página de inicio real: inyecta el widget encima del tema activo
+add_action('template_redirect', function(){
+  if (!isset($_GET['aichat_preview_home'])) return;
+  if (!current_user_can('manage_options')) { status_header(403); exit; }
+
+  // Ocultar la barra de admin dentro del iframe para una vista más realista
+  add_filter('show_admin_bar', '__return_false');
+
+  // Importante: marcar que "ya hay shortcode" para que el widget global NO se pinte (evita doble bot)
+  $GLOBALS['aichat_has_shortcode'] = true;
+
+  // Asegurar que no quede el margen superior típico del admin bar (32/46px)
+  add_filter('body_class', function($classes){
+    if (!is_array($classes)) return $classes;
+    $out = array_diff($classes, ['admin-bar']);
+    return is_array($out) ? array_values($out) : $classes;
+  });
+  // CSS de refuerzo (por si algún theme aplica padding/margins propios)
+  add_action('wp_head', function(){
+    echo '<style id="aichat-preview-reset">html{margin-top:0!important}body{margin-top:0!important;padding-top:0!important}</style>';
+  }, 99);
+  // Y como red de seguridad, elimina inline styles en <html> si existieran
+  add_action('wp_footer', function(){
+    echo "<script>try{document.documentElement&&document.documentElement.style&&document.documentElement.style.setProperty('margin-top','0px','important');if(document.body){document.body.style.marginTop='0px';document.body.style.paddingTop='0px';}}catch(e){}</script>";
+  }, 1);
+
+  // Inyectar el shortcode del bot al final del cuerpo sin alterar la plantilla
+  $slug = sanitize_title($_GET['bot'] ?? 'default');
+  add_action('wp_footer', function() use ($slug){
+    echo do_shortcode('[aichat id="'.esc_attr($slug).'"]');
+  }, 10);
+  // No hacemos exit; dejamos que WordPress renderice la home normalmente
 });
 
 // Redirect post-activation to the Easy Config wizard (one-time)
