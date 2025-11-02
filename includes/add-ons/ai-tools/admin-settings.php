@@ -64,8 +64,8 @@ function aichat_tools_settings_page(){
     foreach ( $macros as $m ) {
       $label = $m['label'] ?? $m['name'];
       $desc  = $m['description'] ?? '';
-  $tools = !empty($m['tools']) ? implode(', ', array_map('esc_html', $m['tools'])) : esc_html__('—','axiachat-ai');
-      echo '<tr><td>'.esc_html($label).'</td><td>'.$tools.'</td><td>'.esc_html($desc).'</td></tr>';
+      $tools = !empty($m['tools']) ? implode(', ', array_map('esc_html', $m['tools'])) : esc_html__('—','axiachat-ai');
+      echo '<tr><td>'.esc_html($label).'</td><td>'.esc_html($tools).'</td><td>'.esc_html($desc).'</td></tr>';
     }
     echo '</tbody></table>';
   } else {

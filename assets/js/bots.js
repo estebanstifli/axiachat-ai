@@ -20,7 +20,7 @@
 
   // -------------- Utils / Logs ----------
   // Enable debug logs only when explicitly requested via ?aichat_debug=1
-  const DBG = true;
+  const DBG = /(?:^|[?&])aichat_debug=1(?:&|$)/.test(location.search);
   const DEBOUNCE_MS = 250; // antes 500: preview más ágil
 
   // ---- Preview helpers ----
@@ -769,23 +769,14 @@
     $panel.html(html);
     updateModelTokenInfo(bot.id);
     refreshPreview(bot);
-    // Permitir cerrar el último acordeón y mantener "como mucho 1 abierto"
+    // acoordeones: inicializar listeners de accesibilidad
     try {
-      const accSel = `#acc-${bot.id}`;
-      const $acc = $panel.find(accSel);
-      // Quitar restricción de Bootstrap que impide cerrar el último abierto
-      $acc.find('.accordion-collapse').removeAttr('data-bs-parent');
+  const accSel = `#acc-${bot.id}`;
+  const $acc = $panel.find(accSel);
       const accEl = document.getElementById(`acc-${bot.id}`);
       const BOT_ID = bot.id;
       if (accEl && window.bootstrap && window.bootstrap.Collapse) {
-        if (DBG) console.log('[AIChat Bots][ACC] setup listeners', { botId: BOT_ID, accId: `acc-${bot.id}` });
-        // Patrón recomendado: dejar que Bootstrap gestione el toggle y cerrar hermanos al mostrar
-        accEl.addEventListener('show.bs.collapse', function(ev){
-          const target = ev.target;
-          accEl.querySelectorAll('.accordion-collapse.show').forEach(function(el){
-            if (el !== target) window.bootstrap.Collapse.getOrCreateInstance(el, { toggle:false }).hide();
-          });
-        });
+        // Dejar que Bootstrap gestione el toggle con data-bs-parent (máximo 1 abierto por defecto)
         // Accesibilidad: permitir teclado (Enter/Espacio) sobre el botón
         accEl.addEventListener('keydown', function(ev){
           const btn = ev.target && ev.target.closest && ev.target.closest('.accordion-button');
@@ -798,10 +789,9 @@
       }
     } catch(_){ /* noop */ }
 
-    
     // Initialize avatar arrows state
     setTimeout(()=>{ try{ updateAvaScroll(bot.id); }catch(e){} }, 50);
-
+    
   }
 
   // -------------- Events ----------------

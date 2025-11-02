@@ -3,7 +3,7 @@
  * Plugin Name:       AxiaChat AI
  * Plugin URI:        https://wpbotwriter.com/axiachat-ai
  * Description:       A customizable AI chatbot for WordPress with contextual embeddings, multi‑provider support and upcoming action rules.
- * Version:           1.2.2
+ * Version:           1.2.3
  * Requires at least: 5.0
  * Requires PHP:      7.4
  * Author:            estebandezafra

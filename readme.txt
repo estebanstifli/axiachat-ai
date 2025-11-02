@@ -1,10 +1,10 @@
-=== AxiaChat AI – Free AI Chatbot for WordPress (Answers Customers Automatically) ===
+=== AxiaChat AI – Free AI Chatbot (Answers Customers Automatically) ===
 Contributors: estebandezafra
 Tags: chatbot, ai, openai, chat, assistant
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.2.2
+Stable tag: 1.2.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Short Description: Flexible AI chatbot with multiple bots, OpenAI & Claude, contextual embeddings (local or Pinecone), PDF ingestion, usage limits & GDPR tools.
@@ -15,6 +15,17 @@ AxiaChat AI lets you add one or more AI‑powered chatbots to your WordPress sit
 Conversation logs are stored locally (can be disabled) so you can review usage (see GDPR notes). All AI processing happens via direct calls from your server to OpenAI—no external SaaS proxy.
 
 Professional setup offer: Because this plugin is new, I'm happy to personally help you configure prompts, context (embeddings), and capabilities so your bot performs reliably for your use case. If you'd like assistance, please reach out: https://wpbotwriter.com/log-a-support-ticket/
+
+== Tutorial: Create Your First Bot with AxiaChat AI ==
+
+Learn how to install and set up your **first AI chatbot in just 5 minutes** 
+[youtube https://youtu.be/Th41gGUH7Es]
+
+In this quick video, we cover:
+- Create & customize your bot (text + voice)
+- Train it with your site pages, PDFs, and FAQs
+- Full appearance control + moderation
+
 
 == Features ==
 * Multiple bots with individual configuration (model, temperature, context mode, UI appearance)
@@ -141,6 +152,13 @@ User prompts (and selected context snippets) are sent to OpenAI. Content may con
 * Lightweight front‑end footprint otherwise
 
 == Changelog ==
+
+= 1.2.3 =
+* Added: YouTube tutorial video for quick setup walkthrough
+* Enhanced: Flexible widget sizing for better responsive design
+* Improved: Larger avatar display for better visual prominence
+
+* GDPR: Redesigned the consent message as a full-width in-stream block with a darker background and a centered button for better visibility and UX. Inputs remain disabled until accepted.
 
 = 1.2.2 =
 * Admin: Improved Bots accordion behavior — clicking an open section now closes it (allowing zero-open state) while keeping “at most one open” when opening another.

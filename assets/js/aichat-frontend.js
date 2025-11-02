@@ -231,9 +231,11 @@
                }
              } catch(e){}
              var boxHtml = ''+
-               '<div class="message bot-message aichat-gdpr-consent" role="group" aria-label="GDPR consent">'+
-                 '<div class="aichat-gdpr-text" style="margin-bottom:8px;">'+ (AIChatGDPR.text || '') +'</div>'+
-                 '<button type="button" class="aichat-gdpr-accept" style="background:#0073aa;color:#fff;border:0;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;">'+ escapeHtml(AIChatGDPR.button || 'OK') +'</button>'+
+               '<div class="message aichat-gdpr-consent" role="group" aria-label="GDPR consent">'+
+                 '<div class="aichat-gdpr-text">'+ (AIChatGDPR.text || '') +'</div>'+
+                 '<div class="aichat-gdpr-actions">'+
+                   '<button type="button" class="aichat-gdpr-accept">'+ escapeHtml(AIChatGDPR.button || 'OK') +'</button>'+
+                 '</div>'+
                '</div>';
              $messages.append(boxHtml);
              // Scroll al final cuando se muestre
