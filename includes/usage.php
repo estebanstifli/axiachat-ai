@@ -5,7 +5,27 @@ if(!defined('ABSPATH')) exit;
 
 function aichat_usage_admin_page(){
   if(!current_user_can('manage_options')) return;
+  
+  $active_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'usage';
+  
   echo '<div class="wrap"><h1>'.esc_html__('AI Chat – Usage / Cost','axiachat-ai').'</h1>';
+  
+  // Tabs navigation
+  echo '<h2 class="nav-tab-wrapper" style="margin-bottom:20px;">';
+  echo '<a href="?page=aichat-usage&tab=usage" class="nav-tab'.($active_tab === 'usage' ? ' nav-tab-active' : '').'">'.esc_html__('Usage Metrics','axiachat-ai').'</a>';
+  echo '<a href="?page=aichat-usage&tab=pricing" class="nav-tab'.($active_tab === 'pricing' ? ' nav-tab-active' : '').'">'.esc_html__('Pricing Tables','axiachat-ai').'</a>';
+  echo '</h2>';
+  
+  if ($active_tab === 'pricing') {
+    aichat_render_pricing_tab();
+  } else {
+    aichat_render_usage_tab();
+  }
+  
+  echo '</div>';
+}
+
+function aichat_render_usage_tab(){
   echo '<p class="description">'.esc_html__('Token & cost metrics (chat). Costs are approximate based on configured pricing.','axiachat-ai').'</p>';
   echo '<div id="aichat-usage-kpis" class="aichat-usage-grid" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px;">'
   .'<div class="usage-box" style="flex:1;min-width:180px;background:#fff;border:1px solid #ddd;padding:12px;border-radius:6px;"><strong>'.esc_html__('Today','axiachat-ai').'</strong><br><span data-kpi="today-cost">-</span><br><small><span data-kpi="today-tokens">-</span> '.esc_html__('tokens','axiachat-ai').'</small></div>'
@@ -18,7 +38,64 @@ function aichat_usage_admin_page(){
   .'</div><div id="aichat-usage-nodata" style="margin-top:8px;color:#666;display:none;">'.esc_html__('No data','axiachat-ai').'</div>';
   echo '<h2 style="margin-top:30px;">'.esc_html__('Top Models (30d)','axiachat-ai').'</h2>';
   echo '<table class="widefat" id="aichat-usage-topmodels"><thead><tr><th>'.esc_html__('Model','axiachat-ai').'</th><th>'.esc_html__('Provider','axiachat-ai').'</th><th>'.esc_html__('Cost (USD)','axiachat-ai').'</th></tr></thead><tbody><tr><td colspan="3">'.esc_html__('Loading...','axiachat-ai').'</td></tr></tbody></table>';
-  echo '</div>';
+}
+
+function aichat_render_pricing_tab(){
+  $pricing = aichat_model_pricing();
+  
+  echo '<p class="description">'.esc_html__('Current pricing per 1K tokens (input / output). Standard rates only.','axiachat-ai').' <em>'.esc_html__('Updated: November 2, 2025','axiachat-ai').'</em></p>';
+  
+  // OpenAI Section
+  echo '<h2 style="margin-top:20px;">OpenAI Models <a href="https://openai.com/api/pricing/" target="_blank" class="button button-small" style="margin-left:10px;">'.esc_html__('Official Pricing','axiachat-ai').' ↗</a></h2>';
+  echo '<table class="widefat" style="margin-top:10px;max-width:800px;">';
+  echo '<thead><tr>';
+  echo '<th>'.esc_html__('Model','axiachat-ai').'</th>';
+  echo '<th>'.esc_html__('Input (per 1K tokens)','axiachat-ai').'</th>';
+  echo '<th>'.esc_html__('Output (per 1K tokens)','axiachat-ai').'</th>';
+  echo '<th>'.esc_html__('Input (per 1M tokens)','axiachat-ai').'</th>';
+  echo '<th>'.esc_html__('Output (per 1M tokens)','axiachat-ai').'</th>';
+  echo '</tr></thead><tbody>';
+  
+  if (isset($pricing['openai'])) {
+    foreach ($pricing['openai'] as $model => $rates) {
+      echo '<tr>';
+      echo '<td><strong>'.esc_html($model).'</strong></td>';
+      echo '<td>$'.esc_html(number_format($rates['input_per_1k'], 5)).'</td>';
+      echo '<td>$'.esc_html(number_format($rates['output_per_1k'], 5)).'</td>';
+      echo '<td>$'.esc_html(number_format($rates['input_per_1k'] * 1000, 2)).'</td>';
+      echo '<td>$'.esc_html(number_format($rates['output_per_1k'] * 1000, 2)).'</td>';
+      echo '</tr>';
+    }
+  }
+  
+  echo '</tbody></table>';
+  
+  // Claude/Anthropic Section
+  echo '<h2 style="margin-top:40px;">Anthropic (Claude) Models <a href="https://www.anthropic.com/pricing" target="_blank" class="button button-small" style="margin-left:10px;">'.esc_html__('Official Pricing','axiachat-ai').' ↗</a></h2>';
+  echo '<table class="widefat" style="margin-top:10px;max-width:800px;">';
+  echo '<thead><tr>';
+  echo '<th>'.esc_html__('Model','axiachat-ai').'</th>';
+  echo '<th>'.esc_html__('Input (per 1K tokens)','axiachat-ai').'</th>';
+  echo '<th>'.esc_html__('Output (per 1K tokens)','axiachat-ai').'</th>';
+  echo '<th>'.esc_html__('Input (per 1M tokens)','axiachat-ai').'</th>';
+  echo '<th>'.esc_html__('Output (per 1M tokens)','axiachat-ai').'</th>';
+  echo '</tr></thead><tbody>';
+  
+  if (isset($pricing['claude'])) {
+    foreach ($pricing['claude'] as $model => $rates) {
+      echo '<tr>';
+      echo '<td><strong>'.esc_html($model).'</strong></td>';
+      echo '<td>$'.esc_html(number_format($rates['input_per_1k'], 5)).'</td>';
+      echo '<td>$'.esc_html(number_format($rates['output_per_1k'], 5)).'</td>';
+      echo '<td>$'.esc_html(number_format($rates['input_per_1k'] * 1000, 2)).'</td>';
+      echo '<td>$'.esc_html(number_format($rates['output_per_1k'] * 1000, 2)).'</td>';
+      echo '</tr>';
+    }
+  }
+  
+  echo '</tbody></table>';
+  
+  echo '<p style="margin-top:30px;color:#666;font-size:0.9em;">'.esc_html__('Note: Pricing shown is for standard API usage. Batch processing, cached prompts, and fine-tuned models may have different rates. Always verify with official provider documentation.','axiachat-ai').'</p>';
 }
 
 add_action('admin_enqueue_scripts', function($hook){
