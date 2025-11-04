@@ -30,7 +30,14 @@ aichat_register_tool_safe( 'util_list_categories', [
 
 if ( function_exists('aichat_register_macro') ) {
   // Removed demo macro 'basic_utilities_demo'
-  aichat_register_macro(['name'=>'content_categories','label'=>'Content: Blog Categories','description'=>'Allows the assistant to list real WordPress blog categories (names, slugs, counts).','tools'=>['util_list_categories']]);  
+  aichat_register_macro([
+    'name'=>'content_categories',
+    'label'=>'Content: Blog Categories',
+    'description'=>'Allows the assistant to list real WordPress blog categories (names, slugs, counts).',
+    'tools'=>['util_list_categories'],
+    'source'=>'local',
+    'source_ref'=>'axiachat_core'
+  ]);  
 }
 
 // === OpenAI Web Search ===
@@ -47,7 +54,9 @@ if ( function_exists('aichat_register_macro') ) {
     'name' => 'openai_web_search',
     'label' => 'OpenAI: Web Search',
     'description' => 'Allows the assistant to use OpenAI built-in Web Search.', // UI/Admin
-    'tools' => ['__builtin_openai_web_search']
+    'tools' => ['__builtin_openai_web_search'],
+    'source' => 'local',
+    'source_ref' => 'axiachat_core'
   ]);
 }
 
@@ -120,7 +129,9 @@ if ( function_exists('aichat_register_macro') ) {
     'name' => 'notifications_email_admin',
     'label' => 'Notifications: Email Admin',
     'description' => 'Allows the assistant to send an email notification to the site admin (internal use only).',
-    'tools' => ['aichat_send_email_admin']
+    'tools' => ['aichat_send_email_admin'],
+    'source' => 'local',
+    'source_ref' => 'axiachat_core'
   ]);
 }
 
@@ -191,6 +202,77 @@ if ( function_exists('aichat_register_macro') ) {
     'name' => 'notifications_email_client',
     'label' => 'Notifications: Email Client',
     'description' => 'Allows the assistant to send an email to a customer (requires server-side authorization).',
-    'tools' => ['aichat_send_email_client']
+    'tools' => ['aichat_send_email_client'],
+    'source' => 'local',
+    'source_ref' => 'axiachat_core'
   ]);
+}
+
+/**
+ * Sync local tools to unified aichat_tools table (one-time setup)
+ * This function is called ONLY during plugin activation, not on every init.
+ */
+function aichat_sync_local_tools_to_db() {
+    // Only run once
+    if ( get_option( 'aichat_local_tools_synced' ) ) {
+        return;
+    }
+    
+    // Get all registered tools from the global registry
+    if ( ! function_exists( 'aichat_get_registered_tools' ) ) {
+        // Tools not loaded yet, will be synced on activation
+        return;
+    }
+    
+    $all_tools = aichat_get_registered_tools();
+    if ( empty( $all_tools ) ) {
+        return;
+    }
+    
+    global $wpdb;
+    $table = $wpdb->prefix . 'aichat_tools';
+    $now = current_time( 'mysql' );
+    
+    foreach ( $all_tools as $tool_name => $tool_def ) {
+        // Skip MCP tools (they're synced separately)
+        if ( strpos( $tool_name, 'mcp_' ) === 0 ) {
+            continue;
+        }
+        
+        // Check if tool already exists in DB
+        $existing = $wpdb->get_var( $wpdb->prepare(
+            "SELECT id FROM $table WHERE type = 'local' AND name = %s",
+            $tool_name
+        ) );
+        
+        if ( $existing ) {
+            continue; // Already synced
+        }
+        
+        // Insert local tool (only once)
+        $wpdb->insert(
+            $table,
+            [
+                'name'            => $tool_name,
+                'type'            => 'local',
+                'source_id'       => null,
+                'label'           => $tool_def['activity_label'] ?? $tool_name,
+                'description'     => $tool_def['description'] ?? '',
+                'definition_json' => wp_json_encode( $tool_def ),
+                'enabled'         => 1,
+                'created_at'      => $now,
+                'updated_at'      => $now,
+            ],
+            [ '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s' ]
+        );
+    }
+    
+    // Mark as synced (only once in lifetime)
+    update_option( 'aichat_local_tools_synced', 1 );
+    
+    if ( function_exists( 'aichat_log_debug' ) ) {
+        aichat_log_debug( '[AI Tools] Local tools synced to database (one-time activation)', [
+            'tool_count' => count( $all_tools ),
+        ] );
+    }
 }

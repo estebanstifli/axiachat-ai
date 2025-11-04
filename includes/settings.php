@@ -20,6 +20,10 @@ function aichat_get_setting( $name ) {
     // No podemos usar null como centinela porque WP no lo devuelve nunca.
     $val = get_option( $name, '__AICHAT_NO_OPTION__' );
     if ( $val !== '__AICHAT_NO_OPTION__' && $val !== false ) {
+        // If value appears to be encrypted payload, decrypt transparently
+        if ( is_string( $val ) && function_exists('aichat_is_encrypted_value') && aichat_is_encrypted_value( $val ) ) {
+            return aichat_decrypt_value( $val );
+        }
         return $val; // Existe (aunque sea cadena vacía o '0').
     }
     // Intentar obtener default registrado (solo disponible si se ejecutó register_setting - normalmente admin_init)
@@ -28,6 +32,79 @@ function aichat_get_setting( $name ) {
         return $wp_registered_settings[ $name ]['default'];
     }
     return '';
+}
+
+/**
+ * Encryption helpers for storing API keys more safely in wp_options.
+ * Uses AES-256-GCM with a random 12-byte IV and authentication tag.
+ *
+ * How it works:
+ * - A master key must exist. Prefer to define AICHAT_MASTER_KEY in wp-config.php.
+ * - If not defined, we derive a key from WP salts (less ideal but works).
+ * - Encrypted payload is stored as base64(json({v:1,ct,iv,tag,m})).
+ * - Decryption is attempted automatically when reading settings via aichat_get_setting.
+ */
+function aichat_get_master_key() {
+    // Prefer explicit key defined by site admin in wp-config.php
+    if ( defined('AICHAT_MASTER_KEY') && constant('AICHAT_MASTER_KEY') ) {
+        return hash('sha256', constant('AICHAT_MASTER_KEY'), true);
+    }
+
+    // Fallback: derive from WP salts (AUTH_KEY + SECURE_AUTH_KEY). Not as secure as an independent secret,
+    // but avoids storing plaintext if the user didn't configure a master key.
+    $s1 = defined('AUTH_KEY') ? constant('AUTH_KEY') : '';
+    $s2 = defined('SECURE_AUTH_KEY') ? constant('SECURE_AUTH_KEY') : '';
+    return hash('sha256', $s1 . '|' . $s2, true);
+}
+
+function aichat_is_encrypted_value( $val ) {
+    if ( ! is_string( $val ) || $val === '' ) return false;
+    $decoded = base64_decode( $val, true );
+    if ( $decoded === false ) return false;
+    $json = json_decode( $decoded, true );
+    return is_array( $json ) && isset( $json['ct'], $json['iv'], $json['tag'] );
+}
+
+function aichat_encrypt_value( $plaintext ) {
+    if ( ! is_string( $plaintext ) || $plaintext === '' ) return '';
+    if ( ! function_exists('openssl_encrypt') ) {
+        // OpenSSL unavailable: return plaintext (best effort) — admin should install openssl extension
+        return $plaintext;
+    }
+    $key = aichat_get_master_key();
+    $iv = random_bytes(12);
+    $tag = '';
+    $cipher = 'aes-256-gcm';
+    $ct = openssl_encrypt( $plaintext, $cipher, $key, OPENSSL_RAW_DATA, $iv, $tag );
+    if ( $ct === false ) return $plaintext;
+    $payload = [
+        'v'  => 1,
+        'm'  => $cipher,
+        'ct' => base64_encode( $ct ),
+        'iv' => base64_encode( $iv ),
+        'tag'=> base64_encode( $tag ),
+    ];
+    return base64_encode( wp_json_encode( $payload ) );
+}
+
+function aichat_decrypt_value( $payload_b64 ) {
+    if ( ! is_string( $payload_b64 ) || $payload_b64 === '' ) return '';
+    if ( ! aichat_is_encrypted_value( $payload_b64 ) ) {
+        // Not encrypted according to format — return as-is (backwards compatibility)
+        return $payload_b64;
+    }
+    $decoded = base64_decode( $payload_b64 );
+    $data = json_decode( $decoded, true );
+    if ( ! is_array( $data ) ) return '';
+    if ( ! function_exists('openssl_decrypt') ) return '';
+    $key = aichat_get_master_key();
+    $cipher = $data['m'] ?? 'aes-256-gcm';
+    $ct = base64_decode( $data['ct'] );
+    $iv = base64_decode( $data['iv'] );
+    $tag = base64_decode( $data['tag'] );
+    $plain = openssl_decrypt( $ct, $cipher, $key, OPENSSL_RAW_DATA, $iv, $tag );
+    if ( $plain === false ) return '';
+    return $plain;
 }
 
 /**
@@ -155,6 +232,12 @@ function aichat_register_simple_settings() {
             ] );
             // Add-ons: Simply Schedule Appointments tools toggle (depends on AI Tools)
             register_setting( $option_group, 'aichat_tools_ssa_enabled', [
+                'type' => 'boolean',
+                'sanitize_callback' => 'aichat_sanitize_checkbox',
+                'default' => 0,
+            ] );
+            // Add-ons: MCP (Model Context Protocol) toggle
+            register_setting( $option_group, 'aichat_addon_mcp_enabled', [
                 'type' => 'boolean',
                 'sanitize_callback' => 'aichat_sanitize_checkbox',
                 'default' => 0,
@@ -475,6 +558,23 @@ https://sub.site2.net"><?php echo esc_textarea($embed_origins_raw); ?></textarea
                                             ?>
                                         </div>
                                     </div>
+                                    <hr class="my-3" />
+                                    <div class="aichat-checkbox-row mb-0">
+                                        <input type="hidden" name="aichat_addon_mcp_enabled" value="0" />
+                                        <label for="aichat_addon_mcp_enabled" class="aichat-checkbox-label">
+                                            <input type="checkbox" id="aichat_addon_mcp_enabled" name="aichat_addon_mcp_enabled" value="1" <?php checked( (int) get_option('aichat_addon_mcp_enabled', 0), 1 ); ?> <?php disabled( ! $ai_tools_enabled_flag ); ?> />
+                                            <span><?php echo esc_html__('Enable MCP (Model Context Protocol)', 'axiachat-ai'); ?></span>
+                                        </label>
+                                        <div class="form-text ms-0">
+                                            <?php
+                                            if ( ! $ai_tools_enabled_flag ) {
+                                                echo esc_html__( 'Requires AI Tools enabled. Turn on AI Tools above to activate MCP integration.', 'axiachat-ai' );
+                                            } else {
+                                                echo esc_html__( 'Allows bots to connect to external MCP servers (Sentry, Notion, GitHub, etc.) and expose their tools. Configure servers in AI Chat → MCP Servers.', 'axiachat-ai' );
+                                            }
+                                            ?>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -504,8 +604,14 @@ https://sub.site2.net"><?php echo esc_textarea($embed_origins_raw); ?></textarea
  * Sanitizers
  */
 function aichat_sanitize_api_key( $value ) {    
-    $value = is_string( $value ) ? trim( $value ) : '';    
-    return wp_kses( $value, array() );
+    $value = is_string( $value ) ? trim( $value ) : '';
+    $clean = wp_kses( $value, array() );
+    if ( $clean === '' ) return '';
+    // Encrypt before storing to options if possible
+    if ( function_exists( 'aichat_encrypt_value' ) ) {
+        return aichat_encrypt_value( $clean );
+    }
+    return $clean;
 }
 
 function aichat_sanitize_checkbox( $value ) {
@@ -554,8 +660,8 @@ if ( ! function_exists( 'aichat_admin_api_key_notice' ) ) {
             return;
         }
         // Solo mostrar si NO hay ninguna de las dos claves
-        $openai  = trim( (string) get_option( 'aichat_openai_api_key', '' ) );
-        $claude  = trim( (string) get_option( 'aichat_claude_api_key', '' ) );
+    $openai  = trim( (string) aichat_get_setting( 'aichat_openai_api_key' ) );
+    $claude  = trim( (string) aichat_get_setting( 'aichat_claude_api_key' ) );
         if ( $openai !== '' || $claude !== '' ) {
             return;
         }

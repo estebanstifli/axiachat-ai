@@ -64,7 +64,20 @@ function aichat_tools_settings_page(){
     foreach ( $macros as $m ) {
       $label = $m['label'] ?? $m['name'];
       $desc  = $m['description'] ?? '';
-      $tools = !empty($m['tools']) ? implode(', ', array_map('esc_html', $m['tools'])) : esc_html__('—','axiachat-ai');
+      
+      // Clean tool names: remove MCP prefixes (e.g., "mcp_wordpress_bien_1a1646_wp_get_posts" -> "wp_get_posts")
+      $tool_names = !empty($m['tools']) ? $m['tools'] : [];
+      $clean_tool_names = array_map(function($tool_name) {
+        // Remove MCP prefix pattern: mcp_<server_id>_<6-char-hash>_<local_name>
+        // Example: mcp_wordpress_bien_1a1646_wp_get_posts -> wp_get_posts
+        // Pattern matches: "mcp_" + anything + "_" + 6 hex chars + "_" + capture rest
+        if ( preg_match('/^mcp_.+_([a-f0-9]{6})_(.+)$/', $tool_name, $matches) ) {
+          return $matches[2]; // Return only the local name part (after hash)
+        }
+        return $tool_name;
+      }, $tool_names);
+      
+      $tools = !empty($clean_tool_names) ? implode(', ', array_map('esc_html', $clean_tool_names)) : esc_html__('—','axiachat-ai');
       echo '<tr><td>'.esc_html($label).'</td><td>'.esc_html($tools).'</td><td>'.esc_html($desc).'</td></tr>';
     }
     echo '</tbody></table>';

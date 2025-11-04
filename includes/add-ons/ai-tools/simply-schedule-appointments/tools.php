@@ -136,13 +136,17 @@ if ( function_exists('aichat_register_macro') ) {
     'name' => 'ssa_availability',
     'label' => 'SSA: Availability',
     'description' => 'Enable assistant to list appointment types and fetch availability slots for a selected type.', // UI/Admin
-    'tools' => ['aichat_ssa_list_services','aichat_ssa_get_availability']
+    'tools' => ['aichat_ssa_list_services','aichat_ssa_get_availability'],
+    'source' => 'plugin',
+    'source_ref' => 'simply-schedule-appointments'
   ]);
   aichat_register_macro([
     'name' => 'ssa_booking',
     'label' => 'SSA: Booking',
     'description' => 'Enable assistant to create appointments after the user confirms a slot.', // UI/Admin
-    'tools' => ['aichat_ssa_create_appointment']
+    'tools' => ['aichat_ssa_create_appointment'],
+    'source' => 'plugin',
+    'source_ref' => 'simply-schedule-appointments'
   ]);
   if ( function_exists('aichat_log_debug') ) { aichat_log_debug('SSA tools: macros registered'); }
 } else {

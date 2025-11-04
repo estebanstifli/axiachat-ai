@@ -206,7 +206,10 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
 
             // 3) Construir mensajes (system + historial + user actual) para primera fase
             // Base (system + user actual con CONTEXTO)
-            $base = aichat_build_messages( $message, $contexts, $instructions, null, [ 'bot_name' => $bot_name ] );
+            $base = aichat_build_messages( $message, $contexts, $instructions, null, [ 
+                'bot_name' => $bot_name,
+                'bot_slug' => $bot_slug_r,
+            ] );
             $system_msg       = isset($base[0]) ? $base[0] : [ 'role'=>'system', 'content'=>'' ];
             $current_user_msg = isset($base[1]) ? $base[1] : [ 'role'=>'user',   'content'=>(string)$message ];
 
@@ -285,9 +288,9 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             }
             aichat_log_debug("[AIChat AJAX][$uid] messages built sys_len={$sys_len} user_len={$usr_len}");
 
-            // 4) Claves API
-            $openai_key = get_option( 'aichat_openai_api_key', '' );
-            $claude_key = get_option( 'aichat_claude_api_key', '' );
+            // 4) Claves API (use aichat_get_setting which transparently decrypts if stored encrypted)
+            $openai_key = aichat_get_setting( 'aichat_openai_api_key' );
+            $claude_key = aichat_get_setting( 'aichat_claude_api_key' );
 
             // Normalizar alias de proveedor
             if ($provider === 'anthropic') { $provider = 'claude'; }
@@ -435,13 +438,40 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             if ( $provider === 'openai' && ! empty( $bot['tools_json'] ) ) {
                 $raw_selected = json_decode( (string)$bot['tools_json'], true );
                 if ( is_array( $raw_selected ) ) {
+                    // DEBUG: Log raw selected
+                    if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+                        aichat_log_debug('[AIChat Tools] Raw selected from bot', [
+                            'bot_slug' => $bot_slug_r,
+                            'raw_selected' => $raw_selected,
+                            'count' => count($raw_selected),
+                        ], true);
+                    }
+                    
                     // Expand macros → atomic tool names
                     if ( function_exists('aichat_expand_macros_to_atomic') ) {
                         $expanded = aichat_expand_macros_to_atomic( $raw_selected );
                     } else {
                         $expanded = $raw_selected; // fallback
                     }
+                    
+                    // DEBUG: Log expanded tools
+                    if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+                        aichat_log_debug('[AIChat Tools] Expanded atomic tools', [
+                            'expanded' => $expanded,
+                            'count' => count($expanded),
+                        ], true);
+                    }
+                    
                     $registered = function_exists('aichat_get_registered_tools') ? aichat_get_registered_tools() : [];
+                    
+                    // DEBUG: Log registered tools count
+                    if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+                        aichat_log_debug('[AIChat Tools] Registered tools available', [
+                            'count' => count($registered),
+                            'tool_names' => array_keys($registered),
+                        ], true);
+                    }
+                    
                     foreach ( $expanded as $tid ) {
                         if ( isset($registered[$tid]) ) {
                             $def = $registered[$tid];
@@ -456,9 +486,24 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                                     ]
                                 ];
                             }
+                        } else {
+                            // DEBUG: Tool not found in registry
+                            if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+                                aichat_log_debug('[AIChat Tools] Tool NOT found in registry', [
+                                    'tool_id' => $tid,
+                                ], true);
+                            }
                         }
                     }
                 }
+            }
+            
+            // DEBUG: Log final active tools
+            if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+                aichat_log_debug('[AIChat Tools] Final active_tools for API', [
+                    'count' => count($active_tools),
+                    'tool_names' => array_map(function($t){ return $t['function']['name'] ?? '?'; }, $active_tools),
+                ], true);
             }
 
             // Generar request_uuid para trazar tool calls (se reutiliza al vincular conversation_id)
@@ -784,7 +829,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             if ( ! $this->is_openai_responses_model($model) ) {
                 wp_send_json_error( [ 'message' => 'Model is not a Responses (gpt-5*) model.' ], 400 );
             }
-            $openai_key = get_option( 'aichat_openai_api_key', '' );
+            $openai_key = aichat_get_setting( 'aichat_openai_api_key' );
             if ( empty($openai_key) ) {
                 wp_send_json_error( [ 'message' => 'Missing OpenAI key.' ], 400 );
             }
@@ -1366,7 +1411,10 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 ] );
             }
 
-            $base = aichat_build_messages( $message, $contexts, $instructions, null, [ 'bot_name' => ($bot['name'] ?? '') ] );
+            $base = aichat_build_messages( $message, $contexts, $instructions, null, [ 
+                'bot_name' => ($bot['name'] ?? ''),
+                'bot_slug' => ($bot['slug'] ?? ''),
+            ] );
             $system_msg       = $base[0] ?? [ 'role'=>'system', 'content'=>'' ];
             $current_user_msg = $base[1] ?? [ 'role'=>'user', 'content'=>$message ];
 
@@ -1375,8 +1423,8 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             $history_msgs = $this->build_history_messages( $session_id, $bot['slug'], $max_messages_hist, $context_max_length );
             $messages = array_merge( [ $system_msg ], $history_msgs, [ $current_user_msg ] );
 
-            $openai_key = get_option( 'aichat_openai_api_key', '' );
-            $claude_key = get_option( 'aichat_claude_api_key', '' );
+            $openai_key = aichat_get_setting( 'aichat_openai_api_key' );
+            $claude_key = aichat_get_setting( 'aichat_claude_api_key' );
             if ( $provider === 'openai' && ! $openai_key ) return new WP_Error('aichat_no_key','Missing OpenAI key');
             if ( $provider === 'claude' && ! $claude_key ) return new WP_Error('aichat_no_key','Missing Claude key');
 

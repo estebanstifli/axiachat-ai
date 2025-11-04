@@ -3,7 +3,7 @@
  * Plugin Name:       AxiaChat AI
  * Plugin URI:        https://wpbotwriter.com/axiachat-ai
  * Description:       A customizable AI chatbot for WordPress with contextual embeddings, multi‑provider support and upcoming action rules.
- * Version:           1.2.3
+ * Version:           1.2.4
  * Requires at least: 5.0
  * Requires PHP:      7.4
  * Author:            estebandezafra
@@ -19,10 +19,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Definir constantes del plugin
-define( 'AICHAT_VERSION', '1.2.3' );
+define( 'AICHAT_VERSION', '1.2.4' );
 define( 'AICHAT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AICHAT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
-define('AICHAT_DEBUG', false);
+define('AICHAT_DEBUG', true);
 define('AICHAT_DEBUG_SYS_MAXLEN', 0); // sin truncado
 
 // Nota: Eliminado load_plugin_textdomain manual.
@@ -90,6 +90,16 @@ if ( $aichat_ai_tools_enabled ) {
   if ( file_exists( $addon_dir . 'admin-logs.php' ) ) require_once $addon_dir . 'admin-logs.php';
   if ( file_exists( $addon_dir . 'admin-ajax.php' ) ) require_once $addon_dir . 'admin-ajax.php';
   if ( file_exists( $addon_dir . 'tools-sample.php' ) ) require_once $addon_dir . 'tools-sample.php';
+  
+  // Load MCP (Model Context Protocol) add-on if enabled
+  $mcp_enabled = (int) get_option('aichat_addon_mcp_enabled', 0);
+  if ( $mcp_enabled ) {
+    $mcp_loader = AICHAT_PLUGIN_DIR . 'includes/add-ons/mcp/loader.php';
+    if ( file_exists( $mcp_loader ) ) {
+      require_once $mcp_loader;
+    }
+  }
+  
   // Conditionally load Simply Schedule Appointments add-on tools if enabled via option
   $ssa_dir = trailingslashit( $addon_dir . 'simply-schedule-appointments' );
   $ssa_enabled = (int) get_option( 'aichat_tools_ssa_enabled', 0 );
@@ -286,6 +296,11 @@ function aichat_activation() {
         }
     }
 
+    // Sync local tools to database (one-time on activation)
+    if ( function_exists('aichat_sync_local_tools_to_db') ) {
+        aichat_sync_local_tools_to_db();
+    }
+
     // Opciones iniciales (no tocar si ya existen)
     add_option( 'aichat_openai_api_key', '' );
     add_option( 'aichat_chat_color', '#0073aa' );
@@ -411,6 +426,48 @@ function aichat_bots_maybe_create(){
     KEY call_id (call_id)
   ) $charset;";
   dbDelta($sql_tools);
+
+  // Tabla para persistencia de macros (metadata solamente)
+  $macros_table = $wpdb->prefix.'aichat_macros';
+  $sql_macros = "CREATE TABLE $macros_table (
+    id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL,
+    label VARCHAR(255) NOT NULL DEFAULT '',
+    description TEXT NULL,
+    source VARCHAR(32) NOT NULL DEFAULT 'local',
+    source_ref VARCHAR(255) NULL,
+    tools_json TEXT NOT NULL,
+    enabled TINYINT(1) NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY name (name),
+    KEY source (source),
+    KEY enabled (enabled)
+  ) $charset;";
+  dbDelta($sql_macros);
+
+  // Tabla unificada para todas las tools (MCP, locales, futuras)
+  $tools_table = $wpdb->prefix.'aichat_tools';
+  $sql_tools = "CREATE TABLE $tools_table (
+    id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+    name VARCHAR(191) NOT NULL,
+    type ENUM('local','mcp','external') NOT NULL DEFAULT 'local',
+    source_id VARCHAR(100) NULL,
+    label VARCHAR(255) NOT NULL DEFAULT '',
+    description TEXT NULL,
+    definition_json MEDIUMTEXT NOT NULL,
+    enabled TINYINT(1) NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY unique_tool (type, source_id, name),
+    KEY type (type),
+    KEY source_id (source_id),
+    KEY enabled (enabled),
+    KEY name (name)
+  ) $charset;";
+  dbDelta($sql_tools);
 }
 
 // Upgrade routine for adding chunk_index if missing (run on admin_init lightweight)
@@ -442,6 +499,30 @@ add_action('admin_init', function(){
       KEY call_id (call_id)
     ) $charset");
   }
+  
+  // Asegurar tabla macros (upgrade silencioso)
+  $macros_table = $wpdb->prefix.'aichat_macros';
+  $exists_macros = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name=%s", $macros_table));
+  if ( ! $exists_macros ) {
+    $charset = $wpdb->get_charset_collate();
+    $wpdb->query("CREATE TABLE $macros_table (
+      id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+      name VARCHAR(100) NOT NULL,
+      label VARCHAR(255) NOT NULL DEFAULT '',
+      description TEXT NULL,
+      source VARCHAR(32) NOT NULL DEFAULT 'local',
+      source_ref VARCHAR(255) NULL,
+      tools_json TEXT NOT NULL,
+      enabled TINYINT(1) NOT NULL DEFAULT 1,
+      created_at DATETIME NOT NULL,
+      updated_at DATETIME NOT NULL,
+      PRIMARY KEY (id),
+      UNIQUE KEY name (name),
+      KEY source (source),
+      KEY enabled (enabled)
+    ) $charset");
+  }
+  
   // Upgrade bots table add tools_json if missing
   $bots_table = aichat_bots_table();
   $bots_cols = $wpdb->get_col("SHOW COLUMNS FROM $bots_table",0);

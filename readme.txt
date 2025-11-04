@@ -4,7 +4,7 @@ Tags: chatbot, ai, openai, chat, assistant
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.2.3
+Stable tag: 1.2.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Short Description: Flexible AI chatbot with multiple bots, OpenAI & Claude, contextual embeddings (local or Pinecone), PDF ingestion, usage limits & GDPR tools.
@@ -152,6 +152,12 @@ User prompts (and selected context snippets) are sent to OpenAI. Content may con
 * Lightweight front‑end footprint otherwise
 
 == Changelog ==
+
+= 1.2.4 =
+* Added: MCP Servers Addon, allowing the addition of MCP servers for enhanced functionality.
+* Improved: Encryption of AI model API keys for better security.
+
+
 
 = 1.2.3 =
 * Added: YouTube tutorial video for quick setup walkthrough

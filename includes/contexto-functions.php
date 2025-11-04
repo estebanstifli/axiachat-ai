@@ -222,7 +222,7 @@ function aichat_index_post( $post_id, $context_id = 0 ) {
  * Genera embedding con OpenAI.
  */
 function aichat_generate_embedding( $text ) {
-    $api_key = get_option( 'aichat_openai_api_key' );
+    $api_key = aichat_get_setting( 'aichat_openai_api_key' );
     if ( empty( $api_key ) ) {
         return null;
     }
@@ -550,6 +550,31 @@ function aichat_build_messages( $question, $contexts = [], $instructions = '', $
         $system = $datetime_line . "\n\n" . $resolved_instr;
     }
 
+    // === MCP TOOLS NOTICE ===
+    // Si el bot tiene herramientas MCP activas, informar al modelo sobre ellas
+    $mcp_notice = '';
+    if ( function_exists('aichat_has_active_mcp_tools') ) {
+        $bot_slug = isset($opts['bot_slug']) ? $opts['bot_slug'] : '';
+        $mcp_servers = aichat_has_active_mcp_tools( $bot_slug );
+        
+        if ( !empty($mcp_servers) ) {
+            $server_list = [];
+            foreach ( $mcp_servers as $srv ) {
+                $server_list[] = sprintf('%s v%s', $srv['name'], $srv['version']);
+            }
+            $servers_str = implode(', ', $server_list);
+            
+            $mcp_notice = "\n\n" . sprintf(
+                /* translators: %1$d: number of MCP servers, %2$s: comma-separated list of server names with versions */
+                __( '**EXTERNAL TOOLS AVAILABLE:** You have access to %1$d MCP server(s) (%2$s) providing real-time capabilities. These connect to external systems and may have network latency. Consider batching multiple tool calls when possible to optimize response time.', 'axiachat-ai' ),
+                count($mcp_servers),
+                $servers_str
+            );
+        }
+    }
+    
+    $system .= $mcp_notice;
+
     // Filtro final para personalización completa del prompt final
     if ( function_exists( 'apply_filters' ) ) {
         $system = apply_filters( 'aichat_system_prompt', $system, $question, $contexts, $instructions, $opts );
@@ -622,7 +647,7 @@ function aichat_replace_link_placeholder( $answer ) {
  */
 function aichat_get_response( $question ) {
     $messages = aichat_build_messages( $question, aichat_get_context_for_question( $question, [ 'mode' => 'auto', 'limit' => 5 ] ) );
-    $api_key  = get_option( 'aichat_openai_api_key' );
+    $api_key  = aichat_get_setting( 'aichat_openai_api_key' );
     if ( empty( $api_key ) ) {
         return 'Error: falta OpenAI API Key.';
     }
