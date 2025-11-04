@@ -40,21 +40,24 @@ if ( function_exists('aichat_register_macro') ) {
   ]);  
 }
 
-// === OpenAI Web Search ===
+// === Web Search (Multi-Provider) ===
+// Universal web search capability compatible with multiple providers:
+// - OpenAI (GPT-5* models via Responses API)
+// - Claude (4.x models via Messages API with web_search_20250305)
 // We register a dummy atomic tool so the macro can reference it, but it's type 'custom' so it's not included in CC function tools.
-aichat_register_tool_safe('__builtin_openai_web_search', [
+aichat_register_tool_safe('__builtin_web_search', [
   'type' => 'custom',
-  'name' => 'openai_web_search_builtin',
-  'description' => 'Builtin OpenAI Web Search tool . Selecting this enables web search on compatible models.', // MODELO
+  'name' => 'web_search_builtin',
+  'description' => 'Enables web search on compatible models (OpenAI GPT-5*, Claude 4.x). Allows real-time internet lookups with optional domain restrictions.', // MODELO
   'callback' => '__return_null'
 ]);
 
 if ( function_exists('aichat_register_macro') ) {
   aichat_register_macro([
-    'name' => 'openai_web_search',
-    'label' => 'OpenAI: Web Search',
-    'description' => 'Allows the assistant to use OpenAI built-in Web Search.', // UI/Admin
-    'tools' => ['__builtin_openai_web_search'],
+    'name' => 'web_search',
+    'label' => 'Web Search',
+    'description' => 'Allows the assistant to search the internet for real-time information. Compatible with OpenAI (GPT-5* models) and Claude (4.x models). Configure allowed domains to restrict sources.', // UI/Admin
+    'tools' => ['__builtin_web_search'],
     'source' => 'local',
     'source_ref' => 'axiachat_core'
   ]);

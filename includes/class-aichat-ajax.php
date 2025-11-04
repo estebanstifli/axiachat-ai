@@ -364,6 +364,14 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 wp_send_json_success( [ 'message' => $answer, 'intercepted' => true ] );
             }
 
+            // === PASO 3: DUAL MODE - Feature flag para nueva arquitectura ===
+            // Leer feature flag (default: 0 = legacy mode)
+            $use_new_architecture = (bool) get_option( 'aichat_use_provider_architecture', 0 );
+            
+            if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+                aichat_log_debug("[AIChat AJAX][$uid] architecture mode=" . ($use_new_architecture ? 'NEW (registry)' : 'LEGACY (hardcoded)'), [], true);
+            }
+
             // 5) Llamar al proveedor
             // Pretty log: request summary (system, prompt, tools) before calling provider
             if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
@@ -432,16 +440,25 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             }
             // === FIN USAGE LIMITS ===
 
+            // === PASO 3: DUAL MODE - Feature flag para nueva arquitectura ===
+            $use_new_architecture = (bool) get_option( 'aichat_use_provider_architecture', 0 );
+            
+            if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+                aichat_log_debug("[AIChat AJAX][$uid] architecture mode=" . ($use_new_architecture ? 'NEW (registry)' : 'LEGACY (hardcoded)'), [], true);
+            }
+
             $t_call0 = microtime(true);
             // === Function Calling (Tools) Phase 1 ===
+            // FIXED: Support tools for ALL providers (OpenAI + Claude)
             $active_tools = [];
-            if ( $provider === 'openai' && ! empty( $bot['tools_json'] ) ) {
+            if ( ! empty( $bot['tools_json'] ) ) {
                 $raw_selected = json_decode( (string)$bot['tools_json'], true );
                 if ( is_array( $raw_selected ) ) {
                     // DEBUG: Log raw selected
                     if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
                         aichat_log_debug('[AIChat Tools] Raw selected from bot', [
                             'bot_slug' => $bot_slug_r,
+                            'provider' => $provider,
                             'raw_selected' => $raw_selected,
                             'count' => count($raw_selected),
                         ], true);
@@ -508,6 +525,118 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
 
             // Generar request_uuid para trazar tool calls (se reutiliza al vincular conversation_id)
             $request_uuid = wp_generate_uuid4();
+
+            // === BRANCH: Nueva arquitectura vs Legacy ===
+            if ( $use_new_architecture ) {
+                // ===== NUEVA ARQUITECTURA: Registry + Adapters =====
+                aichat_log_debug("[AIChat AJAX][$uid] using NEW architecture (provider registry)", [], true);
+                
+                // Mapear provider legacy 'anthropic' a 'claude' para registry
+                $registry_provider = ( $provider === 'anthropic' ) ? 'claude' : $provider;
+                
+                // Obtener provider instance del registry
+                $registry = AIChat_Provider_Registry::instance();
+                $provider_config = [ 'api_key' => ($provider === 'openai' ? $openai_key : $claude_key) ];
+                
+                // Agregar organization si está configurada para OpenAI
+                if ( $provider === 'openai' ) {
+                    $org = aichat_get_setting( 'aichat_openai_organization' );
+                    if ( ! empty( $org ) ) {
+                        $provider_config['organization'] = $org;
+                    }
+                }
+                
+                try {
+                    $provider_instance = $registry->get( $registry_provider, $provider_config );
+                } catch ( Exception $e ) {
+                    aichat_log_debug("[AIChat AJAX][$uid] Registry ERROR: " . $e->getMessage(), [], true);
+                    wp_send_json_error( [ 'message' => __( 'Provider initialization failed.', 'axiachat-ai' ) ], 500 );
+                }
+                
+                // Preparar parámetros de llamada
+                $call_params = [
+                    'model' => $model,
+                    'temperature' => $temperature,
+                    'max_tokens' => $max_tokens,
+                    'bot_id' => $bot_id,
+                    'conversation_id' => 0,  // TODO: Obtener de session storage
+                    'request_uuid' => $request_uuid,
+                    'session_id' => $session,
+                    'bot_slug' => $bot_slug_r,
+                ];
+                
+                // Pasar tools a cualquier provider que los soporte
+                if ( ! empty( $active_tools ) ) {
+                    $call_params['tools'] = $active_tools;
+                }
+                
+                // Llamar al provider via adapter
+                $result = $provider_instance->chat( $messages, $call_params );
+                
+                // Si OpenAI Responses devolvió tool_pending, reenviar al frontend
+                if ( is_array($result) && isset($result['status']) && $result['status'] === 'tool_pending' ) {
+                    $out = [
+                        'status' => 'tool_pending',
+                        'response_id' => $result['response_id'] ?? '',
+                        'tool_calls' => $result['tool_calls'] ?? [],
+                        'request_uuid' => $uid,
+                        'session_id' => $session,
+                        'bot_slug' => $bot_slug_r,
+                        'model' => $model,
+                    ];
+                    
+                    if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+                        aichat_log_debug("[AIChat AJAX][$uid] NEW arch tool_pending handshake", [
+                            'response_id' => $result['response_id'] ?? '-',
+                            'tool_count' => is_array($result['tool_calls'] ?? null) ? count($result['tool_calls']) : 0
+                        ], true);
+                    }
+                    
+                    // Guardar conversación con marcador de pendiente
+                    if ( get_option( 'aichat_logging_enabled', 1 ) ) {
+                        $placeholder_resp = '(executing tools…)';
+                        $this->maybe_log_conversation( get_current_user_id(), $session, $bot_slug_r, $page_id, $message, $placeholder_resp, $model, $provider, null, null, null, null );
+                    }
+                    
+                    wp_send_json_success( $out );
+                }
+                
+                // Manejar tool calls si es OpenAI Chat Completions (multi-ronda simple)
+                if ( $provider === 'openai' && ! empty( $active_tools ) && is_array($result) && !empty($result['tool_calls']) ) {
+                    // TODO: Implementar multi-ronda con tools en PASO 4
+                    // Por ahora, simplemente tomamos la primera respuesta
+                    aichat_log_debug("[AIChat AJAX][$uid] NEW arch: tool_calls detected but multi-round not yet implemented", [], true);
+                }
+                
+                // Validar resultado
+                if ( isset($result['error']) ) {
+                    aichat_log_debug("[AIChat AJAX][$uid] NEW arch provider error: ".$result['error'], [], true);
+                    wp_send_json_error( ['message' => $result['error'] ], 500);
+                }
+                
+                $answer = $result['message'] ?? '';
+                
+                if ( $answer === '' ) {
+                    aichat_log_debug("[AIChat AJAX][$uid] NEW arch ERROR: empty answer", [], true);
+                    wp_send_json_error( [ 'message' => __( 'Model returned an empty response.', 'axiachat-ai' ) ], 500 );
+                }
+                
+                // Pretty log de respuesta (igual que legacy)
+                if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+                    $pretty_resp = $this->format_pretty_response_log([
+                        'uid'        => $uid,
+                        'provider'   => $provider,
+                        'model'      => $result['model'] ?? $model,
+                        'answer'     => $answer,
+                        'usage'      => $result['usage'] ?? [],
+                        'timings_ms' => []
+                    ]);
+                    aichat_log_debug($pretty_resp, [], true);
+                }
+                
+            } else {
+                // ===== LEGACY ARQUITECTURA: Código hardcoded original =====
+                aichat_log_debug("[AIChat AJAX][$uid] using LEGACY architecture (hardcoded providers)", [], true);
 
             // Multi-ronda (hasta 3 por defecto) de function calling (solo Chat Completions).
             // Para modelos Responses (gpt-5*) la multi-ronda se maneja internamente en call_openai_responses.
@@ -658,6 +787,9 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             } else {
                 wp_send_json_error( [ 'message' => __( 'Provider not supported.', 'axiachat-ai' ) ], 400 );
             }
+            
+            } // === FIN LEGACY ARCHITECTURE BLOCK ===
+            
             $t_call1 = microtime(true);
 
             if ( is_wp_error( $result ) ) {
@@ -821,7 +953,79 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             if ( ! $bot ) {
                 wp_send_json_error( [ 'message' => 'Bot not found.' ], 404 );
             }
+            
             $provider = ! empty( $bot['provider'] ) ? sanitize_key($bot['provider']) : 'openai';
+            $model = ! empty( $bot['model'] ) ? sanitize_text_field($bot['model']) : 'gpt-4o-mini';
+            
+            // Obtener API keys (igual que en process_message)
+            $openai_key = aichat_get_setting( 'aichat_openai_api_key' );
+            $claude_key = aichat_get_setting( 'aichat_claude_api_key' );
+            
+            // NUEVA ARQUITECTURA: Detectar provider y llamar al método correspondiente
+            $use_new_architecture = (bool) get_option( 'aichat_use_provider_architecture', 0 );
+            
+            if ( $use_new_architecture ) {
+                // Mapear provider legacy 'anthropic' a 'claude' para registry
+                $registry_provider = ( $provider === 'anthropic' ) ? 'claude' : $provider;
+                
+                // Preparar configuración del provider
+                $provider_config = [ 'api_key' => ($provider === 'openai' || $provider === 'claude' || $provider === 'anthropic' ? ($provider === 'openai' ? $openai_key : $claude_key) : '') ];
+                
+                // Agregar organization si está configurada para OpenAI
+                if ( $provider === 'openai' ) {
+                    $org = aichat_get_setting( 'aichat_openai_organization' );
+                    if ( ! empty( $org ) ) {
+                        $provider_config['organization'] = $org;
+                    }
+                }
+                
+                // Obtener provider instance
+                $registry = AIChat_Provider_Registry::instance();
+                $provider_instance = $registry->get( $registry_provider, $provider_config );
+                
+                if ( ! $provider_instance ) {
+                    wp_send_json_error( [ 'message' => "Provider {$provider} not available." ], 500 );
+                }
+                
+                if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+                    aichat_log_debug("[AIChat AJAX][$uid] NEW arch tool continuation", [
+                        'provider' => $provider,
+                        'registry_provider' => $registry_provider,
+                        'response_id' => $response_id,
+                        'tool_count' => count($tool_calls),
+                    ], true);
+                }
+                
+                // Claude/Anthropic usa continue_from_tool_pending
+                if ( $provider === 'claude' || $provider === 'anthropic' ) {
+                    if ( ! method_exists( $provider_instance, 'continue_from_tool_pending' ) ) {
+                        wp_send_json_error( [ 'message' => 'Claude provider does not support tool continuation.' ], 500 );
+                    }
+                    
+                    $result = $provider_instance->continue_from_tool_pending( $response_id, $tool_calls );
+                    
+                    if ( isset($result['error']) ) {
+                        aichat_log_debug("[AIChat AJAX][$uid] Claude continuation error: ".$result['error'], [], true);
+                        wp_send_json_error( ['message' => $result['error'] ], 500);
+                    }
+                    
+                    $answer = $result['message'] ?? '';
+                    $usage = $result['usage'] ?? null;
+                    
+                    // Devolver respuesta final
+                    wp_send_json_success([
+                        'message' => $answer,
+                        'model' => $result['model'] ?? $model,
+                        'provider' => 'claude',
+                        'usage' => $usage,
+                    ]);
+                }
+                
+                // OpenAI Responses (legacy path, mantener código original)
+                // TODO: Migrar OpenAI Responses también a provider adapter
+            }
+            
+            // === LEGACY CODE: OpenAI Responses ===
             if ( $provider !== 'openai' ) {
                 wp_send_json_error( [ 'message' => 'Continuation only supported for OpenAI Responses.' ], 400 );
             }
@@ -1173,20 +1377,36 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
          */
         protected function normalize_claude_model($model) {
             $m = strtolower(trim((string)$model));
+            
             // Mapa alias → canonical
             $map = [
-                'claude-3-5-sonnet-latest' => 'claude-3-5-sonnet-20240620',
-                'claude-3-5-sonnet'        => 'claude-3-5-sonnet-20240620',
-                'claude-3-5-haiku'         => 'claude-3-5-haiku', // (si existiera se puede actualizar)
+                // Claude 4.5 (2025) - Nuevos modelos con guiones
+                'claude-sonnet-4-5'        => 'claude-sonnet-4-5',      // Formato oficial API
+                'claude-haiku-4-5'         => 'claude-haiku-4-5',       // Formato oficial API
+                'claude-opus-4-1'          => 'claude-opus-4-1',        // Formato oficial API
+                
+                // Claude 3.5 (2024) - Alias legacy
+                'claude-3-5-sonnet-latest' => 'claude-3-5-sonnet-20241022',
+                'claude-3-5-sonnet'        => 'claude-3-5-sonnet-20241022',
+                'claude-3-5-haiku-latest'  => 'claude-3-5-haiku-20241022',
+                'claude-3-5-haiku'         => 'claude-3-5-haiku-20241022',
+                
+                // Claude 3 (legacy)
                 'claude-3-opus'            => 'claude-3-opus-20240229',
                 'claude-3-sonnet'          => 'claude-3-sonnet-20240229',
                 'claude-3-haiku'           => 'claude-3-haiku-20240307',
             ];
+            
             if (isset($map[$m])) return $map[$m];
-            // Si ya es uno oficial con fecha, lo dejamos
+            
+            // Si ya es uno oficial con fecha (3.x), lo dejamos
             if (preg_match('/^claude-3.*-(20\d{6})$/', $m)) return $m;
-            // Fallback seguro
-            return 'claude-3-5-sonnet-20240620';
+            
+            // Si es un modelo 4.x con guion, permitirlo
+            if (preg_match('/^claude-(sonnet|haiku|opus)-4-\d+$/', $m)) return $m;
+            
+            // Fallback seguro: modelo recomendado más reciente
+            return 'claude-sonnet-4-5';
         }
 
         /**

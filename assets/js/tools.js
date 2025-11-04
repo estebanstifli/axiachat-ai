@@ -436,8 +436,8 @@
     const $row = $('<div class="mb-2" />').appendTo($wrap);
     $('<label class="form-label fw-semibold"/>').text((window.aichat_tools_i18n?.system_policy || 'System Policy')).appendTo($row);
     const $ta = $('<textarea class="form-control" rows="3"/>').val(cfg.system_policy || '').appendTo($row);
-    // Optional domains allowlist for web search
-    if (capId === 'openai_web_search'){
+    // Optional domains allowlist for web search (OpenAI GPT-5* + Claude 4.x)
+    if (capId === 'web_search'){
       const $domRow = $('<div class="mb-2" />').appendTo($wrap);
       $('<label class="form-label fw-semibold"/>').text(window.aichat_tools_i18n?.domains || 'Allowed domains').appendTo($domRow);
       const $dom = $('<input type="text" class="form-control" placeholder="example.com, another.com"/>').val((cfg.domains||[]).join(', ')).appendTo($domRow);

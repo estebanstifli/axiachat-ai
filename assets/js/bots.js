@@ -59,10 +59,20 @@
   function providerModels(prov){
     if (prov === 'anthropic') {
       return [
+        // Claude 4.5 (2025) - Nuevas versiones
+        { val:'claude-sonnet-4-5',         label:'Claude Sonnet 4.5 (Sep 2025) [RECOMMENDED]' },
+        { val:'claude-haiku-4-5',          label:'Claude Haiku 4.5 (Oct 2025) [FASTEST]' },
+        { val:'claude-opus-4-1',           label:'Claude Opus 4.1 (Aug 2025)' },
+        
+        // Claude 3.5 (2024) - Modelos anteriores
+        { val:'claude-3-5-sonnet-20241022', label:'Claude 3.5 Sonnet (Oct 2024)' },
         { val:'claude-3-5-sonnet-20240620', label:'Claude 3.5 Sonnet (Jun 2024)' },
-        { val:'claude-3-opus-20240229',     label:'Claude 3 Opus' },
-        { val:'claude-3-sonnet-20240229',   label:'Claude 3 Sonnet' },
-        { val:'claude-3-haiku-20240307',    label:'Claude 3 Haiku' }
+        { val:'claude-3-5-haiku-20241022',  label:'Claude 3.5 Haiku (Oct 2024)' },
+        
+        // Claude 3 (legacy)
+        { val:'claude-3-opus-20240229',     label:'Claude 3 Opus (Feb 2024)' },
+        { val:'claude-3-sonnet-20240229',   label:'Claude 3 Sonnet (Feb 2024)' },
+        { val:'claude-3-haiku-20240307',    label:'Claude 3 Haiku (Mar 2024)' }
       ];
     }
     // OpenAI
@@ -111,7 +121,18 @@
     'gpt-4o-mini':   { ctx:128000, comp:12288, rec:8000 },
     'gpt-4-turbo':   { ctx:128000, comp:4096,  rec:3500 },
     'gpt-3.5-turbo': { ctx:16384,  comp:4096,  rec:3000 },
+    
+    // Claude 4.5 (2025) - Nuevos modelos con contexto extendido
+    'claude-sonnet-4-5': { ctx:1000000, comp:64000, rec:50000 },  // 1M tokens context, 64K output
+    'claude-haiku-4-5':  { ctx:1000000, comp:64000, rec:50000 },  // 1M tokens context, 64K output
+    'claude-opus-4-1':   { ctx:200000,  comp:32000, rec:25000 },  // 200K context, 32K output
+    
+    // Claude 3.5 (2024)
+    'claude-3-5-sonnet-20241022': { ctx:200000, comp:8192,  rec:6000 },
     'claude-3-5-sonnet-20240620': { ctx:200000, comp:8192,  rec:6000 },
+    'claude-3-5-haiku-20241022':  { ctx:200000, comp:8192,  rec:6000 },
+    
+    // Claude 3 (legacy)
     'claude-3-opus-20240229':     { ctx:200000, comp:4096,  rec:3500 },
     'claude-3-sonnet-20240229':   { ctx:200000, comp:4096,  rec:3500 },
     'claude-3-haiku-20240307':    { ctx:200000, comp:4096,  rec:3000 }

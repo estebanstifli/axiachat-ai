@@ -12,7 +12,7 @@ Execution flow:
 - OpenAI Responses (gpt‑5*): server maps function tools to `{type:'function', name, description, parameters}` and passes native `web_search`.
 
 Web search:
-- Enable via macro `openai_web_search`.
+- Enable via macro `web_search` (unified capability for OpenAI GPT-5* and Claude 4.x models).
 - Optionally restrict sources with an allowed domains list (per bot).
 - When present, the model is asked to include sources in outputs for transparency.
 

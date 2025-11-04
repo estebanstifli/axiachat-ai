@@ -115,7 +115,7 @@ function aichat_mcp_register_server_tools( $server_id = null ) {
     // Only proceed if AI Tools API is available
     if ( ! function_exists( 'aichat_register_tool_safe' ) ) {
         if ( function_exists( 'aichat_log_debug' ) ) {
-            aichat_log_debug( '[MCP Integration] AI Tools API not available - skipping' );
+            // aichat_log_debug( '[MCP Integration] AI Tools API not available - skipping' );
         }
         return;
     }
@@ -146,10 +146,10 @@ function aichat_mcp_register_server_tools( $server_id = null ) {
     }
     
     if ( function_exists( 'aichat_log_debug' ) ) {
-        aichat_log_debug( '[MCP Integration] Registering MCP tools from database', [
-            'count'     => count( $mcp_tools ),
-            'server_id' => $server_id ?? 'all',
-        ] );
+        // aichat_log_debug( '[MCP Integration] Registering MCP tools from database', [
+        //     'count'     => count( $mcp_tools ),
+        //     'server_id' => $server_id ?? 'all',
+        // ] );
     }
     
     // Get MCP Manager (for lazy execution, not for reading tools)
@@ -233,11 +233,11 @@ function aichat_mcp_register_server_tools( $server_id = null ) {
         ] );
         
         if ( $registered && function_exists( 'aichat_log_debug' ) ) {
-            aichat_log_debug( '[MCP Integration] Registered MCP tool', [
-                'safe_name'   => $safe_global_name,
-                'server_id'   => $tool_server_id,
-                'local_name'  => $local_name,
-            ] );
+            // aichat_log_debug( '[MCP Integration] Registered MCP tool', [
+            //     'safe_name'   => $safe_global_name,
+            //     'server_id'   => $tool_server_id,
+            //     'local_name'  => $local_name,
+            // ] );
         }
     }
 }
@@ -277,10 +277,10 @@ add_filter( 'aichat_tool_execute', function( $result, $tool_name, $args, $contex
     // We can add additional logging or monitoring here if needed
     
     if ( function_exists( 'aichat_log_debug' ) && defined( 'AICHAT_DEBUG' ) && AICHAT_DEBUG ) {
-        aichat_log_debug( '[MCP Integration] Executing MCP tool', [
-            'tool'      => $tool_name,
-            'server_id' => $tool_def['meta']['server_id'] ?? 'unknown',
-        ] );
+        // aichat_log_debug( '[MCP Integration] Executing MCP tool', [
+        //     'tool'      => $tool_name,
+        //     'server_id' => $tool_def['meta']['server_id'] ?? 'unknown',
+        // ] );
     }
     
     return $result;
@@ -380,11 +380,11 @@ function aichat_mcp_register_macros( $server_id = null ) {
         ] );
         
         if ( function_exists( 'aichat_log_debug' ) ) {
-            aichat_log_debug( '[MCP Integration] Registered MCP macro', [
-                'macro'      => $macro_name,
-                'server_id'  => $tool_server_id,
-                'tool_count' => count( $server_data['global_names'] ),
-            ] );
+            // aichat_log_debug( '[MCP Integration] Registered MCP macro', [
+            //     'macro'      => $macro_name,
+            //     'server_id'  => $tool_server_id,
+            //     'tool_count' => count( $server_data['global_names'] ),
+            // ] );
         }
     }
 }

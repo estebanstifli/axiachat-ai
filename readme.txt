@@ -63,7 +63,7 @@ After installation, create at least one bot and (optionally) ingest context. Use
 AxiaChat AI includes an optional “AI Tools” layer that lets the assistant perform controlled actions. You can enable prebuilt macros (groups of atomic tools) per bot and optionally restrict or authorize behavior.
 
 Highlights:
-* Provider‑native Web Search (OpenAI Responses): enable the `openai_web_search` macro to allow live web lookups. Optionally restrict to an Allowed Domains list per bot. When enabled, responses include cited sources when available.
+* Provider‑native Web Search: enable the `web_search` capability to allow live internet lookups. Compatible with OpenAI (GPT-5* models) and Claude (4.x models). Optionally restrict to an Allowed Domains list per bot. When enabled, responses include cited sources.
 * Email notifications: safe defaults that send to site admin only, with policy gates and rate limits. Client emails require explicit server‑side authorization via a filter.
 * Rules (optional): define simple conditions to trigger automatic actions (e.g., ask follow‑up, speak a message, call a tool).
 * Tools Logs: review every tool call (duration, output excerpt, error) under the admin logs page.

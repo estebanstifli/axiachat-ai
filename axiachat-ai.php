@@ -75,6 +75,14 @@ if ( ! function_exists( 'aichat_log_debug' ) ) {
 require_once AICHAT_PLUGIN_DIR . 'vendor/autoload.php';
 //use Smalot\PdfParser\Parser;
 
+// === NUEVA ARQUITECTURA: Provider System ===
+// Cargar interfaz y registry de proveedores (Paso 1 de migración modular)
+require_once AICHAT_PLUGIN_DIR . 'includes/interfaces/interface-aichat-provider.php';
+require_once AICHAT_PLUGIN_DIR . 'includes/class-aichat-provider-registry.php';
+
+// Cargar adapters de proveedores (Paso 2 de migración modular)
+require_once AICHAT_PLUGIN_DIR . 'includes/providers/class-openai-provider.php';
+require_once AICHAT_PLUGIN_DIR . 'includes/providers/class-claude-provider.php';
 
 require_once AICHAT_PLUGIN_DIR . 'includes/shortcode.php'; 
 
@@ -123,6 +131,21 @@ if ( $aichat_ai_tools_enabled ) {
     // SSA add-on disabled in settings
   }
 }
+
+// === Registro de Proveedores AI (Paso 2 de migración modular) ===
+// Registrar proveedores OpenAI y Claude en el registry
+add_action( 'init', function() {
+  $registry = AIChat_Provider_Registry::instance();
+  $registry->register( 'openai', 'AIChat_OpenAI_Provider' );
+  $registry->register( 'claude', 'AIChat_Claude_Provider' );
+  
+  // Log confirmación de registro (solo en debug mode)
+  if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+    $stats = $registry->get_stats();
+    aichat_log_debug('[AIChat] Providers registered', $stats, true);
+  }
+}, 5 ); // Prioridad 5 para ejecutar temprano
+
 require_once AICHAT_PLUGIN_DIR . 'includes/class-aichat-ajax.php';
 require_once AICHAT_PLUGIN_DIR . 'includes/settings.php';
 
@@ -280,6 +303,18 @@ function aichat_activation() {
     ) $charset_collate;";
     dbDelta($usage_sql);
 
+    // Tabla de estados de tools (tool_pending handshake para Claude/OpenAI)
+    // Reemplaza transients para evitar race conditions con object cache
+    $tool_states = $wpdb->prefix.'aichat_tool_states';
+    $tool_states_sql = "CREATE TABLE IF NOT EXISTS $tool_states (
+      response_id VARCHAR(64) NOT NULL,
+      state_data LONGTEXT NOT NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (response_id),
+      KEY idx_created (created_at)
+    ) $charset_collate;";
+    dbDelta($tool_states_sql);
+
     // tabla de bots
     aichat_bots_maybe_create();
 
@@ -306,6 +341,10 @@ function aichat_activation() {
     add_option( 'aichat_chat_color', '#0073aa' );
     add_option( 'aichat_position', 'bottom-right' );
     // add_option('aichat_rag_enabled', false); // (deprecated si ya lo eliminaste)
+
+  // === NUEVA ARQUITECTURA: Feature flag para provider system (PASO 3) ===
+  // Default: 0 (legacy mode) - Usuarios pueden habilitar en Settings
+  add_option( 'aichat_use_provider_architecture', 0 );
 
   // Señal para redirigir a Easy Config tras activación (si no había bots previos)
   if ( ! get_option( 'aichat_easy_config_completed' ) ) {
@@ -346,6 +385,77 @@ add_action('plugins_loaded', function(){
       conversations BIGINT UNSIGNED NOT NULL DEFAULT 0,
       PRIMARY KEY(date, provider, model)
     ) $charset");
+  }
+  
+  // Ensure tool states table exists (for tool_pending handshake)
+  $tool_states = $wpdb->prefix.'aichat_tool_states';
+  $exists_states = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name=%s", $tool_states));
+  if(!$exists_states){
+    $charset = $wpdb->get_charset_collate();
+    $wpdb->query("CREATE TABLE $tool_states (
+      response_id VARCHAR(64) NOT NULL,
+      state_data LONGTEXT NOT NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (response_id),
+      KEY idx_created (created_at)
+    ) $charset");
+  }
+  
+  // Migrate old 'openai_web_search' capability to unified 'web_search' (v2.5.0+)
+  // This runs once to update existing bots without requiring manual changes
+  $migration_done = get_option('aichat_web_search_migration_v250', false);
+  if ( ! $migration_done ) {
+    $bots_table = $wpdb->prefix . 'aichat_bots';
+    
+    // Find bots with old macro name
+    $bots = $wpdb->get_results(
+      $wpdb->prepare(
+        "SELECT id, tools_json FROM {$bots_table} WHERE tools_json LIKE %s",
+        '%openai_web_search%'
+      ),
+      ARRAY_A
+    );
+    
+    $migrated_count = 0;
+    foreach ( $bots as $bot ) {
+      $tools = json_decode($bot['tools_json'], true);
+      if ( !is_array($tools) ) continue;
+      
+      // Replace old macro name with new unified name
+      $updated = array_map(function($tool) {
+        return $tool === 'openai_web_search' ? 'web_search' : $tool;
+      }, $tools);
+      
+      // Only update if there was a change
+      if ( $updated !== $tools ) {
+        $wpdb->update(
+          $bots_table,
+          ['tools_json' => wp_json_encode($updated)],
+          ['id' => $bot['id']],
+          ['%s'],
+          ['%d']
+        );
+        $migrated_count++;
+      }
+    }
+    
+    // Also migrate capability settings (stored in wp_aichat_bots_meta or options)
+    // This updates the 'openai_web_search' key to 'web_search' in capability settings
+    $cap_meta_table = $wpdb->prefix . 'aichat_bots_meta';
+    if ( $wpdb->get_var("SHOW TABLES LIKE '{$cap_meta_table}'") === $cap_meta_table ) {
+      $wpdb->query(
+        "UPDATE {$cap_meta_table} 
+         SET meta_key = 'capability_settings_web_search' 
+         WHERE meta_key = 'capability_settings_openai_web_search'"
+      );
+    }
+    
+    // Mark migration as completed
+    update_option('aichat_web_search_migration_v250', true);
+    
+    if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+      aichat_log_debug("[Migration] Web Search capability unified: {$migrated_count} bots updated (openai_web_search → web_search)");
+    }
   }
 });
 
@@ -1291,6 +1401,33 @@ if ( ! function_exists('aichat_record_moderation_block') ) {
       aichat_log_debug('IP temporarily blocked for moderation failures', ['ip'=>$ip,'count'=>$c]);
     }
   }
+}
+
+// === TESTING HOOK: PASO 1 Infrastructure ===
+// Permite ejecutar tests via URL: ?aichat_test_paso1=1 (solo admin)
+add_action( 'init', function() {
+    if ( isset( $_GET['aichat_test_paso1'] ) && current_user_can('manage_options') ) {
+        header('Content-Type: text/plain; charset=utf-8');
+        $test_file = AICHAT_PLUGIN_DIR . 'tests/test-paso1-infrastructure.php';
+        if ( file_exists( $test_file ) ) {
+            include $test_file;
+        } else {
+            echo "❌ Test file not found: {$test_file}\n";
+        }
+        exit;
+    }
+});
+
+// === TESTING HOOK: PASO 2 Adapters ===
+// Permite ejecutar tests via URL: ?aichat_test_paso2=1 (solo admin)
+if ( file_exists( AICHAT_PLUGIN_DIR . 'tests/test-paso2-adapters.php' ) ) {
+    require_once AICHAT_PLUGIN_DIR . 'tests/test-paso2-adapters.php';
+}
+
+// === TESTING HOOK: PASO 3 Integration ===
+// Permite ejecutar tests via URL: ?aichat_test_paso3=1 (solo admin)
+if ( file_exists( AICHAT_PLUGIN_DIR . 'tests/test-paso3-integration.php' ) ) {
+    require_once AICHAT_PLUGIN_DIR . 'tests/test-paso3-integration.php';
 }
 
 

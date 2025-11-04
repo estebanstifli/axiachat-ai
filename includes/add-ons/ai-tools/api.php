@@ -185,8 +185,17 @@ add_filter('aichat_messages_before_provider', function( $messages, $meta ){
 // Inject provider-native tools (e.g., web_search) for OpenAI Responses when selected via macro, with optional domain constraints
 add_filter('aichat_openai_responses_tools', function( $tools, $ctx ){
     // $ctx: ['model'=>..., 'bot'=>bot_slug]
-    // Detect if macro 'openai_web_search' is selected for this bot
+    // Detect if macro 'web_search' is selected for this bot
     $bot_slug = isset($ctx['bot']) ? sanitize_title($ctx['bot']) : '';
+    
+    if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+        aichat_log_debug('[AI Tools] aichat_openai_responses_tools filter called', [
+            'bot_slug' => $bot_slug,
+            'tools_count_in' => count($tools),
+            'context' => $ctx
+        ], true);
+    }
+    
     if ($bot_slug === '') return $tools;
     // Load bot row to inspect selected capabilities (tools_json)
     global $wpdb; $bots_table = $wpdb->prefix.'aichat_bots';
@@ -194,15 +203,33 @@ add_filter('aichat_openai_responses_tools', function( $tools, $ctx ){
     $row = $wpdb->get_row( $wpdb->prepare("SELECT tools_json FROM {$bots_table} WHERE slug=%s", $bot_slug), ARRAY_A );
     $selected = [];
     if ($row && !empty($row['tools_json'])){ $tmp = json_decode((string)$row['tools_json'], true); if(is_array($tmp)) $selected = array_values(array_filter($tmp, 'is_string')); }
+    
+    if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+        aichat_log_debug('[AI Tools] Bot tools_json loaded', [
+            'selected_count' => count($selected),
+            'selected_items' => implode(', ', $selected),
+            'raw_tools_json' => $row['tools_json'] ?? 'null'
+        ], true);
+    }
+    
     if ( empty($selected) ) return $tools;
-    $has_web_search_macro = in_array('openai_web_search', $selected, true);
+    $has_web_search_macro = in_array('web_search', $selected, true);
+    
+    if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+        aichat_log_debug('[AI Tools] Checking web_search macro', [
+            'has_web_search' => $has_web_search_macro,
+            'looking_for' => 'web_search',
+            'selected_items' => implode(', ', $selected)
+        ], true);
+    }
+    
     if ( ! $has_web_search_macro ) return $tools;
     // Optional: read capability settings to restrict domains
     $domains = [];
     if ( function_exists('aichat_get_capability_settings_for_bot') ) {
         $cap_settings = aichat_get_capability_settings_for_bot($bot_slug);
-        if ( isset($cap_settings['openai_web_search']['domains']) && is_array($cap_settings['openai_web_search']['domains']) ) {
-            $domains = array_values(array_filter(array_map('sanitize_text_field', $cap_settings['openai_web_search']['domains'])));
+        if ( isset($cap_settings['web_search']['domains']) && is_array($cap_settings['web_search']['domains']) ) {
+            $domains = array_values(array_filter(array_map('sanitize_text_field', $cap_settings['web_search']['domains'])));
         }
     }
     // Build OpenAI native web_search tool entry for Responses
@@ -213,7 +240,16 @@ add_filter('aichat_openai_responses_tools', function( $tools, $ctx ){
     }
     // Ensure it's not duplicated
     $found = false; foreach($tools as $t){ if( isset($t['type']) && $t['type']==='web_search' ){ $found=true; break; } }
-    if ( ! $found ) { $tools[] = $ws; }
+    if ( ! $found ) { 
+        $tools[] = $ws;
+        
+        if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+            aichat_log_debug('[AI Tools] INJECTED web_search into OpenAI tools', [
+                'domains' => $domains,
+                'tools_count_out' => count($tools)
+            ], true);
+        }
+    }
     return $tools;
 }, 10, 2);
 
@@ -225,13 +261,13 @@ add_filter('aichat_messages_before_provider', function($messages, $meta){
     // Check web search macro selected
     $selected = [];
     if (!empty($bot['tools_json'])){ $tmp = json_decode((string)$bot['tools_json'], true); if(is_array($tmp)) $selected = array_values(array_filter($tmp, 'is_string')); }
-    if ( empty($selected) || !in_array('openai_web_search',$selected,true) ) return $messages;
+    if ( empty($selected) || !in_array('web_search',$selected,true) ) return $messages;
     // Load domains from capability settings
     $domains = [];
     if ( function_exists('aichat_get_capability_settings_for_bot') ) {
         $cap_settings = aichat_get_capability_settings_for_bot($slug);
-        if ( isset($cap_settings['openai_web_search']['domains']) && is_array($cap_settings['openai_web_search']['domains']) ) {
-            $domains = array_values(array_filter(array_map('sanitize_text_field', $cap_settings['openai_web_search']['domains'])));
+        if ( isset($cap_settings['web_search']['domains']) && is_array($cap_settings['web_search']['domains']) ) {
+            $domains = array_values(array_filter(array_map('sanitize_text_field', $cap_settings['web_search']['domains'])));
         }
     }
     if (!$domains) return $messages;
@@ -241,3 +277,79 @@ add_filter('aichat_messages_before_provider', function($messages, $meta){
     }
     return $messages;
 }, 18, 2);
+
+// Inject web_search_20250305 server-side tool for Claude when selected via macro
+add_filter('aichat_claude_messages_tools', function( $tools, $ctx ){
+    // $ctx: ['model'=>..., 'bot'=>bot_slug]
+    // Detect if macro 'web_search' is selected for this bot
+    $bot_slug = isset($ctx['bot']) ? sanitize_title($ctx['bot']) : '';
+    if ($bot_slug === '') return $tools;
+    
+    // Load bot row to inspect selected capabilities (tools_json)
+    global $wpdb; $bots_table = $wpdb->prefix.'aichat_bots';
+    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name safe; slug uses placeholder
+    $row = $wpdb->get_row( $wpdb->prepare("SELECT tools_json FROM {$bots_table} WHERE slug=%s", $bot_slug), ARRAY_A );
+    $selected = [];
+    if ($row && !empty($row['tools_json'])) {
+        $tmp = json_decode((string)$row['tools_json'], true);
+        if(is_array($tmp)) $selected = array_values(array_filter($tmp, 'is_string'));
+    }
+    if ( empty($selected) ) return $tools;
+    
+    // Check if web_search macro is selected
+    $has_web_search_macro = in_array('web_search', $selected, true);
+    if ( ! $has_web_search_macro ) return $tools;
+    
+    // Load capability settings (allowed_domains)
+    $domains = [];
+    if ( function_exists('aichat_get_capability_settings_for_bot') ) {
+        $cap_settings = aichat_get_capability_settings_for_bot($bot_slug);
+        if ( isset($cap_settings['web_search']['domains']) && is_array($cap_settings['web_search']['domains']) ) {
+            $domains = array_values(array_filter(array_map('sanitize_text_field', $cap_settings['web_search']['domains'])));
+        }
+    }
+    
+    // Build Claude web_search tool (versioned type per Anthropic spec)
+    // https://docs.anthropic.com/en/docs/build-with-claude/tool-use/web-search-tool
+    $ws = [
+        'type' => 'web_search_20250305',
+        'name' => 'web_search'
+    ];
+    
+    // Optional: max uses per request (default 5 to avoid runaway costs)
+    $max_uses = apply_filters('aichat_claude_web_search_max_uses', 5, $bot_slug);
+    if ($max_uses > 0) {
+        $ws['max_uses'] = (int) $max_uses;
+    }
+    
+    // Optional: allowed domains (same as OpenAI for consistency)
+    if ($domains) {
+        $ws['allowed_domains'] = $domains;
+    }
+    
+    // Optional: user location for localized results (could detect from WP user meta)
+    // $ws['user_location'] = [
+    //     'type' => 'approximate',
+    //     'city' => 'San Francisco',
+    //     'region' => 'California',
+    //     'country' => 'US',
+    //     'timezone' => 'America/Los_Angeles'
+    // ];
+    
+    // Ensure it's not duplicated
+    $found = false;
+    foreach($tools as $t) {
+        if( isset($t['type']) && $t['type']==='web_search_20250305' ) {
+            $found=true;
+            break;
+        }
+    }
+    if ( ! $found ) {
+        $tools[] = $ws;
+        if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+            aichat_log_debug("[AI Tools] Injected Claude web_search_20250305 for bot={$bot_slug}, domains=" . count($domains) . ", max_uses={$max_uses}");
+        }
+    }
+    
+    return $tools;
+}, 10, 2);

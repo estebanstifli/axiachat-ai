@@ -472,3 +472,30 @@ function aichat_autosync_hourly_handler(){
     }
 }
 add_action('aichat_autosync_hourly','aichat_autosync_hourly_handler');
+
+/* ==============================
+   Cleanup Tool States (hourly)
+   Elimina estados de tools expirados (>1 hora)
+============================== */
+function aichat_cleanup_tool_states() {
+    global $wpdb;
+    $table = $wpdb->prefix . 'aichat_tool_states';
+    
+    // Eliminar estados creados hace más de 1 hora
+    $deleted = $wpdb->query( $wpdb->prepare(
+        "DELETE FROM $table WHERE created_at < DATE_SUB(NOW(), INTERVAL 1 HOUR)"
+    ) );
+    
+    if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG && $deleted > 0 ) {
+        aichat_log_debug( 'Tool states cleanup', [
+            'deleted' => $deleted,
+            'table' => $table,
+        ], true );
+    }
+}
+add_action( 'aichat_cleanup_tool_states', 'aichat_cleanup_tool_states' );
+
+// Programar cleanup si no existe
+if ( ! wp_next_scheduled( 'aichat_cleanup_tool_states' ) ) {
+    wp_schedule_event( time(), 'hourly', 'aichat_cleanup_tool_states' );
+}
