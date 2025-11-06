@@ -83,6 +83,7 @@ require_once AICHAT_PLUGIN_DIR . 'includes/class-aichat-provider-registry.php';
 // Cargar adapters de proveedores (Paso 2 de migración modular)
 require_once AICHAT_PLUGIN_DIR . 'includes/providers/class-openai-provider.php';
 require_once AICHAT_PLUGIN_DIR . 'includes/providers/class-claude-provider.php';
+require_once AICHAT_PLUGIN_DIR . 'includes/providers/class-gemini-provider.php';
 
 require_once AICHAT_PLUGIN_DIR . 'includes/shortcode.php'; 
 
@@ -138,6 +139,7 @@ add_action( 'init', function() {
   $registry = AIChat_Provider_Registry::instance();
   $registry->register( 'openai', 'AIChat_OpenAI_Provider' );
   $registry->register( 'claude', 'AIChat_Claude_Provider' );
+  $registry->register( 'gemini', 'AIChat_Gemini_Provider' );
   
   // Log confirmación de registro (solo en debug mode)
   if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {

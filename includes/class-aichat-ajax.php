@@ -536,14 +536,21 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 
                 // Obtener provider instance del registry
                 $registry = AIChat_Provider_Registry::instance();
-                $provider_config = [ 'api_key' => ($provider === 'openai' ? $openai_key : $claude_key) ];
                 
-                // Agregar organization si está configurada para OpenAI
+                // Preparar configuración según provider
                 if ( $provider === 'openai' ) {
+                    $provider_config = [ 'api_key' => $openai_key ];
                     $org = aichat_get_setting( 'aichat_openai_organization' );
                     if ( ! empty( $org ) ) {
                         $provider_config['organization'] = $org;
                     }
+                } elseif ( $provider === 'anthropic' ) {
+                    $provider_config = [ 'api_key' => $claude_key ];
+                } elseif ( $provider === 'gemini' ) {
+                    $gemini_key = aichat_get_setting( 'aichat_gemini_api_key' );
+                    $provider_config = [ 'api_key' => $gemini_key ];
+                } else {
+                    $provider_config = [];
                 }
                 
                 try {
@@ -968,15 +975,20 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 // Mapear provider legacy 'anthropic' a 'claude' para registry
                 $registry_provider = ( $provider === 'anthropic' ) ? 'claude' : $provider;
                 
-                // Preparar configuración del provider
-                $provider_config = [ 'api_key' => ($provider === 'openai' || $provider === 'claude' || $provider === 'anthropic' ? ($provider === 'openai' ? $openai_key : $claude_key) : '') ];
-                
-                // Agregar organization si está configurada para OpenAI
+                // Preparar configuración según provider
                 if ( $provider === 'openai' ) {
+                    $provider_config = [ 'api_key' => $openai_key ];
                     $org = aichat_get_setting( 'aichat_openai_organization' );
                     if ( ! empty( $org ) ) {
                         $provider_config['organization'] = $org;
                     }
+                } elseif ( $provider === 'anthropic' || $provider === 'claude' ) {
+                    $provider_config = [ 'api_key' => $claude_key ];
+                } elseif ( $provider === 'gemini' ) {
+                    $gemini_key = aichat_get_setting( 'aichat_gemini_api_key' );
+                    $provider_config = [ 'api_key' => $gemini_key ];
+                } else {
+                    $provider_config = [];
                 }
                 
                 // Obtener provider instance

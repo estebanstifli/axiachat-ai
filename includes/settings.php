@@ -126,6 +126,11 @@ function aichat_register_simple_settings() {
         'default'           => '',
     ) );
     
+    register_setting( $option_group, 'aichat_gemini_api_key', array(
+        'type'              => 'string',
+        'sanitize_callback' => 'aichat_sanitize_api_key',
+        'default'           => '',
+    ) );
 
     // checkbox: save as 0/1
     register_setting( $option_group, 'aichat_global_bot_enabled', array(
@@ -297,6 +302,7 @@ function aichat_settings_page() {
 
     $openai_key  = aichat_get_setting( 'aichat_openai_api_key' );
     $claude_key  = aichat_get_setting( 'aichat_claude_api_key' );
+    $gemini_key  = aichat_get_setting( 'aichat_gemini_api_key' );
     $global_on   = (bool) aichat_get_setting( 'aichat_global_bot_enabled' );
     $global_slug = aichat_get_setting( 'aichat_global_bot_slug' );
 
@@ -326,13 +332,21 @@ function aichat_settings_page() {
                                         </div>
                                         <div class="form-text"><?php echo esc_html__( 'API key to use OpenAI models.', 'axiachat-ai' ); ?></div>
                                     </div>
-                                    <div class="mb-0">
+                                    <div class="mb-3">
                                         <label for="aichat_claude_api_key" class="form-label fw-semibold"><?php echo esc_html__( 'Claude (Anthropic) API Key', 'axiachat-ai' ); ?></label>
                                         <div class="input-group">
                                             <input type="password" autocomplete="off" class="form-control" id="aichat_claude_api_key" name="aichat_claude_api_key" value="<?php echo esc_attr($claude_key); ?>" />
                                             <button class="btn btn-outline-secondary aichat-toggle-secret" type="button" data-target="aichat_claude_api_key" aria-label="Toggle visibility"><i class="bi bi-eye"></i></button>
                                         </div>
                                         <div class="form-text"><?php echo esc_html__( 'API key to use Anthropic (Claude) models.', 'axiachat-ai' ); ?></div>
+                                    </div>
+                                    <div class="mb-0">
+                                        <label for="aichat_gemini_api_key" class="form-label fw-semibold"><?php echo esc_html__( 'Google Gemini API Key', 'axiachat-ai' ); ?></label>
+                                        <div class="input-group">
+                                            <input type="password" autocomplete="off" class="form-control" id="aichat_gemini_api_key" name="aichat_gemini_api_key" value="<?php echo esc_attr($gemini_key); ?>" />
+                                            <button class="btn btn-outline-secondary aichat-toggle-secret" type="button" data-target="aichat_gemini_api_key" aria-label="Toggle visibility"><i class="bi bi-eye"></i></button>
+                                        </div>
+                                        <div class="form-text"><?php echo esc_html__( 'API key to use Google Gemini models. Get your key at aistudio.google.com/apikey', 'axiachat-ai' ); ?></div>
                                     </div>
                                 </div>
                             </div>
@@ -679,10 +693,11 @@ if ( ! function_exists( 'aichat_admin_api_key_notice' ) ) {
         if ( ! current_user_can( 'manage_options' ) ) {
             return;
         }
-        // Solo mostrar si NO hay ninguna de las dos claves
+        // Solo mostrar si NO hay ninguna de las tres claves
     $openai  = trim( (string) aichat_get_setting( 'aichat_openai_api_key' ) );
     $claude  = trim( (string) aichat_get_setting( 'aichat_claude_api_key' ) );
-        if ( $openai !== '' || $claude !== '' ) {
+    $gemini  = trim( (string) aichat_get_setting( 'aichat_gemini_api_key' ) );
+        if ( $openai !== '' || $claude !== '' || $gemini !== '' ) {
             return;
         }
 
@@ -695,7 +710,7 @@ if ( ! function_exists( 'aichat_admin_api_key_notice' ) ) {
                 printf(
                     wp_kses(
                         /* translators: %s: settings page link */
-                        __( 'Please add an OpenAI or Claude API key in %s to start using the chatbot.', 'axiachat-ai' ),
+                        __( 'Please add an OpenAI, Claude or Gemini API key in %s to start using the chatbot.', 'axiachat-ai' ),
                         [ 'a' => [ 'href' => [], 'target' => [], 'rel' => [] ] ]
                     ),
                     '<a href="' . esc_url( $url ) . '">' . esc_html__( 'AI Chat Settings', 'axiachat-ai' ) . '</a>'

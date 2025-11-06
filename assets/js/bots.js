@@ -75,6 +75,20 @@
         { val:'claude-3-haiku-20240307',    label:'Claude 3 Haiku (Mar 2024)' }
       ];
     }
+    
+    if (prov === 'gemini') {
+      return [
+        // Gemini 2.5 (2025) - Modelos con thinking
+        { val:'gemini-2.5-pro',        label:'Gemini 2.5 Pro (Reasoning) [ADVANCED]' },
+        { val:'gemini-2.5-flash',      label:'Gemini 2.5 Flash (Balanced) [RECOMMENDED]' },
+        { val:'gemini-2.5-flash-lite', label:'Gemini 2.5 Flash-Lite (Fast) [EFFICIENT]' },
+        
+        // Gemini 2.0 (2024) - Segunda generación
+        { val:'gemini-2.0-flash',      label:'Gemini 2.0 Flash (Agents)' },
+        { val:'gemini-2.0-flash-lite', label:'Gemini 2.0 Flash-Lite (Efficient)' }
+      ];
+    }
+    
     // OpenAI
     return [
       { val:'gpt-5',       label:'GPT-5' },
@@ -513,6 +527,7 @@
                     <select id="prov-${bot.id}" class="form-select aichat-field" data-field="provider" data-id="${bot.id}">
                       <option value="openai" ${bot.provider==='openai'?'selected':''}>OpenAI</option>
                       <option value="anthropic" ${bot.provider==='anthropic'?'selected':''}>Claude</option>
+                      <option value="gemini" ${bot.provider==='gemini'?'selected':''}>Google Gemini</option>
                     </select>
                   </div>
                   <div class="col-md-6">

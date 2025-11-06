@@ -44,11 +44,19 @@ if ( function_exists('aichat_register_macro') ) {
 // Universal web search capability compatible with multiple providers:
 // - OpenAI (GPT-5* models via Responses API)
 // - Claude (4.x models via Messages API with web_search_20250305)
+// - Gemini (2.0/2.5 models with native googleSearch tool + grounding)
+//
+// IMPORTANT LIMITATION FOR GEMINI:
+// Multi-tool use (combining google_search + functionDeclarations) is ONLY supported
+// in Live API (WebSocket), NOT in REST API generateContent endpoint.
+// In REST API, user must choose: web_search OR custom functions, but not both.
+// See: https://ai.google.dev/gemini-api/docs/function-calling#multi-tool-use
+//
 // We register a dummy atomic tool so the macro can reference it, but it's type 'custom' so it's not included in CC function tools.
 aichat_register_tool_safe('__builtin_web_search', [
   'type' => 'custom',
   'name' => 'web_search_builtin',
-  'description' => 'Enables web search on compatible models (OpenAI GPT-5*, Claude 4.x). Allows real-time internet lookups with optional domain restrictions.', // MODELO
+  'description' => 'Enables web search on compatible models (OpenAI GPT-5*, Claude 4.x, Gemini 2.0/2.5). Allows real-time internet lookups with optional domain restrictions. GEMINI LIMITATION: Cannot combine with custom functions in REST API (Live API only).', // MODELO
   'callback' => '__return_null'
 ]);
 
@@ -56,7 +64,7 @@ if ( function_exists('aichat_register_macro') ) {
   aichat_register_macro([
     'name' => 'web_search',
     'label' => 'Web Search',
-    'description' => 'Allows the assistant to search the internet for real-time information. Compatible with OpenAI (GPT-5* models) and Claude (4.x models). Configure allowed domains to restrict sources.', // UI/Admin
+    'description' => 'Allows the assistant to search the internet for real-time information. Compatible with OpenAI (GPT-5* models), Claude (4.x models), and Gemini (2.0/2.5 models). GEMINI LIMITATION: In REST API, web_search cannot be combined with custom functions (multi-tool use requires Live API/WebSocket). Configure allowed domains to restrict sources.', // UI/Admin
     'tools' => ['__builtin_web_search'],
     'source' => 'local',
     'source_ref' => 'axiachat_core'

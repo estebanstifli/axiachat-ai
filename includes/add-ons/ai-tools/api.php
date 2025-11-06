@@ -253,6 +253,108 @@ add_filter('aichat_openai_responses_tools', function( $tools, $ctx ){
     return $tools;
 }, 10, 2);
 
+// Inject google_search tool for Gemini when selected via macro
+add_filter('aichat_gemini_tools', function( $tools, $ctx ){
+    // $ctx: ['model'=>..., 'bot'=>bot_slug]
+    // Detect if macro 'web_search' is selected for this bot
+    $bot_slug = isset($ctx['bot']) ? sanitize_title($ctx['bot']) : '';
+    
+    if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+        aichat_log_debug('[AI Tools] aichat_gemini_tools filter called', [
+            'bot_slug' => $bot_slug,
+            'tools_count_in' => count($tools),
+            'context' => $ctx
+        ], true);
+    }
+    
+    if ($bot_slug === '') return $tools;
+    
+    // Load bot row to inspect selected capabilities (tools_json)
+    global $wpdb; $bots_table = $wpdb->prefix.'aichat_bots';
+    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name safe; slug uses placeholder
+    $row = $wpdb->get_row( $wpdb->prepare("SELECT tools_json FROM {$bots_table} WHERE slug=%s", $bot_slug), ARRAY_A );
+    $selected = [];
+    if ($row && !empty($row['tools_json'])){ 
+        $tmp = json_decode((string)$row['tools_json'], true); 
+        if(is_array($tmp)) $selected = array_values(array_filter($tmp, 'is_string')); 
+    }
+    
+    if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+        aichat_log_debug('[AI Tools] Bot tools_json loaded for Gemini', [
+            'selected_count' => count($selected),
+            'selected_items' => implode(', ', $selected),
+            'raw_tools_json' => $row['tools_json'] ?? 'null'
+        ], true);
+    }
+    
+    if ( empty($selected) ) return $tools;
+    $has_web_search_macro = in_array('web_search', $selected, true);
+    
+    if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+        aichat_log_debug('[AI Tools] Checking web_search macro for Gemini', [
+            'has_web_search' => $has_web_search_macro,
+            'looking_for' => 'web_search',
+            'selected_items' => implode(', ', $selected)
+        ], true);
+    }
+    
+    if ( ! $has_web_search_macro ) return $tools;
+    
+    // CRITICAL LIMITATION: Multi-tool use (google_search + functionDeclarations) is ONLY
+    // supported in Live API (WebSocket), NOT in REST API generateContent endpoint.
+    // See: https://ai.google.dev/gemini-api/docs/function-calling#multi-tool-use
+    // 
+    // "Multi-tool use is a Live API only feature at the moment."
+    //
+    // Solution: Do NOT inject google_search if there are already functionDeclarations.
+    // The user must choose: web_search OR custom functions, but not both (in REST API).
+    
+    // Check if there are already function declarations
+    $has_function_declarations = false;
+    foreach($tools as $t){ 
+        if( isset($t['type']) && $t['type']==='function' ){ 
+            $has_function_declarations = true; 
+            break; 
+        } 
+    }
+    
+    if ( $has_function_declarations ) {
+        if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+            aichat_log_debug('[AI Tools] SKIPPED google_search injection - functionDeclarations present (Live API only limitation)', [
+                'reason' => 'Multi-tool use (google_search + functionDeclarations) only supported in Live API',
+                'tools_count' => count($tools)
+            ], true);
+        }
+        return $tools; // Don't inject google_search
+    }
+    
+    // Build Gemini native google_search tool entry
+    // Note: Gemini's google_search doesn't support domain filtering in the same way as OpenAI/Claude
+    // Domain restrictions would need to be enforced via system instructions
+    $gs = [ 'type' => 'google_search' ];
+    
+    // Check if already added to avoid duplicates
+    $found = false; 
+    foreach($tools as $t){ 
+        if( isset($t['type']) && $t['type']==='google_search' ){ 
+            $found=true; 
+            break; 
+        } 
+    }
+    
+    if ( ! $found ) { 
+        $tools[] = $gs;
+        
+        if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+            aichat_log_debug('[AI Tools] INJECTED google_search into Gemini tools (no function declarations present)', [
+                'tools_count_out' => count($tools)
+            ], true);
+        }
+    }
+    
+    return $tools;
+}, 10, 2);
+
 // Early injection of allowed domains policy into system message (runs before provider call)
 add_filter('aichat_messages_before_provider', function($messages, $meta){
     if ( empty($meta['bot']) || !is_array($meta['bot']) ) return $messages;

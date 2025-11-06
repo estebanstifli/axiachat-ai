@@ -109,6 +109,7 @@ function aichat_easycfg_discover_smart() : array {
             foreach($terms as $term){
                 // productos recientes de cada categoría
                 if ( class_exists('WooCommerce') && function_exists('wc_get_products') ) {
+                    // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound -- WooCommerce function
                     $prods = wc_get_products([
                         'status'=>'publish',
                         'limit'=>3,
@@ -125,6 +126,7 @@ function aichat_easycfg_discover_smart() : array {
         }
         // Página de tienda
         if ( class_exists('WooCommerce') && function_exists('wc_get_page_id') ) {
+            // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound -- WooCommerce function, only called when WooCommerce is active
             $shop_id = (int) wc_get_page_id('shop');
             if ($shop_id>0 && !isset($seen[$shop_id])) { $ids[]=$shop_id; $seen[$shop_id]=true; }
         }
@@ -157,13 +159,9 @@ function aichat_easycfg_discover_smart() : array {
     ];
 }
 
-// Stubs defensivos (solo para evitar avisos si el analizador no detecta condicionales). No se ejecutarán en WooCommerce real.
-if ( ! function_exists('wc_get_products') ) {
-    function wc_get_products($args = []) { return []; }
-}
-if ( ! function_exists('wc_get_page_id') ) {
-    function wc_get_page_id($page) { return 0; }
-}
+// NOTE: WooCommerce function stubs removed to avoid conflicts.
+// wc_get_products() and wc_get_page_id() are only called when WooCommerce is active,
+// so the real functions will exist at runtime. Linter warnings can be ignored.
 
 /**
  * Extrae IDs de posts/páginas/productos enlazados dentro de un HTML dado.
