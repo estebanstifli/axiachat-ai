@@ -364,14 +364,6 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 wp_send_json_success( [ 'message' => $answer, 'intercepted' => true ] );
             }
 
-            // === PASO 3: DUAL MODE - Feature flag para nueva arquitectura ===
-            // Leer feature flag (default: 0 = legacy mode)
-            $use_new_architecture = (bool) get_option( 'aichat_use_provider_architecture', 0 );
-            
-            if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
-                aichat_log_debug("[AIChat AJAX][$uid] architecture mode=" . ($use_new_architecture ? 'NEW (registry)' : 'LEGACY (hardcoded)'), [], true);
-            }
-
             // 5) Llamar al proveedor
             // Pretty log: request summary (system, prompt, tools) before calling provider
             if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
@@ -439,13 +431,6 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 }
             }
             // === FIN USAGE LIMITS ===
-
-            // === PASO 3: DUAL MODE - Feature flag para nueva arquitectura ===
-            $use_new_architecture = (bool) get_option( 'aichat_use_provider_architecture', 0 );
-            
-            if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
-                aichat_log_debug("[AIChat AJAX][$uid] architecture mode=" . ($use_new_architecture ? 'NEW (registry)' : 'LEGACY (hardcoded)'), [], true);
-            }
 
             $t_call0 = microtime(true);
             // === Function Calling (Tools) Phase 1 ===
@@ -526,276 +511,118 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             // Generar request_uuid para trazar tool calls (se reutiliza al vincular conversation_id)
             $request_uuid = wp_generate_uuid4();
 
-            // === BRANCH: Nueva arquitectura vs Legacy ===
-            if ( $use_new_architecture ) {
-                // ===== NUEVA ARQUITECTURA: Registry + Adapters =====
-                aichat_log_debug("[AIChat AJAX][$uid] using NEW architecture (provider registry)", [], true);
-                
-                // Mapear provider legacy 'anthropic' a 'claude' para registry
-                $registry_provider = ( $provider === 'anthropic' ) ? 'claude' : $provider;
-                
-                // Obtener provider instance del registry
-                $registry = AIChat_Provider_Registry::instance();
-                
-                // Preparar configuración según provider
-                if ( $provider === 'openai' ) {
-                    $provider_config = [ 'api_key' => $openai_key ];
-                    $org = aichat_get_setting( 'aichat_openai_organization' );
-                    if ( ! empty( $org ) ) {
-                        $provider_config['organization'] = $org;
-                    }
-                } elseif ( $provider === 'anthropic' ) {
-                    $provider_config = [ 'api_key' => $claude_key ];
-                } elseif ( $provider === 'gemini' ) {
-                    $gemini_key = aichat_get_setting( 'aichat_gemini_api_key' );
-                    $provider_config = [ 'api_key' => $gemini_key ];
-                } else {
-                    $provider_config = [];
+            // ===== PROVIDER ARCHITECTURE: Registry + Adapters =====
+            aichat_log_debug("[AIChat AJAX][$uid] using provider registry architecture", [], true);
+            
+            // Mapear provider legacy 'anthropic' a 'claude' para registry
+            $registry_provider = ( $provider === 'anthropic' ) ? 'claude' : $provider;
+            
+            // Obtener provider instance del registry
+            $registry = AIChat_Provider_Registry::instance();
+            
+            // Preparar configuración según provider
+            if ( $provider === 'openai' ) {
+                $provider_config = [ 'api_key' => $openai_key ];
+                $org = aichat_get_setting( 'aichat_openai_organization' );
+                if ( ! empty( $org ) ) {
+                    $provider_config['organization'] = $org;
                 }
-                
-                try {
-                    $provider_instance = $registry->get( $registry_provider, $provider_config );
-                } catch ( Exception $e ) {
-                    aichat_log_debug("[AIChat AJAX][$uid] Registry ERROR: " . $e->getMessage(), [], true);
-                    wp_send_json_error( [ 'message' => __( 'Provider initialization failed.', 'axiachat-ai' ) ], 500 );
-                }
-                
-                // Preparar parámetros de llamada
-                $call_params = [
-                    'model' => $model,
-                    'temperature' => $temperature,
-                    'max_tokens' => $max_tokens,
-                    'bot_id' => $bot_id,
-                    'conversation_id' => 0,  // TODO: Obtener de session storage
-                    'request_uuid' => $request_uuid,
-                    'session_id' => $session,
-                    'bot_slug' => $bot_slug_r,
-                ];
-                
-                // Pasar tools a cualquier provider que los soporte
-                if ( ! empty( $active_tools ) ) {
-                    $call_params['tools'] = $active_tools;
-                }
-                
-                // Llamar al provider via adapter
-                $result = $provider_instance->chat( $messages, $call_params );
-                
-                // Si OpenAI Responses devolvió tool_pending, reenviar al frontend
-                if ( is_array($result) && isset($result['status']) && $result['status'] === 'tool_pending' ) {
-                    $out = [
-                        'status' => 'tool_pending',
-                        'response_id' => $result['response_id'] ?? '',
-                        'tool_calls' => $result['tool_calls'] ?? [],
-                        'request_uuid' => $uid,
-                        'session_id' => $session,
-                        'bot_slug' => $bot_slug_r,
-                        'model' => $model,
-                    ];
-                    
-                    if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
-                        aichat_log_debug("[AIChat AJAX][$uid] NEW arch tool_pending handshake", [
-                            'response_id' => $result['response_id'] ?? '-',
-                            'tool_count' => is_array($result['tool_calls'] ?? null) ? count($result['tool_calls']) : 0
-                        ], true);
-                    }
-                    
-                    // Guardar conversación con marcador de pendiente
-                    if ( get_option( 'aichat_logging_enabled', 1 ) ) {
-                        $placeholder_resp = '(executing tools…)';
-                        $this->maybe_log_conversation( get_current_user_id(), $session, $bot_slug_r, $page_id, $message, $placeholder_resp, $model, $provider, null, null, null, null );
-                    }
-                    
-                    wp_send_json_success( $out );
-                }
-                
-                // Manejar tool calls si es OpenAI Chat Completions (multi-ronda simple)
-                if ( $provider === 'openai' && ! empty( $active_tools ) && is_array($result) && !empty($result['tool_calls']) ) {
-                    // TODO: Implementar multi-ronda con tools en PASO 4
-                    // Por ahora, simplemente tomamos la primera respuesta
-                    aichat_log_debug("[AIChat AJAX][$uid] NEW arch: tool_calls detected but multi-round not yet implemented", [], true);
-                }
-                
-                // Validar resultado
-                if ( isset($result['error']) ) {
-                    aichat_log_debug("[AIChat AJAX][$uid] NEW arch provider error: ".$result['error'], [], true);
-                    wp_send_json_error( ['message' => $result['error'] ], 500);
-                }
-                
-                $answer = $result['message'] ?? '';
-                
-                if ( $answer === '' ) {
-                    aichat_log_debug("[AIChat AJAX][$uid] NEW arch ERROR: empty answer", [], true);
-                    wp_send_json_error( [ 'message' => __( 'Model returned an empty response.', 'axiachat-ai' ) ], 500 );
-                }
-                
-                // Pretty log de respuesta (igual que legacy)
-                if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
-                    $pretty_resp = $this->format_pretty_response_log([
-                        'uid'        => $uid,
-                        'provider'   => $provider,
-                        'model'      => $result['model'] ?? $model,
-                        'answer'     => $answer,
-                        'usage'      => $result['usage'] ?? [],
-                        'timings_ms' => []
-                    ]);
-                    aichat_log_debug($pretty_resp, [], true);
-                }
-                
+            } elseif ( $provider === 'anthropic' ) {
+                $provider_config = [ 'api_key' => $claude_key ];
+            } elseif ( $provider === 'gemini' ) {
+                $gemini_key = aichat_get_setting( 'aichat_gemini_api_key' );
+                $provider_config = [ 'api_key' => $gemini_key ];
             } else {
-                // ===== LEGACY ARQUITECTURA: Código hardcoded original =====
-                aichat_log_debug("[AIChat AJAX][$uid] using LEGACY architecture (hardcoded providers)", [], true);
-
-            // Multi-ronda (hasta 3 por defecto) de function calling (solo Chat Completions).
-            // Para modelos Responses (gpt-5*) la multi-ronda se maneja internamente en call_openai_responses.
-            if ( $provider === 'openai' && ! $this->is_openai_responses_model($model) ) {
-                $max_rounds = (int)apply_filters( 'aichat_tools_max_rounds', 5, $bot, $session );
-                if ( $max_rounds < 1 ) { $max_rounds = 1; }
-                $round = 1;
-                $acc_messages = $messages; // iremos añadiendo assistant + tool outputs
-                $registered = function_exists('aichat_get_registered_tools') ? aichat_get_registered_tools() : [];
-                aichat_log_debug("[AIChat Tools][$uid] start loop max_rounds={$max_rounds} tools=".count($active_tools), [], true);
-                $result = null; $final_answer = '';
-                while ( $round <= $max_rounds ) {
-                    aichat_log_debug("[AIChat Tools][$uid] round={$round} calling model={$model} msg_count=".count($acc_messages), [], true);
-                    // Start timer for this round
-                    $t_r0 = microtime(true);
-                    $result = $this->call_openai_auto( $openai_key, $model, $acc_messages, $temperature, $max_tokens, [ 'tools'=>$active_tools ] );
-                    $t_r1 = microtime(true);
-                    if ( is_wp_error($result) ) { break; }
-                    if ( is_array($result) && isset($result['error']) ) { break; }
-                    $raw_msg = (string)($result['message'] ?? '');
-                    $has_tool_calls = ( is_array($result) && !empty($result['tool_calls']) );
-                    // Pretty per-round log
-                    if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
-                        $pretty_round = $this->format_pretty_response_log([
-                            'uid'        => $uid,
-                            'provider'   => 'openai',
-                            'model'      => $model,
-                            'answer'     => $raw_msg,
-                            'tool_calls' => $has_tool_calls ? count($result['tool_calls']) : 0,
-                            'usage'      => is_array($result['usage'] ?? null) ? $result['usage'] : [],
-                            'timings_ms' => [ 'round' => round(($t_r1-$t_r0)*1000) ],
-                        ]);
-                        aichat_log_debug("[AIChat Tools][$uid] Round={$round} summary\n".$pretty_round, [], true);
-                    }
-                    // Si no hay tool calls o se alcanzó el límite, finalizamos
-                    if ( ! $has_tool_calls ) { $final_answer = $raw_msg; break; }
-                    if ( $round === $max_rounds ) { // alcanzamos límite sin respuesta textual final
-                        // devolvemos último mensaje (aunque esté vacío) y paramos
-                        $final_answer = $raw_msg; break; }
-                    // Nuevo flujo: assistant con tool_calls + tool messages
-                    $assistant_msg = [ 'role'=>'assistant', 'content'=>$raw_msg ];
-                    $assistant_tool_calls = [];
-                    foreach ( $result['tool_calls'] as $tc ) {
-                        $fname   = $tc['name'] ?? '';
-                        $call_id = $tc['id'] ?? ('call_'.wp_generate_uuid4());
-                        $raw_args = $tc['arguments'] ?? '{}';
-                        $assistant_tool_calls[] = [
-                            'id' => $call_id,
-                            'type' => 'function',
-                            'function' => [ 'name'=>$fname, 'arguments'=>$raw_args ],
-                        ];
-                    }
-                    if ( $assistant_tool_calls ) { $assistant_msg['tool_calls'] = $assistant_tool_calls; }
-                    $tool_output_messages = [];
-                    foreach ( $assistant_tool_calls as $tc_struct ) {
-                        $call_id = $tc_struct['id'];
-                        $fname   = $tc_struct['function']['name'];
-                        $raw_args = $tc_struct['function']['arguments'];
-                        $args_arr = json_decode($raw_args,true); if(!is_array($args_arr)) $args_arr=[];
-                        $out_str=''; $start_exec = microtime(true);
-                        if ( isset($registered[$fname]) && is_callable($registered[$fname]['callback']) ) {
-                            try {
-                                $res_cb = call_user_func( $registered[$fname]['callback'], $args_arr, [ 'session_id'=>$session,'bot_slug'=>$bot_slug_r,'question'=>$message,'round'=>$round ] );
-                                if ( is_array($res_cb) ) { $out_str = wp_json_encode($res_cb); }
-                                elseif ( is_string($res_cb) ) { $out_str = $res_cb; }
-                                else { $out_str = '"ok"'; }
-                            } catch ( \Throwable $e ) {
-                                $out_str = wp_json_encode(['ok'=>false,'error'=>'exception','message'=>$e->getMessage()]);
-                            }
-                        } else {
-                            $out_str = wp_json_encode(['ok'=>false,'error'=>'unknown_tool']);
-                        }
-                        $elapsed_tool = round((microtime(true)-$start_exec)*1000);
-                        if ( mb_strlen($out_str) > 4000 ) { $out_str = mb_substr($out_str,0,4000).'…'; }
-                        aichat_log_debug('[AIChat Tools]['.$uid.'] round='.$round.' tool_exec fname='.$fname.' ms='.$elapsed_tool.' args_len='.strlen($raw_args), [], true);
-                        global $wpdb; $tool_tbl = $wpdb->prefix.'aichat_tool_calls';
-                        $wpdb->insert($tool_tbl,[
-                            'request_uuid'=>$request_uuid,
-                            'conversation_id'=>null,
-                            'session_id'=>$session,
-                            'bot_slug'=>$bot_slug_r,
-                            'round'=>$round,
-                            'call_id'=>$call_id,
-                            'tool_name'=>$fname,
-                            'arguments_json'=>$raw_args,
-                            'output_excerpt'=>$out_str,
-                            'duration_ms'=>$elapsed_tool,
-                            'error_code'=>(strpos($out_str,'"error"')!==false ? 'error':null),
-                            'created_at'=>current_time('mysql'),
-                        ],[ '%s','%d','%s','%s','%d','%s','%s','%s','%s','%d','%s','%s']);
-                        $tool_output_messages[] = [ 'role'=>'tool','tool_call_id'=>$call_id,'content'=>(string)$out_str ];
-                    }
-                    $acc_messages = array_merge( $acc_messages, [ $assistant_msg ], $tool_output_messages );
-                    $round++;
-                }
-                if ( $final_answer === '' && is_array($result) ) { $final_answer = (string)($result['message'] ?? ''); }
-                $result = is_array($result) ? array_merge($result,['message'=>$final_answer]) : $result;
-            } elseif ( $provider === 'openai' && $this->is_openai_responses_model($model) ) {
-                // Ejecutar directamente vía Responses (multi-ronda interna)
-                $result = $this->call_openai_auto( $openai_key, $model, $messages, $temperature, $max_tokens, [ 'tools'=>$active_tools, 'bot_slug'=>$bot_slug_r, 'session_id'=>$session ] );
-                // Si Responses devolvió handshake tool_pending, reenviar tal cual al frontend
-                if ( is_array($result) && isset($result['status']) && $result['status']==='tool_pending' ) {
-                    // Adjuntamos datos mínimos de sesión/bot
-                    $out = [
-                        'status' => 'tool_pending',
-                        'response_id' => $result['response_id'] ?? '',
-                        'tool_calls' => $result['tool_calls'] ?? [],
-                        'request_uuid' => $result['request_uuid'] ?? '',
-                        'session_id' => $session,
-                        'bot_slug' => $bot_slug_r,
-                        'model' => $model,
-                    ];
-                    if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
-                        aichat_log_debug('[AIChat Responses]['.$uid.'] tool_pending handshake response_id='.($result['response_id'] ?? '-').' tool_calls='.(is_array($result['tool_calls'] ?? null) ? count($result['tool_calls']) : 0), [], true);
-                    }
-                    // Guardar conversación con marcador de pendiente para no perder el turno del usuario
-                    if ( get_option( 'aichat_logging_enabled', 1 ) ) {
-                        // Asegurar request_uuid disponible para vincular tool_calls posteriormente
-                        if ( !isset($_REQUEST['aichat_request_uuid']) && isset($request_uuid) && is_string($request_uuid) && preg_match('/^[a-f0-9-]{36}$/i',$request_uuid) ) {
-                            $_REQUEST['aichat_request_uuid'] = $request_uuid;
-                        }
-                        $placeholder_resp = '(executing tools…)';
-                        $this->maybe_log_conversation( get_current_user_id(), $session, $bot_slug_r, $page_id, $message, $placeholder_resp, $model, $provider, null, null, null, null );
-                    }
-                    wp_send_json_success( $out );
-                }
-                if ( is_wp_error($result) ) { $final_answer = ''; }
-                elseif ( isset($result['error']) ) { $final_answer=''; } else { $final_answer = (string)($result['message'] ?? ''); }
-                if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
-                    $pretty_resp_round = $this->format_pretty_response_log([
-                        'uid'        => $uid,
-                        'provider'   => 'openai',
-                        'model'      => $model,
-                        'answer'     => $final_answer,
-                        'tool_calls' => is_array($result['tool_calls'] ?? null) ? count($result['tool_calls']) : 0,
-                        'usage'      => is_array($result['usage'] ?? null) ? $result['usage'] : [],
-                    ]);
-                    aichat_log_debug('[AIChat Responses]['.$uid.'] per-call summary\n'.$pretty_resp_round, [], true);
-                }
-            } elseif ( $provider === 'claude' ) {
-                aichat_log_debug("[AIChat AJAX][$uid] calling Claude model={$model}", [], true);
-                $result = $this->call_claude_messages( $claude_key, $model, $messages, $temperature, $max_tokens );
-                if (isset($result['error'])) {
-                    aichat_log_debug("[AIChat AJAX][$uid] provider error (Claude): ".$result['error'], [], true);
-                    wp_send_json_error(['message'=>$result['error']], 500);
-                }
-                $answer = $result['message'];
-            } else {
-                wp_send_json_error( [ 'message' => __( 'Provider not supported.', 'axiachat-ai' ) ], 400 );
+                $provider_config = [];
             }
             
-            } // === FIN LEGACY ARCHITECTURE BLOCK ===
+            try {
+                $provider_instance = $registry->get( $registry_provider, $provider_config );
+            } catch ( Exception $e ) {
+                aichat_log_debug("[AIChat AJAX][$uid] Registry ERROR: " . $e->getMessage(), [], true);
+                wp_send_json_error( [ 'message' => __( 'Provider initialization failed.', 'axiachat-ai' ) ], 500 );
+            }
+            
+            // Preparar parámetros de llamada
+            $call_params = [
+                'model' => $model,
+                'temperature' => $temperature,
+                'max_tokens' => $max_tokens,
+                'bot_id' => $bot_id,
+                'conversation_id' => 0,  // TODO: Obtener de session storage
+                'request_uuid' => $request_uuid,
+                'session_id' => $session,
+                'bot_slug' => $bot_slug_r,
+            ];
+            
+            // Pasar tools a cualquier provider que los soporte
+            if ( ! empty( $active_tools ) ) {
+                $call_params['tools'] = $active_tools;
+            }
+            
+            // Llamar al provider via adapter
+            $result = $provider_instance->chat( $messages, $call_params );
+            
+            // Si OpenAI Responses devolvió tool_pending, reenviar al frontend
+            if ( is_array($result) && isset($result['status']) && $result['status'] === 'tool_pending' ) {
+                $out = [
+                    'status' => 'tool_pending',
+                    'response_id' => $result['response_id'] ?? '',
+                    'tool_calls' => $result['tool_calls'] ?? [],
+                    'request_uuid' => $uid,
+                    'session_id' => $session,
+                    'bot_slug' => $bot_slug_r,
+                    'model' => $model,
+                ];
+                
+                if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+                    aichat_log_debug("[AIChat AJAX][$uid] tool_pending handshake", [
+                        'response_id' => $result['response_id'] ?? '-',
+                        'tool_count' => is_array($result['tool_calls'] ?? null) ? count($result['tool_calls']) : 0
+                    ], true);
+                }
+                
+                // Guardar conversación con marcador de pendiente
+                if ( get_option( 'aichat_logging_enabled', 1 ) ) {
+                    $placeholder_resp = '(executing tools…)';
+                    $this->maybe_log_conversation( get_current_user_id(), $session, $bot_slug_r, $page_id, $message, $placeholder_resp, $model, $provider, null, null, null, null );
+                }
+                
+                wp_send_json_success( $out );
+            }
+            
+            // Manejar tool calls si es OpenAI Chat Completions (multi-ronda simple)
+            if ( $provider === 'openai' && ! empty( $active_tools ) && is_array($result) && !empty($result['tool_calls']) ) {
+                // TODO: Implementar multi-ronda con tools en PASO 4
+                // Por ahora, simplemente tomamos la primera respuesta
+                aichat_log_debug("[AIChat AJAX][$uid] tool_calls detected but multi-round not yet implemented", [], true);
+            }
+            
+            // Validar resultado
+            if ( isset($result['error']) ) {
+                aichat_log_debug("[AIChat AJAX][$uid] provider error: ".$result['error'], [], true);
+                wp_send_json_error( ['message' => $result['error'] ], 500);
+            }
+            
+            $answer = $result['message'] ?? '';
+            
+            if ( $answer === '' ) {
+                aichat_log_debug("[AIChat AJAX][$uid] ERROR: empty answer", [], true);
+                wp_send_json_error( [ 'message' => __( 'Model returned an empty response.', 'axiachat-ai' ) ], 500 );
+            }
+            
+            // Pretty log de respuesta
+            if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+                $pretty_resp = $this->format_pretty_response_log([
+                    'uid'        => $uid,
+                    'provider'   => $provider,
+                    'model'      => $result['model'] ?? $model,
+                    'answer'     => $answer,
+                    'usage'      => $result['usage'] ?? [],
+                    'timings_ms' => []
+                ]);
+                aichat_log_debug($pretty_resp, [], true);
+            }
             
             $t_call1 = microtime(true);
 
@@ -1660,13 +1487,43 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             if ( $provider === 'openai' && ! $openai_key ) return new WP_Error('aichat_no_key','Missing OpenAI key');
             if ( $provider === 'claude' && ! $claude_key ) return new WP_Error('aichat_no_key','Missing Claude key');
 
+            // === USAR PROVIDER REGISTRY ===
+            $registry_provider = ( $provider === 'anthropic' ) ? 'claude' : $provider;
+            $registry = AIChat_Provider_Registry::instance();
+            
             if ( $provider === 'openai' ) {
-                $result = $this->call_openai_auto( $openai_key, $model, $messages, $temperature, $max_tokens, [ 'bot_slug'=>$bot['slug'], 'session_id'=>$session_id ] );
-            } elseif ( $provider === 'claude' ) {
-                $result = $this->call_claude_messages( $claude_key, $model, $messages, $temperature, $max_tokens );
+                $provider_config = [ 'api_key' => $openai_key ];
+                $org = aichat_get_setting( 'aichat_openai_organization' );
+                if ( ! empty( $org ) ) {
+                    $provider_config['organization'] = $org;
+                }
+            } elseif ( $provider === 'anthropic' ) {
+                $provider_config = [ 'api_key' => $claude_key ];
+            } elseif ( $provider === 'gemini' ) {
+                $gemini_key = aichat_get_setting( 'aichat_gemini_api_key' );
+                $provider_config = [ 'api_key' => $gemini_key ];
             } else {
                 return new WP_Error('aichat_provider','Provider not supported');
             }
+            
+            try {
+                $provider_instance = $registry->get( $registry_provider, $provider_config );
+            } catch ( Exception $e ) {
+                return new WP_Error('aichat_registry_error', $e->getMessage());
+            }
+            
+            $call_params = [
+                'model' => $model,
+                'temperature' => $temperature,
+                'max_tokens' => $max_tokens,
+                'bot_id' => $bot['id'] ?? 0,
+                'conversation_id' => 0,
+                'request_uuid' => wp_generate_uuid4(),
+                'session_id' => $session_id,
+                'bot_slug' => $bot['slug'],
+            ];
+            
+            $result = $provider_instance->chat( $messages, $call_params );
             if ( is_wp_error($result) ) return $result;
             if ( isset($result['error']) ) return new WP_Error('aichat_provider_error', (string)$result['error']);
 

@@ -173,13 +173,6 @@ function aichat_register_simple_settings() {
         'default' => 1,
     ] );
 
-    // === PASO 3: Feature flag para nueva arquitectura de proveedores ===
-    register_setting( $option_group, 'aichat_use_provider_architecture', [
-        'type' => 'boolean',
-        'sanitize_callback' => 'aichat_sanitize_checkbox',
-        'default' => 0, // Default: OFF (legacy mode)
-    ] );
-
     // GDPR consent options
     register_setting( $option_group, 'aichat_gdpr_consent_enabled', [
         'type' => 'boolean',
@@ -392,19 +385,6 @@ function aichat_settings_page() {
                                             <span><?php echo esc_html__( 'Conversation logging', 'axiachat-ai' ); ?></span>
                                         </label>
                                         <div class="form-text ms-0"><?php echo esc_html__( 'Disable to stop saving new messages (existing records remain).', 'axiachat-ai'); ?></div>
-                                    </div>
-                                    
-                                    <!-- === PASO 3: Feature flag para nueva arquitectura === -->
-                                    <div class="aichat-checkbox-row mb-0 mt-3">
-                                        <input type="hidden" name="aichat_use_provider_architecture" value="0" />
-                                        <label for="aichat_use_provider_architecture" class="aichat-checkbox-label">
-                                            <input type="checkbox" id="aichat_use_provider_architecture" name="aichat_use_provider_architecture" value="1" <?php checked( (int) get_option('aichat_use_provider_architecture', 0), 1 ); ?> />
-                                            <span><?php echo esc_html__( 'Use new provider architecture (experimental)', 'axiachat-ai' ); ?></span>
-                                        </label>
-                                        <div class="form-text ms-0">
-                                            <span class="badge bg-warning text-dark me-1">BETA</span>
-                                            <?php echo esc_html__( 'Enable modular provider system (recommended for testing only). Provides better extensibility for future AI providers.', 'axiachat-ai'); ?>
-                                        </div>
                                     </div>
                                 </div>
                             </div>

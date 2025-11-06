@@ -344,10 +344,6 @@ function aichat_activation() {
     add_option( 'aichat_position', 'bottom-right' );
     // add_option('aichat_rag_enabled', false); // (deprecated si ya lo eliminaste)
 
-  // === NUEVA ARQUITECTURA: Feature flag para provider system (PASO 3) ===
-  // Default: 0 (legacy mode) - Usuarios pueden habilitar en Settings
-  add_option( 'aichat_use_provider_architecture', 0 );
-
   // Señal para redirigir a Easy Config tras activación (si no había bots previos)
   if ( ! get_option( 'aichat_easy_config_completed' ) ) {
     add_option( 'aichat_easy_config_do_redirect', 1 );
