@@ -527,7 +527,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 if ( ! empty( $org ) ) {
                     $provider_config['organization'] = $org;
                 }
-            } elseif ( $provider === 'anthropic' ) {
+            } elseif ( $provider === 'claude' ) {
                 $provider_config = [ 'api_key' => $claude_key ];
             } elseif ( $provider === 'gemini' ) {
                 $gemini_key = aichat_get_setting( 'aichat_gemini_api_key' );
@@ -1497,7 +1497,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 if ( ! empty( $org ) ) {
                     $provider_config['organization'] = $org;
                 }
-            } elseif ( $provider === 'anthropic' ) {
+            } elseif ( $provider === 'claude' ) {
                 $provider_config = [ 'api_key' => $claude_key ];
             } elseif ( $provider === 'gemini' ) {
                 $gemini_key = aichat_get_setting( 'aichat_gemini_api_key' );
