@@ -20,9 +20,18 @@ function aichat_get_setting( $name ) {
     // No podemos usar null como centinela porque WP no lo devuelve nunca.
     $val = get_option( $name, '__AICHAT_NO_OPTION__' );
     if ( $val !== '__AICHAT_NO_OPTION__' && $val !== false ) {
-        // If value appears to be encrypted payload, decrypt transparently
-        if ( is_string( $val ) && function_exists('aichat_is_encrypted_value') && aichat_is_encrypted_value( $val ) ) {
-            return aichat_decrypt_value( $val );
+        if ( is_string( $val ) && function_exists( 'aichat_is_encrypted_value' ) ) {
+            $decoded = $val;
+            $iterations = 0;
+            while ( aichat_is_encrypted_value( $decoded ) && $iterations < 3 ) {
+                $maybe_plain = aichat_decrypt_value( $decoded );
+                if ( $maybe_plain === '' ) {
+                    break;
+                }
+                $decoded = $maybe_plain;
+                $iterations++;
+            }
+            return $decoded;
         }
         return $val; // Existe (aunque sea cadena vacía o '0').
     }
@@ -617,11 +626,20 @@ https://sub.site2.net"><?php echo esc_textarea($embed_origins_raw); ?></textarea
 function aichat_sanitize_api_key( $value ) {    
     $value = is_string( $value ) ? trim( $value ) : '';
     $clean = wp_kses( $value, array() );
-    if ( $clean === '' ) return '';
+    if ( $clean === '' ) {
+        return '';
+    }
+
+    // Si ya viene cifrada, no la volvemos a cifrar
+    if ( function_exists( 'aichat_is_encrypted_value' ) && aichat_is_encrypted_value( $clean ) ) {
+        return $clean;
+    }
+
     // Encrypt before storing to options if possible
     if ( function_exists( 'aichat_encrypt_value' ) ) {
         return aichat_encrypt_value( $clean );
     }
+
     return $clean;
 }
 

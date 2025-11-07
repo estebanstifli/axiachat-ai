@@ -10,6 +10,7 @@ function aichat_easy_config_page(){
     $nonce = wp_create_nonce('aichat_easycfg');
     echo '<div class="wrap aichat-easy-config-wrapper">';
     echo '<h1>'.esc_html__('AI Chat – Easy Config','axiachat-ai').'</h1>';
+    
     echo '<div id="aichat-easy-config-root" data-nonce="'.esc_attr($nonce).'"></div>';
     echo '<noscript><p>'.esc_html__('This wizard requires JavaScript.','axiachat-ai').'</p></noscript>';
     echo '</div>';
@@ -244,15 +245,36 @@ add_action('wp_ajax_aichat_easycfg_save_api_key', function(){
     check_ajax_referer('aichat_easycfg','nonce');
 
     $key = sanitize_text_field( $_POST['api_key'] ?? '' );
-    if ( $key ) { update_option('aichat_openai_api_key', $key ); }
-    wp_send_json_success(['saved'=> $key ? 1 : 0]);
+
+    if ( $key ) {
+        // Guardamos el valor en bruto; el sanitize_callback registrado aplicará la encriptación.
+        update_option( 'aichat_openai_api_key', $key );
+
+        // Si por un bug histórico queda doble cifrado, lo normalizamos a una sola capa.
+        if ( function_exists( 'aichat_is_encrypted_value' ) && function_exists( 'aichat_decrypt_value' ) ) {
+            $raw_from_db = get_option( 'aichat_openai_api_key', '' );
+            if ( aichat_is_encrypted_value( $raw_from_db ) ) {
+                $first_pass = aichat_decrypt_value( $raw_from_db );
+                if ( is_string( $first_pass ) && aichat_is_encrypted_value( $first_pass ) ) {
+                    update_option( 'aichat_openai_api_key', $first_pass );
+                }
+            }
+        }
+    } else {
+        update_option( 'aichat_openai_api_key', '' );
+    }
+
+    wp_send_json_success([
+        'saved' => $key ? 1 : 0,
+    ]);
 });
 
 // Status helper (API key presence etc.)
 add_action('wp_ajax_aichat_easycfg_status', function(){
     aichat_easycfg_require_cap();
     check_ajax_referer('aichat_easycfg','nonce');
-    $key = get_option('aichat_openai_api_key','');
+    // Use aichat_get_setting() for consistent decryption (same as settings.php)
+    $key = function_exists('aichat_get_setting') ? aichat_get_setting('aichat_openai_api_key') : get_option('aichat_openai_api_key','');
     wp_send_json_success([
         'has_api_key' => $key ? 1 : 0,
     ]);

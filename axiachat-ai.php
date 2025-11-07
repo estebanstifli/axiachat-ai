@@ -59,7 +59,7 @@ if ( ! function_exists( 'aichat_log_debug' ) ) {
       }
     }
     $line = '[AIChat] ' . $message;
-    aichat_log_debug( $line );
+    error_log( $line );
     // Optional secondary AI log file for model I/O, etc.
     if ( $active_ai ) {
       $ai_log = trailingslashit( WP_CONTENT_DIR ) . 'debug_ia.log';
@@ -197,9 +197,6 @@ require_once AICHAT_PLUGIN_DIR . 'includes/templates-prompt.php';
 if ( file_exists( AICHAT_PLUGIN_DIR . 'includes/easy-config.php' ) ) {
   require_once AICHAT_PLUGIN_DIR . 'includes/easy-config.php';
 }
-
-
-
 
 
 

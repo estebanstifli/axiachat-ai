@@ -66,7 +66,8 @@ function aichat_run_moderation_checks( $message ) {
     // 3) Moderación externa (OpenAI)
     $external = (bool) get_option('aichat_moderation_external_enabled', false);
     if ($external) {
-        $openai_key = get_option('aichat_openai_api_key', '');
+        // Use aichat_get_setting() for consistent decryption (same as settings.php)
+        $openai_key = function_exists('aichat_get_setting') ? aichat_get_setting('aichat_openai_api_key') : get_option('aichat_openai_api_key', '');
         if ($openai_key) {
             $flagged = aichat_openai_moderation_flagged($message, $openai_key);
             if (is_wp_error($flagged)) {
