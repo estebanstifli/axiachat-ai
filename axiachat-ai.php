@@ -3,7 +3,7 @@
  * Plugin Name:       AxiaChat AI
  * Plugin URI:        https://wpbotwriter.com/axiachat-ai
  * Description:       A customizable AI chatbot for WordPress with contextual embeddings, multi‑provider support and upcoming action rules.
- * Version:           1.2.4
+ * Version:           1.2.5
  * Requires at least: 5.0
  * Requires PHP:      7.4
  * Author:            estebandezafra
@@ -19,10 +19,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Definir constantes del plugin
-define( 'AICHAT_VERSION', '1.2.4' );
+define( 'AICHAT_VERSION', '1.2.5' );
 define( 'AICHAT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AICHAT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
-define('AICHAT_DEBUG', true);
+define('AICHAT_DEBUG', false);
 define('AICHAT_DEBUG_SYS_MAXLEN', 0); // sin truncado
 
 // Nota: Eliminado load_plugin_textdomain manual.
@@ -59,13 +59,15 @@ if ( ! function_exists( 'aichat_log_debug' ) ) {
       }
     }
     $line = '[AIChat] ' . $message;
-    error_log( $line );
+    aichat_log_debug( $line );
     // Optional secondary AI log file for model I/O, etc.
     if ( $active_ai ) {
       $ai_log = trailingslashit( WP_CONTENT_DIR ) . 'debug_ia.log';
       // Use message_type = 3 to append to a specific file path.
       // Suppress warnings if the file is not writable to avoid breaking normal flow.
-      @error_log( $line . "\n", 3, $ai_log );
+      if ( defined( 'AICHAT_DEBUG' ) && AICHAT_DEBUG ) {
+        @error_log( $line . "\n", 3, $ai_log );
+      }
     }
   }
 }
@@ -1407,11 +1409,12 @@ add_action( 'init', function() {
     if ( isset( $_GET['aichat_test_paso1'] ) && current_user_can('manage_options') ) {
         header('Content-Type: text/plain; charset=utf-8');
         $test_file = AICHAT_PLUGIN_DIR . 'tests/test-paso1-infrastructure.php';
-        if ( file_exists( $test_file ) ) {
-            include $test_file;
-        } else {
-            echo "❌ Test file not found: {$test_file}\n";
-        }
+    if ( file_exists( $test_file ) ) {
+      include $test_file;
+    } else {
+      /* translators: %s: Absolute path to the missing test file. */
+      printf( esc_html__( '❌ Test file not found: %s', 'axiachat-ai' ) . "\n", esc_html( $test_file ) );
+    }
         exit;
     }
 });

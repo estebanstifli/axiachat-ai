@@ -21,7 +21,7 @@ function aichat_load_contexts() {
                    (SELECT COUNT(*) FROM $table_chunks ch WHERE ch.id_context = c.id) AS chunk_count,
                    (SELECT COUNT(DISTINCT post_id) FROM $table_chunks ch2 WHERE ch2.id_context = c.id) AS post_count
             FROM $table_ctx c ORDER BY c.id ASC";
-    $contexts = $wpdb->get_results( $sql, ARRAY_A );
+    $contexts = $wpdb->get_results( $sql, ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Query uses only plugin-controlled table names and no user input.
     if ( ! $contexts ) { $contexts = []; }
     wp_send_json_success( [ 'contexts' => $contexts ] );
 }
@@ -201,34 +201,31 @@ function aichat_autosync_run_now(){
 
     // Queries similar to cron
     // Modified
-    $modified_params = array_merge([$ctx_id], $wp_types);
-    $modified_sql = $wpdb->prepare("SELECT p.ID
+    $modified_params = array_merge( [ $ctx_id ], $wp_types );
+    $modified = $wpdb->get_col( $wpdb->prepare("SELECT p.ID
         FROM {$wpdb->posts} p
         JOIN {$wpdb->prefix}aichat_chunks c ON c.post_id=p.ID AND c.id_context=%d
         WHERE p.post_status='publish' AND p.post_type IN ($placeholders_types)
         GROUP BY p.ID
         HAVING TIMESTAMP(MAX(COALESCE(c.updated_at,c.created_at))) < TIMESTAMP(MAX(p.post_modified_gmt))
-        LIMIT 500", $modified_params);
-    $modified = $wpdb->get_col($modified_sql);
+        LIMIT 500", $modified_params ) );
 
-    if($effective==='modified_and_new'){
-    $new_params = array_merge([$ctx_id], $wp_types);
-    $new_sql = $wpdb->prepare("SELECT p.ID
-        FROM {$wpdb->posts} p
-        LEFT JOIN {$wpdb->prefix}aichat_chunks c ON c.post_id=p.ID AND c.id_context=%d
-        WHERE c.post_id IS NULL AND p.post_status='publish' AND p.post_type IN ($placeholders_types)
-        ORDER BY p.ID DESC
-        LIMIT 500", $new_params);
-        $new = $wpdb->get_col($new_sql);
+    if ( $effective === 'modified_and_new' ) {
+        $new_params = array_merge( [ $ctx_id ], $wp_types );
+        $new = $wpdb->get_col( $wpdb->prepare("SELECT p.ID
+            FROM {$wpdb->posts} p
+            LEFT JOIN {$wpdb->prefix}aichat_chunks c ON c.post_id=p.ID AND c.id_context=%d
+            WHERE c.post_id IS NULL AND p.post_status='publish' AND p.post_type IN ($placeholders_types)
+            ORDER BY p.ID DESC
+            LIMIT 500", $new_params ) );
     }
 
     // Orphans
-    $orphans_sql = $wpdb->prepare("SELECT DISTINCT c.post_id
-            FROM {$wpdb->prefix}aichat_chunks c
-            LEFT JOIN {$wpdb->posts} p ON p.ID = c.post_id
-            WHERE c.id_context=%d AND (p.ID IS NULL OR p.post_status <> 'publish')
-            LIMIT 500", $ctx_id);
-    $orphans = $wpdb->get_col($orphans_sql);
+    $orphans = $wpdb->get_col( $wpdb->prepare("SELECT DISTINCT c.post_id
+        FROM {$wpdb->prefix}aichat_chunks c
+        LEFT JOIN {$wpdb->posts} p ON p.ID = c.post_id
+        WHERE c.id_context=%d AND (p.ID IS NULL OR p.post_status <> 'publish')
+        LIMIT 500", $ctx_id ) );
 
     if($effective==='full'){
         // FULL rebuild semantics:
@@ -311,17 +308,23 @@ function aichat_browse_context_chunks(){
     $allowed_types = ['post','page','product','upload'];
     if($filter_type && !in_array($filter_type,$allowed_types,true)) $filter_type='';
 
-    $where = $wpdb->prepare("c.id_context=%d", $ctx_id);
+    $where_clauses = ['c.id_context=%d'];
+    $where_params = [$ctx_id];
     if($filter_type){
-        $where .= $wpdb->prepare(" AND c.type=%s", $filter_type);
+        $where_clauses[] = 'c.type=%s';
+        $where_params[] = $filter_type;
     }
     if($q_like){
         // Search in title or content (content truncated by LIKE may be heavy; add LIMIT already)
-        $where .= $wpdb->prepare(" AND (c.title LIKE %s OR c.content LIKE %s)", $q_like, $q_like);
+        $where_clauses[] = '(c.title LIKE %s OR c.content LIKE %s)';
+        $where_params[] = $q_like;
+        $where_params[] = $q_like;
     }
+    $where_sql = implode(' AND ', $where_clauses);
 
     // Count total
-    $total = (int)$wpdb->get_var("SELECT COUNT(*) FROM $chunks_table c WHERE $where");
+    $count_sql = "SELECT COUNT(*) FROM $chunks_table c WHERE $where_sql";
+    $total = (int)$wpdb->get_var($wpdb->prepare($count_sql, $where_params));
     if($total===0){
         wp_send_json_success([
             'context_id'=>$ctx_id,
@@ -335,11 +338,12 @@ function aichat_browse_context_chunks(){
 
     // Fetch rows
     $sql = "SELECT c.post_id, c.type, c.title, c.updated_at, c.created_at, c.chunk_index, LENGTH(c.content) AS size, c.content
-            FROM $chunks_table c
-            WHERE $where
-            ORDER BY COALESCE(c.updated_at,c.created_at) DESC, c.id DESC
-            LIMIT %d OFFSET %d";
-    $prepared = $wpdb->prepare($sql, $per_page, $offset);
+        FROM $chunks_table c
+        WHERE $where_sql
+        ORDER BY COALESCE(c.updated_at,c.created_at) DESC, c.id DESC
+        LIMIT %d OFFSET %d";
+    $rows_params = array_merge($where_params, [$per_page, $offset]);
+    $prepared = $wpdb->prepare($sql, $rows_params);
     $rows_raw = $wpdb->get_results($prepared, ARRAY_A);
     $rows = [];
     foreach($rows_raw as $r){

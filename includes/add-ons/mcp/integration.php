@@ -124,22 +124,18 @@ function aichat_mcp_register_server_tools( $server_id = null ) {
     global $wpdb;
     $table = $wpdb->prefix . 'aichat_tools';
     
-    // Build WHERE clause
-    $where = "type = 'mcp' AND enabled = 1";
-    $params = [];
-    
+    // Build prepared SQL with required placeholders
+    $sql     = "SELECT source_id, name, description, definition_json FROM {$table} WHERE type = %s AND enabled = %d";
+    $params  = [ 'mcp', 1 ];
+
     if ( $server_id !== null ) {
-        $where .= " AND source_id = %s";
+        $sql     .= ' AND source_id = %s';
         $params[] = $server_id;
     }
-    
-    $query = "SELECT source_id, name, description, definition_json FROM $table WHERE $where ORDER BY source_id, name";
-    
-    if ( ! empty( $params ) ) {
-        $mcp_tools = $wpdb->get_results( $wpdb->prepare( $query, $params ), ARRAY_A );
-    } else {
-        $mcp_tools = $wpdb->get_results( $query, ARRAY_A );
-    }
+
+    $sql .= ' ORDER BY source_id, name';
+
+    $mcp_tools = $wpdb->get_results( $wpdb->prepare( $sql, $params ), ARRAY_A );
     
     if ( empty( $mcp_tools ) ) {
         return;
@@ -194,8 +190,9 @@ function aichat_mcp_register_server_tools( $server_id = null ) {
         $safe_global_name = str_replace( '-', '_', strtolower( $global_name ) );
         
         // Create friendly activity label for UI
-        $friendly_name = ucwords( str_replace( '_', ' ', $local_name ) );
-        $activity_label = sprintf( __( 'Running %s...', 'axiachat-ai' ), $friendly_name );
+    $friendly_name = ucwords( str_replace( '_', ' ', $local_name ) );
+    /* translators: %s: Friendly tool label shown while executing MCP tool. */
+    $activity_label = sprintf( __( 'Running %s...', 'axiachat-ai' ), $friendly_name );
         
         // Register as proxy tool
         $registered = aichat_register_tool_safe( $safe_global_name, [

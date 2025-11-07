@@ -468,7 +468,7 @@ function aichat_mcp_render_servers_page() {
         function loadMCPServers() {
             $.post(ajaxurl, {
                 action: 'aichat_mcp_list_servers_for_test',
-                nonce: '<?php echo wp_create_nonce( 'aichat_mcp_nonce' ); ?>'
+                nonce: '<?php echo esc_js( wp_create_nonce( 'aichat_mcp_nonce' ) ); ?>'
             }, function(response) {
                 if (response.success && response.data.servers) {
                     const select = $('#aichat-mcp-test-server-select');
@@ -503,7 +503,7 @@ function aichat_mcp_render_servers_page() {
             
             $.post(ajaxurl, {
                 action: 'aichat_mcp_list_tools',
-                nonce: '<?php echo wp_create_nonce( 'aichat_mcp_nonce' ); ?>',
+                nonce: '<?php echo esc_js( wp_create_nonce( 'aichat_mcp_nonce' ) ); ?>',
                 server_id: serverId
             }, function(response) {
                 if (response.success && response.data.tools) {
@@ -625,7 +625,7 @@ function aichat_mcp_render_servers_page() {
             
             $.post(ajaxurl, {
                 action: 'aichat_mcp_run_tool',
-                nonce: '<?php echo wp_create_nonce( 'aichat_mcp_nonce' ); ?>',
+                nonce: '<?php echo esc_js( wp_create_nonce( 'aichat_mcp_nonce' ) ); ?>',
                 server_id: serverId,
                 tool_name: toolName,
                 arguments: JSON.stringify(params)
@@ -662,7 +662,7 @@ function aichat_mcp_render_servers_page() {
                 action: 'aichat_mcp_toggle_server',
                 server_id: serverId,
                 enabled: enabled ? 1 : 0,
-                _wpnonce: '<?php echo wp_create_nonce( 'aichat_mcp_ajax' ); ?>'
+                _wpnonce: '<?php echo esc_js( wp_create_nonce( 'aichat_mcp_ajax' ) ); ?>'
             }, function(response) {
                 if (response.success) {
                     // Update status
@@ -715,7 +715,7 @@ function aichat_mcp_render_servers_page() {
             $.post(ajaxurl, {
                 action: 'aichat_mcp_get_server',
                 server_id: serverId,
-                _wpnonce: '<?php echo wp_create_nonce( 'aichat_mcp_ajax' ); ?>'
+                _wpnonce: '<?php echo esc_js( wp_create_nonce( 'aichat_mcp_ajax' ) ); ?>'
             }, function(response) {
                 if (response.success) {
                     const server = response.data;
@@ -747,7 +747,7 @@ function aichat_mcp_render_servers_page() {
             const data = $(this).serializeArray();
             const isNewServer = !$('#mcp-server-id').val();
             data.push({name: 'action', value: 'aichat_mcp_save_server'});
-            data.push({name: '_wpnonce', value: '<?php echo wp_create_nonce( 'aichat_mcp_ajax' ); ?>'});
+            data.push({name: '_wpnonce', value: '<?php echo esc_js( wp_create_nonce( 'aichat_mcp_ajax' ) ); ?>'});
 
             $.post(ajaxurl, data, function(response) {
                 if (response.success) {
@@ -772,7 +772,7 @@ function aichat_mcp_render_servers_page() {
             $.post(ajaxurl, {
                 action: 'aichat_mcp_delete_server',
                 server_id: serverId,
-                _wpnonce: '<?php echo wp_create_nonce( 'aichat_mcp_ajax' ); ?>'
+                _wpnonce: '<?php echo esc_js( wp_create_nonce( 'aichat_mcp_ajax' ) ); ?>'
             }, function(response) {
                 if (response.success) {
                     location.reload();
@@ -790,7 +790,7 @@ function aichat_mcp_render_servers_page() {
             $.post(ajaxurl, {
                 action: 'aichat_mcp_test_server',
                 server_id: serverId,
-                _wpnonce: '<?php echo wp_create_nonce( 'aichat_mcp_ajax' ); ?>'
+                _wpnonce: '<?php echo esc_js( wp_create_nonce( 'aichat_mcp_ajax' ) ); ?>'
             }, function(response) {
                 if (response.success) {
                     statusEl.html('<span class="dashicons dashicons-yes-alt" style="color:#46b450;"></span> <?php echo esc_js( __( 'Connected', 'axiachat-ai' ) ); ?>');
@@ -854,7 +854,7 @@ function aichat_mcp_render_servers_page() {
 
             $.post(ajaxurl, {
                 action: 'aichat_mcp_get_server_tools_status',
-                nonce: '<?php echo wp_create_nonce( 'aichat_mcp_nonce' ); ?>',
+                nonce: '<?php echo esc_js( wp_create_nonce( 'aichat_mcp_nonce' ) ); ?>',
                 server_id: serverId
             }, function(response) {
                 $('#aichat-mcp-manage-loading').hide();
@@ -923,7 +923,7 @@ function aichat_mcp_render_servers_page() {
 
             $.post(ajaxurl, {
                 action: 'aichat_mcp_save_tools_status',
-                nonce: '<?php echo wp_create_nonce( 'aichat_mcp_nonce' ); ?>',
+                nonce: '<?php echo esc_js( wp_create_nonce( 'aichat_mcp_nonce' ) ); ?>',
                 server_id: serverId,
                 tools_status: JSON.stringify(toolsStatus)
             }, function(response) {

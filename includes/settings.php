@@ -363,10 +363,7 @@ function aichat_settings_page() {
                                         <?php if ( empty($bots) ): ?>
                                             <select id="aichat_global_bot_slug" class="form-select" disabled name="aichat_global_bot_slug"><option><?php echo esc_html__( 'No bots defined yet', 'axiachat-ai'); ?></option></select>
                                             <?php
-                                            /* translators: %s: URL to the AI Chat Bots admin settings page */
-                                            ?>
-                                            <?php
-                                            // translators: %s is the URL to the AI Chat → Bots admin screen.
+                                            /* translators: %s: URL to the AI Chat → Bots admin screen. */
                                             ?>
                                             <div class="form-text"><?php printf( wp_kses_post( __( 'Create one in <a href="%s">AI Chat → Bots</a>.','axiachat-ai') ), esc_url( admin_url('admin.php?page=aichat-bots-settings') ) ); ?></div>
                                         <?php else: ?>

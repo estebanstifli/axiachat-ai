@@ -278,7 +278,7 @@ function aichat_mcp_ajax_test_server() {
                     ' [Session: %s...]', 
                     substr( $session_id, 0, 12 ) 
                 );
-                error_log( "[AIChat MCP Test] Server uses Streamable HTTP with session ID: " . substr( $session_id, 0, 16 ) . '...' );
+                aichat_log_debug( "[AIChat MCP Test] Server uses Streamable HTTP with session ID: " . substr( $session_id, 0, 16 ) . '...' );
             }
             
             // Get discovered tools for this server
@@ -557,23 +557,23 @@ function aichat_mcp_ajax_run_tool() {
     
     try {
         // LOG: Entrada al try block
-        error_log( "[AIChat MCP Run Tool] Starting execution | server_id: $server_id | tool_name: $tool_name" );
+        aichat_log_debug( "[AIChat MCP Run Tool] Starting execution | server_id: $server_id | tool_name: $tool_name" );
         
         // Ensure server is connected (will reuse existing session if available)
         $connected = $manager->connect_server( $server_id, $servers[ $server_id ] );
         if ( ! $connected ) {
-            error_log( "[AIChat MCP Run Tool] Connection failed for server: $server_id" );
+            aichat_log_debug( "[AIChat MCP Run Tool] Connection failed for server: $server_id" );
             wp_send_json_error( __( 'Failed to connect to server.', 'axiachat-ai' ) );
         }
         
-        error_log( "[AIChat MCP Run Tool] Server connected successfully" );
+        aichat_log_debug( "[AIChat MCP Run Tool] Server connected successfully" );
         
         // Build global tool name using SAME logic as integration.php
         // Format: serverId_toolName, then sanitize (replace - with _)
         $global_name = $server_id . '_' . $tool_name;
         $safe_global_name = str_replace( '-', '_', strtolower( $global_name ) );
         
-        error_log( "[AIChat MCP Run Tool] Tool names | global: $global_name | safe: $safe_global_name" );
+        aichat_log_debug( "[AIChat MCP Run Tool] Tool names | global: $global_name | safe: $safe_global_name" );
         
         // Verify tool exists in database
         global $wpdb;
@@ -584,25 +584,26 @@ function aichat_mcp_ajax_run_tool() {
             $tool_name
         ) );
         
-        error_log( "[AIChat MCP Run Tool] DB check | tool_exists: $tool_exists | table: $table" );
+        aichat_log_debug( "[AIChat MCP Run Tool] DB check | tool_exists: $tool_exists | table: $table" );
         
         if ( ! $tool_exists ) {
-            error_log( "[AIChat MCP Run Tool] Tool not found in DB" );
+            aichat_log_debug( "[AIChat MCP Run Tool] Tool not found in DB" );
             wp_send_json_error( [
                 'error'   => 'tool_not_found',
-                'message' => sprintf( __( 'Tool "%s" not found in server "%s". Try clicking "Test Connection" first.', 'axiachat-ai' ), $tool_name, $server_id ),
+                /* translators: 1: tool name, 2: MCP server identifier */
+                'message' => sprintf( __( 'Tool "%1$s" not found in server "%2$s". Try clicking "Test Connection" first.', 'axiachat-ai' ), $tool_name, $server_id ),
             ] );
         }
         
         // Execute tool using safe global name
-        error_log( "[AIChat MCP Run Tool] Calling execute_tool with safe_global_name: $safe_global_name" );
+        aichat_log_debug( "[AIChat MCP Run Tool] Calling execute_tool with safe_global_name: $safe_global_name" );
         
         $result = $manager->execute_tool( $safe_global_name, $arguments, [
             'test_mode' => true,
             'admin_user' => wp_get_current_user()->user_login,
         ] );
         
-        error_log( "[AIChat MCP Run Tool] Result received | ok: " . ( $result['ok'] ?? 'unknown' ) );
+        aichat_log_debug( "[AIChat MCP Run Tool] Result received | ok: " . ( $result['ok'] ?? 'unknown' ) );
 
         wp_send_json_success( $result );
         

@@ -1288,7 +1288,8 @@ class AIChat_Gemini_Provider implements AIChat_Provider_Interface {
             $fallback = ucwords($fallback);
         }
 
-        return sprintf(__('Running %s...', 'axiachat-ai'), $fallback);
+    /* translators: %s: Friendly tool label displayed while a Gemini tool call is pending. */
+    return sprintf(__('Running %s...', 'axiachat-ai'), $fallback);
     }
     
     /**
