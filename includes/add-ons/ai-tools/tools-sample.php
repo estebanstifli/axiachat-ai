@@ -9,36 +9,56 @@
 // - Las descriptions en propiedades del schema deben ser explícitas (formato de fechas, unidades, rangos).
 if ( ! defined('ABSPATH') ) { exit; }
 
+// Helper wrapper for safe tool registration
 if ( ! function_exists('aichat_register_tool_safe') ) {
-    if ( function_exists('aichat_register_tool') ) {
-        function aichat_register_tool_safe($id,$args){ return aichat_register_tool($id,$args); }
-    } else { return; }
+    function aichat_register_tool_safe($id, $args) {
+        if ( function_exists('aichat_register_tool') ) {
+            return aichat_register_tool($id, $args);
+        }
+        return false;
+    }
 }
 
-// (Removed) Demo utilities: util_get_datetime, util_mortgage_payment
+// Defer registration until tables are created (after plugin activation)
+add_action( 'init', 'aichat_register_sample_tools_and_macros', 20 );
 
-aichat_register_tool_safe( 'util_list_categories', [
-  'type'=>'function','name'=>'util_list_categories','description'=>'MUST be called whenever the user asks (in English or Spanish) about blog categories. NEVER guess: always invoke this tool to fetch real categories with names, slugs and counts.',
-  'activity_label'=>'Fetching real blog categories...', // UI
-  'schema'=>['type'=>'object','properties'=>[
-    'with_counts'=>['type'=>'boolean','description'=>'If true include post counts (default true).'],
-    'limit'=>['type'=>'integer','description'=>'Optional max number of categories to return (default all).']
-  ],'required'=>[],'additionalProperties'=>false],
-  'callback'=>function($args){ $with_counts=isset($args['with_counts'])?(bool)$args['with_counts']:true; $limit=isset($args['limit'])?max(1,(int)$args['limit']):0; $tax_args=['taxonomy'=>'category','hide_empty'=>false]; $terms=get_terms($tax_args); if(is_wp_error($terms)){return ['error'=>'taxonomy_error','message'=>$terms->get_error_message()];} $out=[]; foreach($terms as $t){ $item=['name'=>$t->name,'slug'=>$t->slug]; if($with_counts){$item['count']=(int)$t->count;} $out[]=$item; if($limit && count($out)>=$limit) break; } return ['categories'=>$out,'total'=>count($out)]; },
-  'timeout'=>5,'parallel'=>true,'max_calls'=>1]);
+function aichat_register_sample_tools_and_macros() {
+    // Only register if tables exist
+    global $wpdb;
+    $tools_table = $wpdb->prefix . 'aichat_tools';
+    if ( $wpdb->get_var( "SHOW TABLES LIKE '$tools_table'" ) !== $tools_table ) {
+        return; // Tables not created yet, skip registration
+    }
+
+    // Skip if tools registration not available
+    if ( ! function_exists('aichat_register_tool') ) {
+        return;
+    }
+
+    // (Removed) Demo utilities: util_get_datetime, util_mortgage_payment
+
+    aichat_register_tool_safe( 'util_list_categories', [
+      'type'=>'function','name'=>'util_list_categories','description'=>'MUST be called whenever the user asks (in English or Spanish) about blog categories. NEVER guess: always invoke this tool to fetch real categories with names, slugs and counts.',
+      'activity_label'=>'Fetching real blog categories...', // UI
+      'schema'=>['type'=>'object','properties'=>[
+        'with_counts'=>['type'=>'boolean','description'=>'If true include post counts (default true).'],
+        'limit'=>['type'=>'integer','description'=>'Optional max number of categories to return (default all).']
+      ],'required'=>[],'additionalProperties'=>false],
+      'callback'=>function($args){ $with_counts=isset($args['with_counts'])?(bool)$args['with_counts']:true; $limit=isset($args['limit'])?max(1,(int)$args['limit']):0; $tax_args=['taxonomy'=>'category','hide_empty'=>false]; $terms=get_terms($tax_args); if(is_wp_error($terms)){return ['error'=>'taxonomy_error','message'=>$terms->get_error_message()];} $out=[]; foreach($terms as $t){ $item=['name'=>$t->name,'slug'=>$t->slug]; if($with_counts){$item['count']=(int)$t->count;} $out[]=$item; if($limit && count($out)>=$limit) break; } return ['categories'=>$out,'total'=>count($out)]; },
+      'timeout'=>5,'parallel'=>true,'max_calls'=>1]);
 
 
-if ( function_exists('aichat_register_macro') ) {
-  // Removed demo macro 'basic_utilities_demo'
-  aichat_register_macro([
-    'name'=>'content_categories',
-    'label'=>'Content: Blog Categories',
-    'description'=>'Allows the assistant to list real WordPress blog categories (names, slugs, counts).',
-    'tools'=>['util_list_categories'],
-    'source'=>'local',
-    'source_ref'=>'axiachat_core'
-  ]);  
-}
+    if ( function_exists('aichat_register_macro') ) {
+      // Removed demo macro 'basic_utilities_demo'
+      aichat_register_macro([
+        'name'=>'content_categories',
+        'label'=>'Content: Blog Categories',
+        'description'=>'Allows the assistant to list real WordPress blog categories (names, slugs, counts).',
+        'tools'=>['util_list_categories'],
+        'source'=>'local',
+        'source_ref'=>'axiachat_core'
+      ]);  
+    }
 
 // === Web Search (Multi-Provider) ===
 // Universal web search capability compatible with multiple providers:
@@ -218,6 +238,8 @@ if ( function_exists('aichat_register_macro') ) {
     'source_ref' => 'axiachat_core'
   ]);
 }
+
+} // End aichat_register_sample_tools_and_macros()
 
 /**
  * Sync local tools to unified aichat_tools table (one-time setup)
