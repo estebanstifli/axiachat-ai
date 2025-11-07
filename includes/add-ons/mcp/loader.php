@@ -18,7 +18,7 @@ if ( ! function_exists('aichat_mcp_addon_info') ) {
         return [
             'id'          => 'mcp',
             'name'        => __('MCP Server Connectors', 'axiachat-ai'),
-            'description' => __('Connect to external MCP (Model Context Protocol) servers to access remote tools, resources and prompts. Supports HTTP and STDIO transports.', 'axiachat-ai'),
+            'description' => __('Connect to external MCP (Model Context Protocol) servers to access remote tools, resources and prompts via HTTP transport.', 'axiachat-ai'),
             'version'     => '1.0.0',
             'author'      => 'AxiaChat AI',
             'requires'    => '1.2.3', // Versión mínima del plugin
@@ -50,7 +50,6 @@ if ( ! defined('AICHAT_MCP_DIR') ) {
 // Load core components in order
 require_once AICHAT_MCP_DIR . 'class-mcp-transport.php';
 require_once AICHAT_MCP_DIR . 'transports/class-http-transport.php';
-require_once AICHAT_MCP_DIR . 'transports/class-stdio-transport.php';
 require_once AICHAT_MCP_DIR . 'class-mcp-client-manager.php';
 require_once AICHAT_MCP_DIR . 'integration.php';
 

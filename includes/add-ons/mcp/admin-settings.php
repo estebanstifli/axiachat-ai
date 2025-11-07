@@ -77,8 +77,12 @@ function aichat_mcp_render_servers_page() {
                             <td><strong><?php echo esc_html( $server['name'] ?? $server_id ); ?></strong></td>
                             <td>
                                 <?php
-                                $transport_type = $server['transport'] ?? 'http';
-                                echo esc_html( strtoupper( $transport_type ) );
+                                $transport_type = strtolower( $server['transport'] ?? 'http' );
+                                if ( $transport_type === 'http' ) {
+                                    echo esc_html__( 'HTTP', 'axiachat-ai' );
+                                } else {
+                                    echo esc_html__( 'STDIO (deprecated)', 'axiachat-ai' );
+                                }
                                 ?>
                             </td>
                             <td>
@@ -86,7 +90,7 @@ function aichat_mcp_render_servers_page() {
                                 if ( $transport_type === 'http' ) {
                                     echo esc_html( $server['url'] ?? '' );
                                 } else {
-                                    echo '<code>' . esc_html( $server['command'] ?? '' ) . '</code>';
+                                    echo esc_html__( 'Update required: provide an HTTP endpoint.', 'axiachat-ai' );
                                 }
                                 ?>
                             </td>
@@ -257,6 +261,7 @@ function aichat_mcp_render_servers_page() {
             <div class="aichat-mcp-modal-body">
                 <form id="aichat-mcp-server-form">
                     <input type="hidden" id="mcp-server-id" name="server_id" value="" />
+                    <input type="hidden" name="transport" value="http" />
 
                     <table class="form-table">
                         <tr>
@@ -266,20 +271,14 @@ function aichat_mcp_render_servers_page() {
                                 <p class="description"><?php echo esc_html__( 'Descriptive name (e.g., "Sentry Tools", "Notion Database").', 'axiachat-ai' ); ?></p>
                             </td>
                         </tr>
-                        <tr>
-                            <th scope="row"><label for="mcp-transport"><?php echo esc_html__( 'Transport Type', 'axiachat-ai' ); ?></label></th>
-                            <td>
-                                <select id="mcp-transport" name="transport" class="regular-text">
-                                    <option value="http"><?php echo esc_html__( 'HTTP/HTTPS (remote server)', 'axiachat-ai' ); ?></option>
-                                    <option value="stdio"><?php echo esc_html__( 'STDIO (local process)', 'axiachat-ai' ); ?></option>
-                                </select>
-                                <p class="description"><?php echo esc_html__( 'Use HTTP for remote servers, STDIO for local Node.js/Python MCP servers.', 'axiachat-ai' ); ?></p>
-                            </td>
-                        </tr>
                     </table>
 
                     <div id="mcp-http-config">
                         <h3><?php echo esc_html__( 'HTTP Configuration', 'axiachat-ai' ); ?></h3>
+                        <p class="description"><?php echo esc_html__( 'Only HTTP/HTTPS MCP servers are supported.', 'axiachat-ai' ); ?></p>
+                        <div id="mcp-unsupported-transport" class="notice notice-warning" style="display:none;margin:0 0 15px;">
+                            <p><strong><?php echo esc_html__( 'STDIO connections have been removed.', 'axiachat-ai' ); ?></strong> <?php echo esc_html__( 'Update this server with an HTTP/HTTPS endpoint to continue using it.', 'axiachat-ai' ); ?></p>
+                        </div>
                         <table class="form-table">
                             <tr>
                                 <th scope="row"><label for="mcp-url"><?php echo esc_html__( 'Server URL', 'axiachat-ai' ); ?></label></th>
@@ -316,26 +315,6 @@ function aichat_mcp_render_servers_page() {
                                 <td>
                                     <textarea id="mcp-custom-headers" name="custom_headers" class="large-text" rows="4" placeholder='{"X-Custom-Header": "value"}'></textarea>
                                     <p class="description"><?php echo esc_html__( 'JSON object with custom headers.', 'axiachat-ai' ); ?></p>
-                                </td>
-                            </tr>
-                        </table>
-                    </div>
-
-                    <div id="mcp-stdio-config" style="display:none;">
-                        <h3><?php echo esc_html__( 'STDIO Configuration', 'axiachat-ai' ); ?></h3>
-                        <table class="form-table">
-                            <tr>
-                                <th scope="row"><label for="mcp-command"><?php echo esc_html__( 'Command', 'axiachat-ai' ); ?></label></th>
-                                <td>
-                                    <input type="text" id="mcp-command" name="command" class="large-text code" placeholder="node /path/to/mcp-server.js" />
-                                    <p class="description"><?php echo esc_html__( 'Shell command to start the MCP server process.', 'axiachat-ai' ); ?></p>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th scope="row"><label for="mcp-cwd"><?php echo esc_html__( 'Working Directory', 'axiachat-ai' ); ?></label></th>
-                                <td>
-                                    <input type="text" id="mcp-cwd" name="cwd" class="regular-text code" placeholder="/path/to/project" />
-                                    <p class="description"><?php echo esc_html__( 'Optional. Directory to run the command from.', 'axiachat-ai' ); ?></p>
                                 </td>
                             </tr>
                         </table>
@@ -705,17 +684,6 @@ function aichat_mcp_render_servers_page() {
             }.bind(this));
         });
 
-        // Transport type change
-        $('#mcp-transport').on('change', function() {
-            if ($(this).val() === 'http') {
-                $('#mcp-http-config').show();
-                $('#mcp-stdio-config').hide();
-            } else {
-                $('#mcp-http-config').hide();
-                $('#mcp-stdio-config').show();
-            }
-        });
-
         // Auth type change
         $('#mcp-auth-type').on('change', function() {
             const authType = $(this).val();
@@ -736,8 +704,8 @@ function aichat_mcp_render_servers_page() {
             form[0].reset();
             $('#mcp-server-id').val('');
             $('#aichat-mcp-modal-title').text('<?php echo esc_js( __( 'Add MCP Server', 'axiachat-ai' ) ); ?>');
-            $('#mcp-transport').trigger('change');
             $('#mcp-auth-type').trigger('change');
+            $('#mcp-unsupported-transport').hide();
             modal.fadeIn(200);
         });
 
@@ -753,7 +721,6 @@ function aichat_mcp_render_servers_page() {
                     const server = response.data;
                     $('#mcp-server-id').val(serverId);
                     $('#mcp-name').val(server.name || '');
-                    $('#mcp-transport').val(server.transport || 'http').trigger('change');
                     
                     // HTTP fields
                     $('#mcp-url').val(server.url || '');
@@ -761,10 +728,12 @@ function aichat_mcp_render_servers_page() {
                     $('#mcp-auth-token').val(server.auth_token || '');
                     $('#mcp-auth-header').val(server.auth_header || '');
                     $('#mcp-custom-headers').val(server.custom_headers || '');
-                    
-                    // STDIO fields
-                    $('#mcp-command').val(server.command || '');
-                    $('#mcp-cwd').val(server.cwd || '');
+
+                    if (server.transport && server.transport !== 'http') {
+                        $('#mcp-unsupported-transport').show();
+                    } else {
+                        $('#mcp-unsupported-transport').hide();
+                    }
                     
                     $('#aichat-mcp-modal-title').text('<?php echo esc_js( __( 'Edit MCP Server', 'axiachat-ai' ) ); ?>');
                     modal.fadeIn(200);

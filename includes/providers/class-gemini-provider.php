@@ -617,10 +617,16 @@ class AIChat_Gemini_Provider implements AIChat_Provider_Interface {
      * @return array Response with message and metadata
      */
     protected function chat_with_tools($messages, $params) {
-        $model = $params['model'] ?? $this->default_model;
-        $tools = $params['tools'] ?? [];
-        $max_rounds = $params['max_tool_rounds'] ?? 5;
-        $conversation = $messages;
+    $model = $params['model'] ?? $this->default_model;
+    $tools = $params['tools'] ?? [];
+    $max_rounds = $params['max_tool_rounds'] ?? 5;
+    $conversation = $messages;
+
+    $request_uuid = $params['request_uuid'] ?? wp_generate_uuid4();
+    $params['request_uuid'] = $request_uuid;
+    $session_id = $params['session_id'] ?? '';
+    $bot_slug = $params['bot_slug'] ?? '';
+    $usage_accumulator = null;
         
         aichat_log_debug('[Gemini Provider] Starting tool execution loop (max rounds: ' . $max_rounds . ')');
         
@@ -686,6 +692,10 @@ class AIChat_Gemini_Provider implements AIChat_Provider_Interface {
             if (isset($result['error'])) {
                 return $result;
             }
+
+            if (isset($result['usage']) && is_array($result['usage'])) {
+                $usage_accumulator = $this->accumulate_usage($usage_accumulator, $result['usage']);
+            }
             
             // Check for function calls in response
             $function_calls = $this->extract_function_calls($response);
@@ -693,9 +703,89 @@ class AIChat_Gemini_Provider implements AIChat_Provider_Interface {
             if (empty($function_calls)) {
                 // No function calls - this is the final response
                 // aichat_log_debug('[Gemini Provider] No function calls, returning final response');
+                if ($usage_accumulator !== null) {
+                    $result['usage'] = $usage_accumulator;
+                }
+                $result['model'] = $model;
                 return $result;
             }
             
+            if ($round === 1) {
+                $pending_tool_calls = [];
+                foreach ($function_calls as $fc) {
+                    $tool_name = $fc['name'] ?? '';
+                    $pending_tool_calls[] = [
+                        'id' => $fc['id'] ?? ('call_' . wp_generate_uuid4()),
+                        'name' => $tool_name,
+                        'arguments' => wp_json_encode($fc['args'] ?? []),
+                        'activity_label' => $this->build_activity_label($tool_name),
+                    ];
+                }
+
+                // Preserve model turn (contains functionCall + optional thought signatures)
+                $model_content = $this->build_model_content_with_function_calls($response);
+                $conversation_with_model = $conversation;
+                $conversation_with_model[] = $model_content;
+
+                $response_id = wp_generate_uuid4();
+
+                global $wpdb;
+                $table = $wpdb->prefix . 'aichat_tool_states';
+
+                $state_payload = [
+                    'conversation' => $conversation_with_model,
+                    'params' => $params,
+                    'gemini_tools' => $gemini_tools,
+                    'model' => $model,
+                    'max_rounds' => $max_rounds,
+                    'round' => $round,
+                    'usage' => $usage_accumulator,
+                    'request_context' => [
+                        'request_uuid' => $request_uuid,
+                        'session_id' => $session_id,
+                        'bot_slug' => $bot_slug,
+                    ],
+                    'function_calls' => $function_calls,
+                ];
+
+                $inserted = $wpdb->insert(
+                    $table,
+                    [
+                        'response_id' => $response_id,
+                        'state_data' => maybe_serialize($state_payload),
+                        'created_at' => current_time('mysql'),
+                    ],
+                    ['%s', '%s', '%s']
+                );
+
+                if (! $inserted) {
+                    aichat_log_debug('[Gemini Provider] Failed to persist tool state', [
+                        'response_id' => $response_id,
+                        'error' => $wpdb->last_error,
+                    ], true);
+
+                    return [
+                        'error' => __('Failed to store Gemini tool state.', 'axiachat-ai')
+                    ];
+                }
+
+                if (defined('AICHAT_DEBUG') && AICHAT_DEBUG) {
+                    aichat_log_debug('[Gemini Provider] Returning tool_pending handshake', [
+                        'response_id' => $response_id,
+                        'tool_count' => count($pending_tool_calls),
+                    ], true);
+                }
+
+                return [
+                    'status' => 'tool_pending',
+                    'response_id' => $response_id,
+                    'tool_calls' => $pending_tool_calls,
+                    'request_uuid' => $request_uuid,
+                    'usage' => $usage_accumulator,
+                    'model' => $model,
+                ];
+            }
+
             // Execute function calls
             aichat_log_debug('[Gemini Provider] Executing ' . count($function_calls) . ' function call(s)');
             
@@ -705,16 +795,17 @@ class AIChat_Gemini_Provider implements AIChat_Provider_Interface {
             
             // Execute using trait
             $tool_outputs = $this->execute_registered_tools($tool_calls_for_trait, [
-                'request_uuid' => $params['request_uuid'] ?? wp_generate_uuid4(),
-                'session_id' => $params['session_id'] ?? '',
-                'bot_slug' => $params['bot_slug'] ?? '',
+                'request_uuid' => $request_uuid,
+                'session_id' => $session_id,
+                'bot_slug' => $bot_slug,
                 'round' => $round
             ]);
             
             // Log executions
             $this->log_tool_executions($tool_calls_for_trait, $tool_outputs, $round, [
-                'request_uuid' => $params['request_uuid'] ?? wp_generate_uuid4(),
-                'session_id' => $params['session_id'] ?? ''
+                'request_uuid' => $request_uuid,
+                'session_id' => $session_id,
+                'bot_slug' => $bot_slug,
             ]);
             
             // NOTE: Unlike OpenAI/Claude, Gemini doesn't want us to echo back the model's functionCall.
@@ -736,6 +827,155 @@ class AIChat_Gemini_Provider implements AIChat_Provider_Interface {
         aichat_log_debug('[Gemini Provider] Max tool rounds reached without final answer');
         return [
             'error' => 'Maximum tool execution rounds reached without final answer'
+        ];
+    }
+
+    /**
+     * Continue Gemini conversation after tool_pending handshake
+     *
+     * Executes requested tools and resumes the loop until the model returns a
+     * final answer or the maximum number of rounds is reached.
+     *
+     * @param string $response_id Stored tool state identifier
+     * @param array  $tool_calls  Tool call payload from frontend
+     * @return array Final response or error structure
+     */
+    public function continue_from_tool_pending($response_id, $tool_calls) {
+        global $wpdb;
+
+        if (empty($response_id)) {
+            return [
+                'error' => __('Missing response_id for Gemini continuation.', 'axiachat-ai')
+            ];
+        }
+
+        $table = $wpdb->prefix . 'aichat_tool_states';
+        $row = $wpdb->get_row(
+            $wpdb->prepare("SELECT state_data FROM {$table} WHERE response_id = %s", $response_id)
+        );
+
+        if (!$row || empty($row->state_data)) {
+            if (defined('AICHAT_DEBUG') && AICHAT_DEBUG) {
+                aichat_log_debug('[Gemini Provider] Tool state not found', [
+                    'response_id' => $response_id,
+                ], true);
+            }
+
+            return [
+                'error' => __('Gemini tool state not found or expired.', 'axiachat-ai')
+            ];
+        }
+
+        // One-time use state – delete immediately to avoid reuse
+        $wpdb->delete($table, ['response_id' => $response_id], ['%s']);
+
+        $state = maybe_unserialize($row->state_data);
+        if (!is_array($state)) {
+            return [
+                'error' => __('Invalid Gemini tool state payload.', 'axiachat-ai')
+            ];
+        }
+
+        $conversation = $state['conversation'] ?? [];
+        $params = $state['params'] ?? [];
+        $gemini_tools = $state['gemini_tools'] ?? [];
+        $model = $state['model'] ?? ($params['model'] ?? $this->default_model);
+        $max_rounds = $state['max_rounds'] ?? 5;
+        $starting_round = $state['round'] ?? 1;
+        $usage_accumulator = $state['usage'] ?? null;
+        $request_context = $state['request_context'] ?? [];
+
+        $request_uuid = $request_context['request_uuid'] ?? wp_generate_uuid4();
+        $session_id = $request_context['session_id'] ?? '';
+        $bot_slug = $request_context['bot_slug'] ?? '';
+
+        $params['request_uuid'] = $request_uuid;
+        $params['session_id'] = $session_id;
+        $params['bot_slug'] = $bot_slug;
+
+        if (defined('AICHAT_DEBUG') && AICHAT_DEBUG) {
+            aichat_log_debug('[Gemini Provider] Continuing from tool_pending', [
+                'response_id' => $response_id,
+                'tool_count' => is_array($tool_calls) ? count($tool_calls) : 0,
+            ], true);
+        }
+
+        // Normalize tool calls from frontend payload
+        $normalized_tool_calls = [];
+        if (is_array($tool_calls)) {
+            foreach ($tool_calls as $tc) {
+                $normalized_tool_calls[] = [
+                    'id' => $tc['id'] ?? ($tc['call_id'] ?? ('call_' . wp_generate_uuid4())),
+                    'name' => $tc['name'] ?? '',
+                    'arguments' => $tc['arguments'] ?? '{}',
+                ];
+            }
+        }
+
+        if (empty($normalized_tool_calls)) {
+            return [
+                'error' => __('No tool calls supplied for Gemini continuation.', 'axiachat-ai')
+            ];
+        }
+
+        $context = [
+            'request_uuid' => $request_uuid,
+            'session_id' => $session_id,
+            'bot_slug' => $bot_slug,
+            'round' => $starting_round,
+        ];
+
+        // Execute tools requested in the initial handshake round
+        $tool_outputs = $this->execute_registered_tools($normalized_tool_calls, $context);
+        $this->log_tool_executions($normalized_tool_calls, $tool_outputs, $starting_round, $context);
+
+        $conversation[] = $this->build_function_response_from_outputs($tool_outputs);
+
+        // Resume loop for subsequent rounds (handshake already satisfied)
+        for ($round = $starting_round + 1; $round <= $max_rounds; $round++) {
+            $gemini_request = $this->convert_messages_to_gemini($conversation, $params);
+
+            if (!empty($gemini_tools)) {
+                $gemini_request['tools'] = $gemini_tools;
+            }
+
+            $endpoint = $this->api_base . '/models/' . $model . ':generateContent';
+            $response = $this->make_request($endpoint, $gemini_request);
+
+            if (isset($response['error'])) {
+                return $response;
+            }
+
+            $result = $this->process_response($response, $params);
+            if (isset($result['error'])) {
+                return $result;
+            }
+
+            if (isset($result['usage']) && is_array($result['usage'])) {
+                $usage_accumulator = $this->accumulate_usage($usage_accumulator, $result['usage']);
+            }
+
+            $function_calls = $this->extract_function_calls($response);
+            if (empty($function_calls)) {
+                if ($usage_accumulator !== null) {
+                    $result['usage'] = $usage_accumulator;
+                }
+                $result['model'] = $model;
+                return $result;
+            }
+
+            // Additional tool rounds inside continuation – execute automatically
+            $tool_calls_for_trait = $this->convert_gemini_function_calls_to_tool_calls($function_calls);
+
+            $context['round'] = $round;
+            $tool_outputs = $this->execute_registered_tools($tool_calls_for_trait, $context);
+            $this->log_tool_executions($tool_calls_for_trait, $tool_outputs, $round, $context);
+
+            $conversation[] = $this->build_function_response_from_outputs($tool_outputs);
+        }
+
+        return [
+            'error' => __('Maximum Gemini tool rounds reached without final answer.', 'axiachat-ai')
         ];
     }
     
@@ -978,11 +1218,77 @@ class AIChat_Gemini_Provider implements AIChat_Provider_Interface {
             $tool_calls[] = [
                 'id' => $fc['id'] ?? ('call_' . wp_generate_uuid4()),
                 'name' => $fc['name'] ?? '',  // Direct access for trait
-                'arguments' => json_encode($fc['args'] ?? [])  // Direct access for trait
+                'arguments' => wp_json_encode($fc['args'] ?? [])  // Direct access for trait
             ];
         }
         
         return $tool_calls;
+    }
+
+    /**
+     * Accumulate usage statistics across multiple rounds.
+     *
+     * @param array|null $current Existing accumulator
+     * @param array|null $increment Usage block to add
+     * @return array|null Updated accumulator
+     */
+    protected function accumulate_usage($current, $increment) {
+        if (!is_array($increment)) {
+            return $current;
+        }
+
+        if ($current === null) {
+            $current = [];
+        }
+
+        foreach (['prompt_tokens', 'completion_tokens', 'total_tokens', 'thoughts_tokens'] as $key) {
+            if (isset($increment[$key])) {
+                $current[$key] = ($current[$key] ?? 0) + (int) $increment[$key];
+            }
+        }
+
+        return $current;
+    }
+
+    /**
+     * Build a user-friendly activity label for tool execution bubbles.
+     *
+     * @param string $tool_name Raw tool identifier
+     * @return string Friendly label for UI
+     */
+    protected function build_activity_label($tool_name) {
+        $registered = function_exists('aichat_get_registered_tools') ? aichat_get_registered_tools() : [];
+
+        if (!empty($tool_name) && isset($registered[$tool_name]['activity_label']) && $registered[$tool_name]['activity_label']) {
+            return (string) $registered[$tool_name]['activity_label'];
+        }
+
+        switch ($tool_name) {
+            case 'google_search':
+            case 'googleSearch':
+                return __('Running Google Search...', 'axiachat-ai');
+            case 'code_execution':
+            case 'codeExecution':
+                return __('Running Code Execution...', 'axiachat-ai');
+        }
+
+        $fallback = $tool_name;
+
+        if (preg_match('/^mcp_[^_]+_[^_]+_(.+)$/', (string) $fallback, $matches)) {
+            $fallback = $matches[1];
+        }
+
+        $fallback = str_replace(['_', '-', '+', '.'], ' ', (string) $fallback);
+        $fallback = preg_replace('/\s+/', ' ', $fallback);
+        $fallback = trim($fallback);
+
+        if ($fallback === '') {
+            $fallback = __('tool', 'axiachat-ai');
+        } else {
+            $fallback = ucwords($fallback);
+        }
+
+        return sprintf(__('Running %s...', 'axiachat-ai'), $fallback);
     }
     
     /**

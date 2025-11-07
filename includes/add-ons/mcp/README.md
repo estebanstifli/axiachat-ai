@@ -5,7 +5,7 @@ This add-on allows AxiaChat AI bots to connect to external MCP servers and expos
 
 ## Features
 - **HTTP Transport**: Connect to remote MCP servers over HTTP/HTTPS
-- **STDIO Transport**: Run local MCP servers as subprocesses (Node.js, Python, etc.)
+- **Transport Hardening**: Local STDIO subprocess support has been removed for security and compatibility
 - **Authentication**: Bearer tokens, API keys, custom headers
 - **Tool Discovery**: Automatically list and register tools from connected servers
 - **Per-Bot Configuration**: Enable/disable specific MCP servers per bot (TODO)
@@ -18,8 +18,7 @@ includes/add-ons/mcp/
 ├── loader.php                      # Entry point, enable check
 ├── class-mcp-transport.php         # Abstract base class for transports
 ├── transports/
-│   ├── class-http-transport.php    # HTTP/HTTPS transport
-│   └── class-stdio-transport.php   # STDIO (local process) transport
+│   └── class-http-transport.php    # HTTP/HTTPS transport
 ├── class-mcp-client-manager.php    # Singleton managing all server connections
 ├── integration.php                 # Registers MCP tools into AI Tools system
 ├── admin-settings.php              # Admin page UI
@@ -46,12 +45,6 @@ Navigate to **AI Chat → MCP Servers** and click "Add Server".
 - **Authentication**: Bearer Token
 - **Token**: `your-sentry-api-token`
 
-#### STDIO Server Example (Local Node.js)
-- **Server Name**: Local File Tools
-- **Transport Type**: STDIO
-- **Command**: `node /path/to/mcp-server.js`
-- **Working Directory**: `/path/to/project`
-
 ### 3. Test Connection
 Click **Test** to verify the server is reachable and view available tools.
 
@@ -65,7 +58,6 @@ Enable the macro in **AI Chat → Bots → [Your Bot] → Capabilities → Macro
 ### Transport Layer
 - **AIChat_MCP_Transport** (abstract): Defines interface for `connect()`, `send_request()`, `close()`
 - **AIChat_MCP_HTTP_Transport**: Uses `wp_remote_post()` for HTTP requests
-- **AIChat_MCP_STDIO_Transport**: Uses `proc_open()` to spawn local processes
 
 ### Client Manager
 - **AIChat_MCP_Client_Manager** (singleton): Manages all active sessions
@@ -103,7 +95,6 @@ Enable the macro in **AI Chat → Bots → [Your Bot] → Capabilities → Macro
 ## Security Considerations
 - All API keys/tokens stored in WordPress options (not version controlled)
 - HTTP transport validates URLs via `esc_url_raw()`
-- STDIO transport sanitizes command/cwd via `sanitize_text_field()`
 - AJAX endpoints protected with nonce (`aichat_mcp_ajax`)
 - Admin UI restricted to `manage_options` capability
 
@@ -114,11 +105,6 @@ Enable the macro in **AI Chat → Bots → [Your Bot] → Capabilities → Macro
 - Check authentication credentials
 - Review WordPress error logs for HTTP API errors
 
-### Connection Fails (STDIO)
-- Ensure `proc_open()` is not disabled in `php.ini` (`disable_functions`)
-- Check command syntax and file paths
-- Verify working directory exists and is readable
-
 ### Tools Not Appearing
 - Confirm add-on is enabled in Settings → Add-ons
 - Check that MCP server test shows tools in discovery
@@ -127,7 +113,7 @@ Enable the macro in **AI Chat → Bots → [Your Bot] → Capabilities → Macro
 ## Roadmap
 
 ### Phase 1: Foundation (Current) ✅
-- Transport abstraction (HTTP + STDIO)
+- Transport abstraction (HTTP)
 - Client manager with session handling
 - MCP handshake and tool discovery
 - Admin UI for server management
@@ -152,11 +138,12 @@ Enable the macro in **AI Chat → Bots → [Your Bot] → Capabilities → Macro
 
 ## Development Notes
 
-### Adding a New Transport
-1. Create class extending `AIChat_MCP_Transport`
+### Extending the Transport Layer
+While only HTTP is bundled, the architecture still allows additional transports if requirements change:
+1. Create a class extending `AIChat_MCP_Transport`
 2. Implement `connect()`, `send_request()`, `close()`
 3. Handle errors via `$this->last_error`
-4. Load in `loader.php`
+4. Load the new transport in `loader.php`
 
 ### Registering Custom MCP Servers Programmatically
 ```php

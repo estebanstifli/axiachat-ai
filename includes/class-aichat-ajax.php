@@ -851,12 +851,90 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                     $answer = $result['message'] ?? '';
                     $usage = $result['usage'] ?? null;
                     
+                    // Post-procesar respuesta (igual que flujo principal)
+                    $answer = aichat_replace_link_placeholder( $answer );
+                    if ( function_exists('aichat_pretty_known_links') ) {
+                        $answer = aichat_pretty_known_links( $answer );
+                    }
+                    $answer = $this->sanitize_answer_html( $answer );
+                    
+                    // Actualizar conversación con respuesta final (igual que OpenAI Responses)
+                    if ( get_option( 'aichat_logging_enabled', 1 ) ) {
+                        // Obtener request_uuid del response_id (Claude usa mismo formato)
+                        $request_uuid = $response_id;
+                        $this->update_last_conversation_response( $session, $bot_slug, $answer, $request_uuid );
+                    }
+                    
+                    // Hook after response
+                    do_action('aichat_after_response', [
+                        'bot_slug'   => $bot_slug,
+                        'session_id' => $session,
+                        'question'   => null,
+                        'answer'     => $answer,
+                        'provider'   => 'claude',
+                        'model'      => $model,
+                    ]);
+                    
                     // Devolver respuesta final
                     wp_send_json_success([
-                        'message' => $answer,
-                        'model' => $result['model'] ?? $model,
-                        'provider' => 'claude',
-                        'usage' => $usage,
+                        'status'     => 'final',
+                        'message'    => $answer,
+                        'model'      => $result['model'] ?? $model,
+                        'provider'   => 'claude',
+                        'usage'      => $usage,
+                        'session_id' => $session,
+                        'bot_slug'   => $bot_slug,
+                    ]);
+                }
+                
+                // Gemini usa el mismo patrón continue_from_tool_pending
+                if ( $provider === 'gemini' ) {
+                    if ( ! method_exists( $provider_instance, 'continue_from_tool_pending' ) ) {
+                        wp_send_json_error( [ 'message' => 'Gemini provider does not support tool continuation.' ], 500 );
+                    }
+                    
+                    $result = $provider_instance->continue_from_tool_pending( $response_id, $tool_calls );
+                    
+                    if ( isset($result['error']) ) {
+                        aichat_log_debug("[AIChat AJAX][$uid] Gemini continuation error: ".$result['error'], [], true);
+                        wp_send_json_error( ['message' => $result['error'] ], 500);
+                    }
+                    
+                    $answer = $result['message'] ?? '';
+                    $usage = $result['usage'] ?? null;
+                    
+                    // Post-procesar respuesta
+                    $answer = aichat_replace_link_placeholder( $answer );
+                    if ( function_exists('aichat_pretty_known_links') ) {
+                        $answer = aichat_pretty_known_links( $answer );
+                    }
+                    $answer = $this->sanitize_answer_html( $answer );
+                    
+                    // Actualizar conversación con respuesta final
+                    if ( get_option( 'aichat_logging_enabled', 1 ) ) {
+                        $request_uuid = $response_id;
+                        $this->update_last_conversation_response( $session, $bot_slug, $answer, $request_uuid );
+                    }
+                    
+                    // Hook after response
+                    do_action('aichat_after_response', [
+                        'bot_slug'   => $bot_slug,
+                        'session_id' => $session,
+                        'question'   => null,
+                        'answer'     => $answer,
+                        'provider'   => 'gemini',
+                        'model'      => $model,
+                    ]);
+                    
+                    // Devolver respuesta final
+                    wp_send_json_success([
+                        'status'     => 'final',
+                        'message'    => $answer,
+                        'model'      => $result['model'] ?? $model,
+                        'provider'   => 'gemini',
+                        'usage'      => $usage,
+                        'session_id' => $session,
+                        'bot_slug'   => $bot_slug,
                     ]);
                 }
                 

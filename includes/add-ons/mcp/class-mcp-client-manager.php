@@ -131,25 +131,17 @@ class AIChat_MCP_Client_Manager {
             }
             
             // Create transport based on type
-            $transport_type = isset( $config['transport'] ) ? $config['transport'] : 'http';
-            $transport      = null;
-            
-            switch ( $transport_type ) {
-                case 'http':
-                    $transport = new AIChat_MCP_HTTP_Transport( $config );
-                    break;
-                    
-                case 'stdio':
-                    $transport = new AIChat_MCP_STDIO_Transport( $config );
-                    break;
-                    
-                default:
-                    $this->log_debug( 'Unknown transport type', [
-                        'server_id' => $server_id,
-                        'type'      => $transport_type,
-                    ] );
-                    return false;
+            $transport_type = isset( $config['transport'] ) ? strtolower( (string) $config['transport'] ) : 'http';
+
+            if ( $transport_type !== 'http' ) {
+                $this->log_debug( 'Unsupported transport type', [
+                    'server_id' => $server_id,
+                    'type'      => $transport_type,
+                ] );
+                return false;
             }
+
+            $transport = new AIChat_MCP_HTTP_Transport( $config );
             
             // Attempt connection
             if ( ! $transport->connect() ) {

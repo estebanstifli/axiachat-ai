@@ -216,12 +216,13 @@ $prompt_tokens = isset($u['prompt_tokens'])
 includes/add-ons/
 └── mcp/
     ├── loader.php                    # Punto de entrada
-    ├── class-mcp-transport-stdio.php # Componentes
-    ├── class-mcp-transport-sse.php
+    ├── class-mcp-transport.php       # Base para transportes
+    ├── transports/
+    │   └── class-http-transport.php  # Transporte HTTP/HTTPS
     ├── class-mcp-client-manager.php
-    ├── mcp-integration.php
-    ├── mcp-admin-settings.php        # UI admin
-    └── mcp-admin-ajax.php            # AJAX handlers
+    ├── integration.php
+    ├── admin-settings.php            # UI admin
+    └── admin-ajax.php                # AJAX handlers
 ```
 
 **loader.php (patrón template):**
@@ -244,8 +245,7 @@ $enabled = get_option('aichat_addon_mcp_enabled', 0);
 if ( ! $enabled ) { return; }
 
 // 3. Component loading
-require_once __DIR__ . '/class-mcp-transport-stdio.php';
-require_once __DIR__ . '/class-mcp-transport-sse.php';
+require_once __DIR__ . '/transports/class-http-transport.php';
 require_once __DIR__ . '/class-mcp-client-manager.php';
 require_once __DIR__ . '/mcp-integration.php';
 

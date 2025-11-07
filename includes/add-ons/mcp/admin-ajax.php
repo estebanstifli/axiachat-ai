@@ -55,7 +55,7 @@ function aichat_mcp_ajax_save_server() {
     // Sanitize input
     $server_id   = sanitize_text_field( $_POST['server_id'] ?? '' );
     $name        = sanitize_text_field( $_POST['name'] ?? '' );
-    $transport   = sanitize_text_field( $_POST['transport'] ?? 'http' );
+    $transport   = 'http';
     
     if ( empty( $name ) ) {
         wp_send_json_error( __( 'Server name is required.', 'axiachat-ai' ) );
@@ -80,23 +80,14 @@ function aichat_mcp_ajax_save_server() {
         'enabled'   => true, // Enable by default when creating
     ];
 
-    if ( $transport === 'http' ) {
-        $server['url']         = esc_url_raw( $_POST['url'] ?? '' );
-        $server['auth_type']   = sanitize_text_field( $_POST['auth_type'] ?? 'none' );
-        $server['auth_token']  = sanitize_text_field( $_POST['auth_token'] ?? '' );
-        $server['auth_header'] = sanitize_text_field( $_POST['auth_header'] ?? '' );
-        $server['custom_headers'] = sanitize_textarea_field( $_POST['custom_headers'] ?? '' );
+    $server['url']         = esc_url_raw( $_POST['url'] ?? '' );
+    $server['auth_type']   = sanitize_text_field( $_POST['auth_type'] ?? 'none' );
+    $server['auth_token']  = sanitize_text_field( $_POST['auth_token'] ?? '' );
+    $server['auth_header'] = sanitize_text_field( $_POST['auth_header'] ?? '' );
+    $server['custom_headers'] = sanitize_textarea_field( $_POST['custom_headers'] ?? '' );
 
-        if ( empty( $server['url'] ) ) {
-            wp_send_json_error( __( 'URL is required for HTTP transport.', 'axiachat-ai' ) );
-        }
-    } else {
-        $server['command'] = sanitize_text_field( $_POST['command'] ?? '' );
-        $server['cwd']     = sanitize_text_field( $_POST['cwd'] ?? '' );
-
-        if ( empty( $server['command'] ) ) {
-            wp_send_json_error( __( 'Command is required for STDIO transport.', 'axiachat-ai' ) );
-        }
+    if ( empty( $server['url'] ) ) {
+        wp_send_json_error( __( 'URL is required for HTTP transport.', 'axiachat-ai' ) );
     }
 
     // Save
@@ -258,6 +249,12 @@ function aichat_mcp_ajax_test_server() {
     $config = $servers[ $server_id ];
 
     try {
+        $transport_type = isset( $config['transport'] ) ? strtolower( (string) $config['transport'] ) : 'http';
+
+        if ( $transport_type !== 'http' ) {
+            throw new Exception( __( 'STDIO transport has been removed. Please update this server to use an HTTP/HTTPS endpoint.', 'axiachat-ai' ) );
+        }
+
         // Use the MCP Client Manager for consistent behavior
         if ( class_exists( 'AIChat_MCP_Client_Manager' ) ) {
             $manager = AIChat_MCP_Client_Manager::instance();
@@ -354,20 +351,13 @@ function aichat_mcp_ajax_test_server() {
         } else {
             // Fallback to manual connection (old method, won't persist tools/macros)
             // Create transport
-            if ( $config['transport'] === 'http' ) {
-                $transport = new AIChat_MCP_HTTP_Transport( [
-                    'url'            => $config['url'] ?? '',
-                    'auth_type'      => $config['auth_type'] ?? 'none',
-                    'auth_token'     => $config['auth_token'] ?? '',
-                    'auth_header'    => $config['auth_header'] ?? '',
-                    'custom_headers' => $config['custom_headers'] ?? '',
-                ] );
-            } else {
-                $transport = new AIChat_MCP_STDIO_Transport( [
-                    'command' => $config['command'] ?? '',
-                    'cwd'     => $config['cwd'] ?? '',
-                ] );
-            }
+            $transport = new AIChat_MCP_HTTP_Transport( [
+                'url'            => $config['url'] ?? '',
+                'auth_type'      => $config['auth_type'] ?? 'none',
+                'auth_token'     => $config['auth_token'] ?? '',
+                'auth_header'    => $config['auth_header'] ?? '',
+                'custom_headers' => $config['custom_headers'] ?? '',
+            ] );
 
             // Connect
             if ( ! $transport->connect() ) {

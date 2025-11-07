@@ -2,7 +2,7 @@
 /**
  * Abstract MCP Transport Base Class
  * 
- * Base class for all MCP transport implementations (HTTP, STDIO).
+ * Base class for all MCP transport implementations (HTTP).
  * Defines the common interface for JSON-RPC 2.0 communication.
  * 
  * @package AIChat
