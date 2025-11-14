@@ -193,6 +193,9 @@ require_once AICHAT_PLUGIN_DIR . 'includes/logs-detail.php';
 //Pagina de templates prompt
 require_once AICHAT_PLUGIN_DIR . 'includes/templates-prompt.php';
 
+// Installer for AxiaChat Connect add-on
+require_once AICHAT_PLUGIN_DIR . 'includes/addon-connect-installer.php';
+
 // (Easy Config) include file if exists (will be created later)
 if ( file_exists( AICHAT_PLUGIN_DIR . 'includes/easy-config.php' ) ) {
   require_once AICHAT_PLUGIN_DIR . 'includes/easy-config.php';
@@ -815,6 +818,15 @@ function aichat_admin_menu() {
     'manage_options',
     'aichat-logs-detail',
     'aichat_logs_detail_page'
+  );
+
+  $hidden_hooks[] = add_submenu_page(
+    'options.php',
+    __( 'Install WhatsApp & Telegram Add-on', 'axiachat-ai' ),
+    '__hidden_aichat_connect_installer',
+    'manage_options',
+    'aichat-connect-installer',
+    'aichat_addon_connect_installer_page'
   );
 
 

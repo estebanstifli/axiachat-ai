@@ -43,7 +43,7 @@ function aichat_render_usage_tab(){
 function aichat_render_pricing_tab(){
   $pricing = aichat_model_pricing();
   
-  echo '<p class="description">'.esc_html__('Current pricing per 1K tokens (input / output). Standard rates only.','axiachat-ai').' <em>'.esc_html__('Updated: November 2, 2025','axiachat-ai').'</em></p>';
+  echo '<p class="description">'.esc_html__('Current pricing per 1K tokens (input / output). Standard rates only.','axiachat-ai').' <em>'.esc_html__('Updated: November 14, 2025','axiachat-ai').'</em></p>';
   
   // OpenAI Section
   echo '<h2 style="margin-top:20px;">OpenAI Models <a href="https://openai.com/api/pricing/" target="_blank" class="button button-small" style="margin-left:10px;">'.esc_html__('Official Pricing','axiachat-ai').' ↗</a></h2>';
@@ -83,6 +83,31 @@ function aichat_render_pricing_tab(){
   
   if (isset($pricing['claude'])) {
     foreach ($pricing['claude'] as $model => $rates) {
+      echo '<tr>';
+      echo '<td><strong>'.esc_html($model).'</strong></td>';
+      echo '<td>$'.esc_html(number_format($rates['input_per_1k'], 5)).'</td>';
+      echo '<td>$'.esc_html(number_format($rates['output_per_1k'], 5)).'</td>';
+      echo '<td>$'.esc_html(number_format($rates['input_per_1k'] * 1000, 2)).'</td>';
+      echo '<td>$'.esc_html(number_format($rates['output_per_1k'] * 1000, 2)).'</td>';
+      echo '</tr>';
+    }
+  }
+  
+  echo '</tbody></table>';
+  
+  // Gemini Section
+  echo '<h2 style="margin-top:40px;">Google Gemini Models <a href="https://ai.google.dev/pricing" target="_blank" class="button button-small" style="margin-left:10px;">'.esc_html__('Official Pricing','axiachat-ai').' ↗</a></h2>';
+  echo '<table class="widefat" style="margin-top:10px;max-width:800px;">';
+  echo '<thead><tr>';
+  echo '<th>'.esc_html__('Model','axiachat-ai').'</th>';
+  echo '<th>'.esc_html__('Input (per 1K tokens)','axiachat-ai').'</th>';
+  echo '<th>'.esc_html__('Output (per 1K tokens)','axiachat-ai').'</th>';
+  echo '<th>'.esc_html__('Input (per 1M tokens)','axiachat-ai').'</th>';
+  echo '<th>'.esc_html__('Output (per 1M tokens)','axiachat-ai').'</th>';
+  echo '</tr></thead><tbody>';
+  
+  if (isset($pricing['gemini'])) {
+    foreach ($pricing['gemini'] as $model => $rates) {
       echo '<tr>';
       echo '<td><strong>'.esc_html($model).'</strong></td>';
       echo '<td>$'.esc_html(number_format($rates['input_per_1k'], 5)).'</td>';

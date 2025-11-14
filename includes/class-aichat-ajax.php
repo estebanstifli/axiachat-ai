@@ -565,6 +565,42 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             
             // Si OpenAI Responses devolvió tool_pending, reenviar al frontend
             if ( is_array($result) && isset($result['status']) && $result['status'] === 'tool_pending' ) {
+                // Extraer y registrar usage antes de devolver respuesta pendiente
+                $prompt_tokens_pending = null;
+                $completion_tokens_pending = null;
+                $total_tokens_pending = null;
+                $cost_micros_pending = null;
+                
+                if (isset($result['usage']) && is_array($result['usage'])) {
+                    $prompt_tokens_pending = isset($result['usage']['prompt_tokens']) ? (int)$result['usage']['prompt_tokens'] : null;
+                    $completion_tokens_pending = isset($result['usage']['completion_tokens']) ? (int)$result['usage']['completion_tokens'] : null;
+                    $total_tokens_pending = isset($result['usage']['total_tokens']) ? (int)$result['usage']['total_tokens'] : (($prompt_tokens_pending!==null && $completion_tokens_pending!==null)? $prompt_tokens_pending+$completion_tokens_pending : null);
+                    
+                    if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+                        aichat_log_debug('[AIChat AJAX]['.$uid.'] tool_pending usage tokens', [
+                            'prompt'=>$prompt_tokens_pending,
+                            'completion'=>$completion_tokens_pending,
+                            'total'=>$total_tokens_pending,
+                            'model'=>$model,
+                            'provider'=>$provider
+                        ], true);
+                    }
+                    
+                    if ( function_exists('aichat_calc_cost_micros') && $prompt_tokens_pending !== null ) {
+                        $cost_micros_pending = aichat_calc_cost_micros($provider,$model,$prompt_tokens_pending,$completion_tokens_pending?:0);
+                    }
+                    
+                    // Registrar uso en tabla diaria
+                    if ( function_exists('aichat_update_daily_usage_row') && $model && $provider && $total_tokens_pending !== null ) {
+                        $pt = ($prompt_tokens_pending !== null) ? (int)$prompt_tokens_pending : 0;
+                        $ct = ($completion_tokens_pending !== null) ? (int)$completion_tokens_pending : 0;
+                        if($pt === 0 && $ct === 0){
+                            $pt = (int)$total_tokens_pending;
+                        }
+                        aichat_update_daily_usage_row($provider,$model,$pt,$ct,(int)$total_tokens_pending,(int)$cost_micros_pending);
+                    }
+                }
+                
                 $out = [
                     'status' => 'tool_pending',
                     'response_id' => $result['response_id'] ?? '',
@@ -578,14 +614,15 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
                     aichat_log_debug("[AIChat AJAX][$uid] tool_pending handshake", [
                         'response_id' => $result['response_id'] ?? '-',
-                        'tool_count' => is_array($result['tool_calls'] ?? null) ? count($result['tool_calls']) : 0
+                        'tool_count' => is_array($result['tool_calls'] ?? null) ? count($result['tool_calls']) : 0,
+                        'usage_registered' => $total_tokens_pending !== null
                     ], true);
                 }
                 
                 // Guardar conversación con marcador de pendiente
                 if ( get_option( 'aichat_logging_enabled', 1 ) ) {
                     $placeholder_resp = '(executing tools…)';
-                    $this->maybe_log_conversation( get_current_user_id(), $session, $bot_slug_r, $page_id, $message, $placeholder_resp, $model, $provider, null, null, null, null );
+                    $this->maybe_log_conversation( get_current_user_id(), $session, $bot_slug_r, $page_id, $message, $placeholder_resp, $model, $provider, $prompt_tokens_pending, $completion_tokens_pending, $total_tokens_pending, $cost_micros_pending );
                 }
                 
                 wp_send_json_success( $out );
@@ -851,6 +888,42 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                     $answer = $result['message'] ?? '';
                     $usage = $result['usage'] ?? null;
                     
+                    // Extraer y registrar tokens de la respuesta final
+                    $prompt_tokens_final = null;
+                    $completion_tokens_final = null;
+                    $total_tokens_final = null;
+                    $cost_micros_final = null;
+                    
+                    if (is_array($usage)) {
+                        $prompt_tokens_final = isset($usage['prompt_tokens']) ? (int)$usage['prompt_tokens'] : null;
+                        $completion_tokens_final = isset($usage['completion_tokens']) ? (int)$usage['completion_tokens'] : null;
+                        $total_tokens_final = isset($usage['total_tokens']) ? (int)$usage['total_tokens'] : (($prompt_tokens_final!==null && $completion_tokens_final!==null)? $prompt_tokens_final+$completion_tokens_final : null);
+                        
+                        if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+                            aichat_log_debug('[AIChat AJAX]['.$uid.'] Claude final response usage', [
+                                'prompt'=>$prompt_tokens_final,
+                                'completion'=>$completion_tokens_final,
+                                'total'=>$total_tokens_final,
+                                'model'=>$model,
+                                'provider'=>$provider
+                            ], true);
+                        }
+                        
+                        if ( function_exists('aichat_calc_cost_micros') && $prompt_tokens_final !== null ) {
+                            $cost_micros_final = aichat_calc_cost_micros($provider,$model,$prompt_tokens_final,$completion_tokens_final?:0);
+                        }
+                        
+                        // Registrar uso en tabla diaria
+                        if ( function_exists('aichat_update_daily_usage_row') && $model && $provider && $total_tokens_final !== null ) {
+                            $pt = ($prompt_tokens_final !== null) ? (int)$prompt_tokens_final : 0;
+                            $ct = ($completion_tokens_final !== null) ? (int)$completion_tokens_final : 0;
+                            if($pt === 0 && $ct === 0){
+                                $pt = (int)$total_tokens_final;
+                            }
+                            aichat_update_daily_usage_row($provider,$model,$pt,$ct,(int)$total_tokens_final,(int)$cost_micros_final);
+                        }
+                    }
+                    
                     // Post-procesar respuesta (igual que flujo principal)
                     $answer = aichat_replace_link_placeholder( $answer );
                     if ( function_exists('aichat_pretty_known_links') ) {
@@ -902,6 +975,42 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                     
                     $answer = $result['message'] ?? '';
                     $usage = $result['usage'] ?? null;
+                    
+                    // Extraer y registrar tokens de la respuesta final
+                    $prompt_tokens_final = null;
+                    $completion_tokens_final = null;
+                    $total_tokens_final = null;
+                    $cost_micros_final = null;
+                    
+                    if (is_array($usage)) {
+                        $prompt_tokens_final = isset($usage['prompt_tokens']) ? (int)$usage['prompt_tokens'] : null;
+                        $completion_tokens_final = isset($usage['completion_tokens']) ? (int)$usage['completion_tokens'] : null;
+                        $total_tokens_final = isset($usage['total_tokens']) ? (int)$usage['total_tokens'] : (($prompt_tokens_final!==null && $completion_tokens_final!==null)? $prompt_tokens_final+$completion_tokens_final : null);
+                        
+                        if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG ) {
+                            aichat_log_debug('[AIChat AJAX]['.$uid.'] Gemini final response usage', [
+                                'prompt'=>$prompt_tokens_final,
+                                'completion'=>$completion_tokens_final,
+                                'total'=>$total_tokens_final,
+                                'model'=>$model,
+                                'provider'=>$provider
+                            ], true);
+                        }
+                        
+                        if ( function_exists('aichat_calc_cost_micros') && $prompt_tokens_final !== null ) {
+                            $cost_micros_final = aichat_calc_cost_micros($provider,$model,$prompt_tokens_final,$completion_tokens_final?:0);
+                        }
+                        
+                        // Registrar uso en tabla diaria
+                        if ( function_exists('aichat_update_daily_usage_row') && $model && $provider && $total_tokens_final !== null ) {
+                            $pt = ($prompt_tokens_final !== null) ? (int)$prompt_tokens_final : 0;
+                            $ct = ($completion_tokens_final !== null) ? (int)$completion_tokens_final : 0;
+                            if($pt === 0 && $ct === 0){
+                                $pt = (int)$total_tokens_final;
+                            }
+                            aichat_update_daily_usage_row($provider,$model,$pt,$ct,(int)$total_tokens_final,(int)$cost_micros_final);
+                        }
+                    }
                     
                     // Post-procesar respuesta
                     $answer = aichat_replace_link_placeholder( $answer );

@@ -7,8 +7,12 @@ if(!defined('ABSPATH')) exit;
  */
 function aichat_model_pricing(){
   /**
-   * Precios oficiales convertidos a USD por 1K tokens (input/output) – última revisión: 2025-11-02.
-   * Fuente: páginas de pricing públicas OpenAI / Anthropic. Sólo tarifas "standard" (sin cached input, batch, fine‑tune o priority tiers).
+   * Precios oficiales convertidos a USD por 1K tokens (input/output) – última revisión: 2025-11-14.
+   * Fuente: páginas de pricing públicas OpenAI / Anthropic / Gemini API. Sólo tarifas "standard" (sin cached input, batch, fine‑tune o priority tiers).
+   * Enlaces oficiales:
+   *   - OpenAI: https://openai.com/api/pricing/
+   *   - Anthropic: https://www.anthropic.com/pricing
+   *   - Gemini API: https://ai.google.dev/pricing
    * Si cambian las tarifas puedes sobreescribir vía filtro 'aichat_model_pricing'.
    * Nota: Algunos modelos tienen distintas variantes (mini, nano, etc). Mantenemos alias básicos para matching por prefijo.
    */
@@ -43,6 +47,16 @@ function aichat_model_pricing(){
       'claude-3.5-sonnet' => ['input_per_1k'=>0.00300,'output_per_1k'=>0.01500], // $3 / $15 per 1M
       'claude-3-opus'     => ['input_per_1k'=>0.01500,'output_per_1k'=>0.07500], // $15 / $75 per 1M
       'claude-3-haiku'    => ['input_per_1k'=>0.00025,'output_per_1k'=>0.00125], // $0.25 / $1.25 per 1M
+    ],
+    'gemini' => [
+      // Gemini 2.5 family (Nov 2025) - tarifas paid tier
+      'gemini-2.5-pro'        => ['input_per_1k'=>0.00125, 'output_per_1k'=>0.01000], // $1.25 / $10 per 1M (≤200k) - Advanced reasoning
+      'gemini-2.5-flash'      => ['input_per_1k'=>0.00030, 'output_per_1k'=>0.00250], // $0.30 / $2.50 per 1M (text/image/video) - Hybrid reasoning, 1M context
+      'gemini-2.5-flash-lite' => ['input_per_1k'=>0.00010, 'output_per_1k'=>0.00040], // $0.10 / $0.40 per 1M (text/image/video) - Cost-efficient, high throughput
+      
+      // Gemini 2.0 family (2024)
+      'gemini-2.0-flash'      => ['input_per_1k'=>0.00010, 'output_per_1k'=>0.00040], // $0.10 / $0.40 per 1M (text/image/video) - Agents era, 1M context
+      'gemini-2.0-flash-lite' => ['input_per_1k'=>0.00008, 'output_per_1k'=>0.00030], // $0.075 / $0.30 per 1M - Most efficient
     ],
   ];
   return apply_filters('aichat_model_pricing', $pricing);

@@ -256,6 +256,12 @@ function aichat_register_simple_settings() {
                 'sanitize_callback' => 'aichat_sanitize_checkbox',
                 'default' => 0,
             ] );
+            // Add-ons: WhatsApp & Telegram connector toggle
+            register_setting( $option_group, 'aichat_addon_connect_enabled', [
+                'type' => 'boolean',
+                'sanitize_callback' => 'aichat_sanitize_checkbox',
+                'default' => 0,
+            ] );
         
 
 
@@ -307,6 +313,26 @@ function aichat_settings_page() {
     $gemini_key  = aichat_get_setting( 'aichat_gemini_api_key' );
     $global_on   = (bool) aichat_get_setting( 'aichat_global_bot_enabled' );
     $global_slug = aichat_get_setting( 'aichat_global_bot_slug' );
+
+    include_once ABSPATH . 'wp-admin/includes/plugin.php';
+    $can_install_addons   = current_user_can( 'install_plugins' );
+    $connect_option        = (int) get_option( 'aichat_addon_connect_enabled', 0 );
+    $connect_plugin_file   = 'andromeda-connect/andromeda-connect.php';
+    $connect_plugin_path   = WP_PLUGIN_DIR . '/andromeda-connect/andromeda-connect.php';
+    $connect_installed     = file_exists( $connect_plugin_path );
+    $connect_active        = function_exists( 'is_plugin_active' ) && is_plugin_active( $connect_plugin_file );
+    $connect_version       = '';
+    if ( $connect_installed && function_exists( 'get_plugin_data' ) ) {
+        $plugin_data = get_plugin_data( $connect_plugin_path, false, false );
+        if ( ! empty( $plugin_data['Version'] ) ) {
+            $connect_version = $plugin_data['Version'];
+        }
+    }
+    if ( $connect_active ) {
+        $connect_option = 1;
+    }
+    $connect_install_url     = wp_nonce_url( admin_url( 'admin.php?page=aichat-connect-installer' ), 'aichat_install_connect' );
+    $connect_install_required = ( $connect_installed || ! $can_install_addons ) ? '0' : '1';
 
     ?>
     <div class="wrap aichat-settings-wrap">
@@ -625,6 +651,47 @@ https://sub.site2.net"><?php echo esc_textarea( $embed_origins_raw ); ?></textar
                                                 ?>
                                             </div>
                                         </div>
+                                        <hr class="my-3" />
+                                        <div class="aichat-checkbox-row mb-0">
+                                            <input type="hidden" name="aichat_addon_connect_enabled" value="0" />
+                                            <label for="aichat_addon_connect_enabled" class="aichat-checkbox-label">
+                                                <input type="checkbox"
+                                                    id="aichat_addon_connect_enabled"
+                                                    name="aichat_addon_connect_enabled"
+                                                    value="1"
+                                                    <?php checked( $connect_option, 1 ); ?>
+                                                    <?php disabled( ! $ai_tools_enabled_flag ); ?>
+                                                    data-guide-url="<?php echo esc_url( $connect_install_url ); ?>"
+                                                    data-guide-required="<?php echo esc_attr( $connect_install_required ); ?>"
+                                                    data-guide-message="<?php echo esc_attr__( 'Visit the installation guide for Andromeda Connect (WhatsApp & Telegram)?', 'axiachat-ai' ); ?>"
+                                                />
+                                                <span><?php echo esc_html__( 'Enable WhatsApp & Telegram (Andromeda Connect)', 'axiachat-ai' ); ?></span>
+                                            </label>
+                                            <div class="form-text ms-0">
+                                                <?php
+                                                if ( ! $ai_tools_enabled_flag ) {
+                                                    echo esc_html__( 'Requires AI Tools enabled. Turn on AI Tools above to manage external channel connectors.', 'axiachat-ai' );
+                                                } elseif ( $connect_active ) {
+                                                    echo esc_html__( 'Andromeda Connect is active. WhatsApp and Telegram routing are available.', 'axiachat-ai' );
+                                                    if ( $connect_version ) {
+                                                        echo ' ' . sprintf( esc_html__( '(Version %s detected)', 'axiachat-ai' ), esc_html( $connect_version ) );
+                                                    }
+                                                } elseif ( $connect_installed ) {
+                                                    echo esc_html__( 'Andromeda Connect files are present. Activate the plugin from Plugins → Installed Plugins or enable it here after activation.', 'axiachat-ai' );
+                                                    if ( $connect_version ) {
+                                                        echo ' ' . sprintf( esc_html__( '(Version %s detected)', 'axiachat-ai' ), esc_html( $connect_version ) );
+                                                    }
+                                                } else {
+                                                    printf(
+                                                        '%s <a href="%s" target="_blank" rel="noopener noreferrer">%s</a>',
+                                                        esc_html__( 'Companion plugin for WhatsApp & Telegram integration.', 'axiachat-ai' ),
+                                                        esc_url( 'https://github.com/estebanstifli/aichat-connect' ),
+                                                        esc_html__( 'Click to view installation guide', 'axiachat-ai' )
+                                                    );
+                                                }
+                                                ?>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -692,6 +759,31 @@ https://sub.site2.net"><?php echo esc_textarea( $embed_origins_raw ); ?></textar
             activateTab(initialLink.getAttribute('data-tab-target'));
         } else if (tabPanes[0]) {
             activateTab(tabPanes[0].id);
+        }
+
+        var connectToggle = document.getElementById('aichat_addon_connect_enabled');
+        if (connectToggle) {
+            connectToggle.addEventListener('change', function(event) {
+                if (!connectToggle.checked) {
+                    return;
+                }
+                var shouldShowGuide = connectToggle.getAttribute('data-guide-required') === '1';
+                if (!shouldShowGuide) {
+                    return;
+                }
+                var guideUrl = connectToggle.getAttribute('data-guide-url');
+                if (!guideUrl) {
+                    connectToggle.checked = false;
+                    return;
+                }
+                var message = connectToggle.getAttribute('data-guide-message');
+                if (window.confirm(message || 'Visit Andromeda Connect installation guide?')) {
+                    connectToggle.checked = false;
+                    window.location.href = guideUrl;
+                } else {
+                    connectToggle.checked = false;
+                }
+            });
         }
     });
     </script>

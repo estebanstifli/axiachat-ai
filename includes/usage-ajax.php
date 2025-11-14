@@ -44,7 +44,7 @@ function aichat_get_usage_summary(){
       WHERE created_at >= %s AND cost_micros IS NOT NULL
       GROUP BY model, provider
       ORDER BY cm DESC
-      LIMIT 5",
+      LIMIT 10",
     $start_30_midnight
   );
   $top_models = $wpdb->get_results( $sql_top, ARRAY_A ) ?: [];
