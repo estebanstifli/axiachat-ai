@@ -60,6 +60,9 @@ if ( is_admin() ) {
     
     // Register MCP Servers submenu (only if add-on is enabled)
     add_action( 'admin_menu', 'aichat_mcp_register_menu', 15 );
+
+    // Enqueue admin assets for MCP Servers page
+    add_action( 'admin_enqueue_scripts', 'aichat_mcp_admin_enqueue_scripts' );
 }
 
 /**
@@ -77,6 +80,71 @@ function aichat_mcp_register_menu() {
         'manage_options',
         'aichat-mcp-servers',
         'aichat_mcp_render_servers_page'
+    );
+}
+
+/**
+ * Enqueue MCP admin scripts only on the MCP Servers page.
+ */
+function aichat_mcp_admin_enqueue_scripts( $hook_suffix ) {
+    // Only load on our MCP page under the AxiaChat menu
+    if ( $hook_suffix !== 'ai-chat_page_aichat-mcp-servers' ) {
+        return;
+    }
+
+    // Base handle reused from main plugin admin styles if needed
+    wp_enqueue_script(
+        'aichat-mcp-admin',
+        plugins_url( 'assets/js/mcp-admin.js', dirname( dirname( __FILE__ ) ) ),
+        [ 'jquery' ],
+        defined( 'AICHAT_VERSION' ) ? AICHAT_VERSION : false,
+        true
+    );
+
+    $ajax_url = admin_url( 'admin-ajax.php' );
+
+    wp_localize_script(
+        'aichat-mcp-admin',
+        'aichatMcpData',
+        [
+            'ajaxUrl' => $ajax_url,
+            'nonce'   => wp_create_nonce( 'aichat_mcp_nonce' ),
+            'ajaxNonce' => wp_create_nonce( 'aichat_mcp_ajax' ),
+            'i18n'    => [
+                'selectServerPlaceholder'   => __( ' Select a server ', 'axiachat-ai' ),
+                'selectServerFirst'        => __( ' Select a server first ', 'axiachat-ai' ),
+                'loadingTools'             => __( 'Loading tools...', 'axiachat-ai' ),
+                'noToolsAvailable'         => __( 'No tools available', 'axiachat-ai' ),
+                'noParameters'             => __( 'This tool takes no parameters.', 'axiachat-ai' ),
+                'parametersLabel'          => __( 'Parameters:', 'axiachat-ai' ),
+                'executing'                => __( 'Executing...', 'axiachat-ai' ),
+                'success'                  => __( 'Success', 'axiachat-ai' ),
+                'error'                    => __( 'Error', 'axiachat-ai' ),
+                'requestFailed'            => __( 'Request failed', 'axiachat-ai' ),
+                'networkError'             => __( 'Network error', 'axiachat-ai' ),
+                'connecting'               => __( 'Connecting...', 'axiachat-ai' ),
+                'disabled'                 => __( 'Disabled', 'axiachat-ai' ),
+                'errorUpdatingServer'      => __( 'Error updating server.', 'axiachat-ai' ),
+                'addServer'                => __( 'Add MCP Server', 'axiachat-ai' ),
+                'editServer'               => __( 'Edit MCP Server', 'axiachat-ai' ),
+                'errorSavingServer'        => __( 'Error saving server.', 'axiachat-ai' ),
+                'deleteConfirm'            => __( 'Are you sure you want to delete this server?', 'axiachat-ai' ),
+                'testing'                  => __( 'Testing...', 'axiachat-ai' ),
+                'connectionSuccessful'     => __( 'Connection successful!', 'axiachat-ai' ),
+                'serverInformation'        => __( 'Server Information', 'axiachat-ai' ),
+                'protocolVersion'          => __( 'Protocol Version', 'axiachat-ai' ),
+                'serverName'               => __( 'Server Name', 'axiachat-ai' ),
+                'serverVersion'            => __( 'Server Version', 'axiachat-ai' ),
+                'capabilities'             => __( 'Capabilities', 'axiachat-ai' ),
+                'availableTools'           => __( 'Available Tools', 'axiachat-ai' ),
+                'connectionFailed'         => __( 'Connection failed', 'axiachat-ai' ),
+                'unknownError'             => __( 'Unknown error', 'axiachat-ai' ),
+                'failedToLoadTools'        => __( 'Failed to load tools.', 'axiachat-ai' ),
+                'noToolsForServer'         => __( 'No tools found for this server.', 'axiachat-ai' ),
+                'pleaseSelectServerFirst'  => __( 'Please select a server first.', 'axiachat-ai' ),
+                'errorSaving'              => __( 'Error saving.', 'axiachat-ai' ),
+            ],
+        ]
     );
 }
 

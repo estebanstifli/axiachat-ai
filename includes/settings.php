@@ -182,6 +182,13 @@ function aichat_register_simple_settings() {
         'default' => 1,
     ] );
 
+    // Debug avanzado (controlable desde UI, independiente de la constante AICHAT_DEBUG)
+    register_setting( $option_group, 'aichat_debug_enabled', [
+        'type'              => 'boolean',
+        'sanitize_callback' => 'aichat_sanitize_checkbox',
+        'default'           => 0,
+    ] );
+
     // GDPR consent options
     register_setting( $option_group, 'aichat_gdpr_consent_enabled', [
         'type' => 'boolean',

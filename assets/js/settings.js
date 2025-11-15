@@ -129,6 +129,61 @@
     });
   }
 
+  function initLogViewers() {
+    var phpBtn = document.getElementById('aichat-debug-log-refresh');
+    var aiBtn  = document.getElementById('aichat-debug-ai-log-refresh');
+
+    function bind(button, type, textareaId) {
+      if (!button) return;
+      var textarea = document.getElementById(textareaId);
+      if (!textarea) return;
+
+      button.addEventListener('click', function() {
+        if (!window.aichatSettingsData || !window.aichatSettingsData.ajaxUrl) {
+          return;
+        }
+        button.disabled = true;
+        button.classList.add('disabled');
+        var originalHtml = button.innerHTML;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>' + (button.getAttribute('data-loading-label') || originalHtml);
+
+        var formData = new FormData();
+        formData.append('action', 'aichat_get_log_tail');
+        formData.append('nonce', (window.aichatSettingsData && window.aichatSettingsData.nonce) || '');
+        formData.append('log_type', type);
+
+        fetch(window.aichatSettingsData.ajaxUrl, {
+          method: 'POST',
+          credentials: 'same-origin',
+          body: formData
+        })
+          .then(function(res) { return res.json(); })
+          .then(function(data) {
+            if (data && data.success) {
+              textarea.value = data.data || '';
+              textarea.classList.remove('d-none');
+            } else {
+              var msg = (data && data.data) ? data.data : 'Error loading log.';
+              textarea.value = msg;
+              textarea.classList.remove('d-none');
+            }
+          })
+          .catch(function() {
+            textarea.value = 'Error loading log.';
+            textarea.classList.remove('d-none');
+          })
+          .finally(function() {
+            button.disabled = false;
+            button.classList.remove('disabled');
+            button.innerHTML = originalHtml;
+          });
+      });
+    }
+
+    bind(phpBtn, 'php', 'aichat_debug_log_preview');
+    bind(aiBtn, 'ai', 'aichat_debug_ai_log_preview');
+  }
+
   document.addEventListener('DOMContentLoaded', function() {
     var settingsWrap = document.querySelector('.aichat-settings-wrap');
     if (!settingsWrap) {
@@ -138,5 +193,6 @@
     initTabs(settingsWrap);
     initPolicyReset();
     initConnectToggle();
+    initLogViewers();
   });
 })();
