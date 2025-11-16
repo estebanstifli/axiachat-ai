@@ -1,163 +1,465 @@
-# AI Chat (WordPress Plugin)
+# AxiaChat AI – Free AI Chatbot for WordPress
 
-> Update 1.1.3 (EN): Added AutoSync cron + manual trigger modal, Browse Chunks tab (local contexts), split Settings/Similarity buttons, LIMITED full rebuild fix, improved UX (persistent Run AutoSync button, disabled states), extra i18n keys, mini-tab context sync fix.
->
-> Actualización 1.1.3 (ES): Nuevo sistema AutoSync (cron + ejecución manual), pestaña Browse Chunks para contextos locales, separación botones Settings/Similarity, corrección rebuild en contextos LIMITED, mejoras UX (botón persistente y estados deshabilitados), nuevas claves i18n y fix de sincronización en mini-tabs.
+<div align="center">
 
-Un chatbot de IA personalizable para WordPress que utiliza modelos OpenAI (y soporte inicial para Claude) con recuperación opcional de contexto (RAG) mediante embeddings locales o Pinecone. Incluye interfaz flotante / inline vía shortcode, administración de múltiples bots, moderación, límites de uso, y logging de conversaciones. Integra además (de forma opcional) un flujo externo tipo WhatsApp reutilizando la misma tabla de conversaciones sin nuevos esquemas.
+[![WordPress Plugin](https://img.shields.io/wordpress/plugin/v/axiachat-ai?style=flat-square)](https://wordpress.org/plugins/axiachat-ai/)
+[![WordPress Plugin Active Installs](https://img.shields.io/wordpress/plugin/installs/axiachat-ai?style=flat-square)](https://wordpress.org/plugins/axiachat-ai/)
+[![WordPress Plugin Rating](https://img.shields.io/wordpress/plugin/rating/axiachat-ai?style=flat-square)](https://wordpress.org/plugins/axiachat-ai/)
+[![License](https://img.shields.io/badge/license-GPLv2-blue.svg?style=flat-square)](https://www.gnu.org/licenses/gpl-2.0.html)
 
-> Idioma: Este README está en Español con notas técnicas en Inglés cuando aporta claridad. El código ya incluye internacionalización (text‑domain `ai-chat`).
+**Transform your WordPress site into a 24/7 AI-powered customer service hub**
 
----
-## Características Principales
-- Múltiples bots con modelos, temperatura, tokens máximos y variaciones UI.
-- Modos de contexto (RAG): embeddings locales, contenido de la página actual o ninguno.
-- Ingesta de contenido (posts / PDFs) en tablas propias con embeddings (OpenAI `text-embedding-3-small`).
-- Mensajes protegidos por política fija de seguridad/privacidad inyectada como primer system prompt.
-- Moderación básica + heurísticas anti-spam + rate limiting adaptativo.
-- Historial de conversación por `session_id` (usuario anónimo) o `user_id` (logueado) con recorte configurable (`max_messages`).
-- Shortcode y widget flotante: colores, avatares, posiciones, estado minimizado, textos personalizados.
-- Logs de conversaciones en el admin (listado + detalle) con borrado individual por sesión.
-- Integración externa (ej. canal WhatsApp) mediante `session_id` determinístico (prefijo `wha` + dígitos) sin cambiar la base de datos.
-- Localización lista (archivos `.po/.mo`).
-- Modo debug (PHP y JS) para inspeccionar pipeline y contexto seleccionado.
+[Live Demo](https://wpbotwriter.com/) | [Documentation](https://wordpress.org/plugins/axiachat-ai/) | [Support](https://wpbotwriter.com/log-a-support-ticket/)
+
+</div>
 
 ---
-## Estructura del Plugin
-```
-aichat.php                 // Bootstrap del plugin + activación/tablas + menús
-includes/
-  class-aichat-core.php     // Núcleo: helpers generales y hooks base
-  class-aichat-ajax.php     // Flujo AJAX: validaciones, construcción de mensajes, llamada proveedor
-  shortcode.php             // Render del contenedor y data-* attributes
-  contexto-functions.php    // Embeddings, búsqueda de similitud, RAG modes, seguridad
-  bots.php / bots_ajax.php  // Gestión CRUD de bots y UI admin
-  logs.php / logs-detail.php// Listado y detalle de conversaciones
-  moderation.php            // Moderación y spam checks
-  contexto-*                // Pestañas de ingestión y PDF
-assets/js/aichat-frontend.js// Frontend UI, historial, GDPR, eventos
-assets/css/*.css            // Estilos admin + frontend
-```
+
+## 🚀 Overview
+
+**AxiaChat AI** is a cutting-edge chatbot plugin that delivers instant, intelligent responses to your visitors—day or night—using the latest AI technology from **OpenAI (GPT-4, GPT-5)**, **Anthropic Claude**, and **Google Gemini**.
+
+Unlike generic chatbots, AxiaChat AI learns from YOUR actual content using advanced **Retrieval Augmented Generation (RAG)**, providing accurate, contextual answers based on your products, services, and knowledge base.
+
+### ✨ Key Highlights
+
+- 🤖 **Multiple AI Providers** – OpenAI, Claude, Gemini with full model support
+- 🎓 **Smart Training** – Train your bot on website pages, PDFs, and documentation
+- 🔌 **MCP Integration** – Connect Model Context Protocol servers for extended capabilities
+- 🌐 **Web Search** – Provider-native live internet lookups with cited sources
+- 🎨 **Full Customization** – Colors, avatars, positioning, window controls
+- 📊 **Usage Analytics** – Conversation logs, cost tracking, token monitoring
+- 🔒 **GDPR Compliant** – Built-in consent management and privacy controls
+- 🚫 **Spam Protection** – Rate limiting, moderation, and advanced security
 
 ---
-## Tablas Personalizadas
-| Tabla | Propósito | Campos Clave |
-|-------|-----------|--------------|
-| `wp_aichat_bots` | Configuración de cada bot | slug, model, temperature, context_mode, límites UI |
-| `wp_aichat_conversations` | Historial de turnos | session_id, user_id, bot_slug, message, response, page_id |
-| `wp_aichat_contexts` | Metadatos de conjuntos de contenido | context_type, remote_endpoint, processing_status |
-| `wp_aichat_chunks` | Chunks con embeddings y texto | post_id, id_context, embedding, updated_at |
 
-Notas:
-- IP se almacena en binario solo cuando se aplican límites (optimizable / puedes anonimizar más si deseas).
-- No se ha creado tabla nueva para metadatos de canales externos: un prefijo en `session_id` distingue WhatsApp (`wha`) de sesiones web.
+## 💼 Perfect For
+
+- **E-commerce stores** – Answer product questions instantly
+- **Service businesses** – Qualify leads and book appointments 24/7
+- **SaaS platforms** – Reduce support tickets with AI-powered help
+- **Educational sites** – Provide instant course information
+- **Corporate websites** – Scale support without scaling headcount
 
 ---
-## Flujo Interno (Resumen)
-1. Shortcode genera un `<div>` con `data-*`.
-2. JS (`aichat-frontend.js`) captura input → AJAX `aichat_process_message`.
-3. Servidor valida: nonce, honeypot, captcha (filtro), moderación, límites, longitud.
-4. Selección de contexto (auto/local/page/none) → cálculo similitud (coseno) o consulta Pinecone.
-5. Construcción de mensajes: política seguridad + instrucciones bot + bloque CONTEXT + pregunta usuario.
-6. Llamada al proveedor (OpenAI / Claude) → respuesta bruta.
-7. Post-proceso: sanitizar, reemplazar `[LINK]` por permalink top-chunk, guardar en `wp_aichat_conversations`.
-8. JS recibe respuesta y la añade al hilo (persistencia simple por session UUID en localStorage).
+
+## 🎯 Real Results
+
+✅ **Reduce support workload** by handling common questions automatically  
+✅ **Capture leads 24/7** even when your team is offline  
+✅ **Improve engagement** with instant, helpful responses  
+✅ **Lower bounce rates** by helping visitors find what they need  
+✅ **Scale support** without increasing team size  
 
 ---
-## Instalación
-1. Copiar carpeta dentro de `wp-content/plugins/` (o subir ZIP en el admin de WordPress).
-2. Activar el plugin (creará tablas mediante `dbDelta`).
-3. En Ajustes → AI Chat: introducir API Key de OpenAI (y/o futuro Claude / Pinecone si se habilita).
-4. Crear / ajustar bots en la pestaña Bots.
-5. Insertar el shortcode en una página o confiar en el widget flotante global.
 
-### Requisitos
-- WordPress ≥ 5.0
-- PHP ≥ 7.4
-- Extensiones: `mbstring`, `json`, `curl` (para llamadas API).
+## 📦 Features
+
+### 🤖 AI & Model Support
+- Multiple AI providers: OpenAI (GPT-4, GPT-5), Anthropic Claude, Google Gemini
+- MCP Server Integration for extended capabilities
+- Provider-native web search with cited sources
+- Multiple independent bots with unique configurations
+- Advanced AI tools: email notifications, custom actions
+
+### 🎓 Smart Training & Context
+- **RAG (Retrieval Augmented Generation)** – Train on your content
+- Context modes: embeddings (local or Pinecone) / page-specific / none
+- PDF ingestion for knowledge base creation
+- Auto-sync to detect and update changed content
+- Smart chunking with overlap for better retrieval
+- Easy Config Wizard for guided setup
+
+### 🎨 Customization & Deployment
+- Floating global widget OR inline embedding via shortcode
+- Full UI control: colors, avatars, positioning
+- Draggable, minimizable, closable chat panel
+- 9 avatar designs included + custom upload
+- Responsive design for desktop and mobile
+
+### 📊 Usage Control & Analytics
+- Conversation logging with ON/OFF toggle
+- Daily usage limits (per-user and global)
+- Cost tracking and token monitoring
+- Detailed conversation logs with filtering
+
+### 🔒 Security & Compliance
+- GDPR-compliant with consent management
+- WordPress security best practices
+- Encrypted API keys
+- Data ownership – all on your server
+- No external SaaS dependencies
 
 ---
-## Uso del Shortcode / Widget
-Shortcode básico:
-```
-[aichat id="default"]
-```
-Atributo principal: `id` = slug del bot.
 
-La mayoría de opciones UI vienen del bot (color, avatar, placeholder). Para cambios dinámicos adicionales se pueden añadir filtros PHP (ver sección Desarrollo). El widget flotante se habilita automáticamente salvo que un shortcode en la página lo suprima (bandera interna). 
+## 🛠️ Installation
+
+### Quick Start (5 minutes)
+
+1. **Install the Plugin**
+   ```bash
+   # Via WordPress Admin
+   Plugins > Add New > Search "AxiaChat AI" > Install > Activate
+   
+   # Or via WP-CLI
+   wp plugin install axiachat-ai --activate
+   ```
+
+2. **Add Your API Key**
+   - Navigate to **AxiaChat AI > Settings**
+   - Enter your OpenAI, Claude, or Gemini API key
+
+3. **Run Easy Config Wizard** (Recommended)
+   - Automatically scans your site content
+   - Creates optimized context with embeddings
+   - Links your default bot
+
+4. **Deploy Your Bot**
+   
+   **Option A – Global Widget:**
+   ```
+   Settings > Enable Global Widget > Select Bot
+   ```
+   
+   **Option B – Shortcode:**
+   ```
+   [aichat id="your-bot-slug"]
+   ```
 
 ---
-## Configuración de Bots (Campos Clave)
-- Modelo (`model`): por defecto `gpt-4o` (ajustar según provider).
-- Temperatura (`temperature`): creatividad.
-- `max_tokens`: recorte de respuesta (respeta límites proveedor).
-- `reasoning` / `verbosity`: flags preparados para futuros modelos con capacidad de reasoning.
-- `context_mode`: `embeddings` (local/Pinecone auto), `page` (contenido post actual) o `none`.
-- `max_messages`: número máximo de turnos retenidos (los más antiguos se descartan). 
 
----
-## Modo Contexto (RAG)
-- Local embeddings: se cargan todos los chunks de un contexto y se calcula coseno en PHP; se ordenan y se limita a N top.
-- Pinecone: si el contexto está marcado remoto (filtro de hosts permitidos) se hace query al índice.
-- Page: se toma el contenido del post actual (sin embeddings) y se inyecta como bloque CONTEXT.
+## 📖 Usage Examples
 
----
-## Integración Externa (WhatsApp u otros canales)
-Para reutilizar el motor sin duplicar tablas, se genera un `session_id` determinístico basado en el número de teléfono (solo dígitos) con prefijo `wha`.
-
-Función auxiliar (ya incluida):
+### Basic Shortcode
 ```php
-$r = aichat_generate_bot_response_for_phone( $phone, $bot_slug, $question, [ 'page_id' => 0 ] );
-// $r = [ 'ok' => bool, 'response' => string, 'error' => string|null ]
-```
-- Guarda turnos en `wp_aichat_conversations` con `session_id` = `wha` + dígitos.
-- El admin muestra estos registros formateados como `WHA123456789`.
-- Compatibilidad retro con el antiguo formato `wha_` mantenida en la vista.
-
-Migración opcional (normalizar histórico antiguo con underscore):
-```sql
-UPDATE wp_aichat_conversations SET session_id = REPLACE(session_id,'wha_','wha') WHERE session_id LIKE 'wha_%';
+[aichat id="support-bot"]
 ```
 
-Filtro rápido (si lo implementas) sugerido:
+### Customized Shortcode
 ```php
-// Ejemplo futuro: filtrar consultas de logs a solo WhatsApp
-add_filter('aichat_logs_where', function($where){
-  global $wpdb; return $where." AND session_id LIKE 'wha%'"; });
+[aichat id="sales-bot" layout="inline" color="#ff6b6b" avatar="5"]
+```
+
+### PHP Integration
+```php
+<?php echo do_shortcode('[aichat id="my-bot"]'); ?>
 ```
 
 ---
-## Seguridad y Privacidad
-- Nonce + honeypot + filtros de captcha/moderación.
-- Política de seguridad inyectada como primer system message para evitar fuga de instrucciones internas.
-- Sanitización del output antes de render (se evita HTML arbitrario).
-- IP en VARBINARY (facilita anonimización posterior). Puedes truncar o hash si requieres más privacidad.
+
+## 🏗️ Architecture
+
+```
+axiachat-ai/
+├── axiachat-ai.php           # Plugin bootstrap & activation
+├── includes/
+│   ├── class-aichat-core.php      # Core functionality
+│   ├── class-aichat-ajax.php      # AJAX request handler
+│   ├── contexto-functions.php     # RAG & embeddings
+│   ├── bots.php                   # Bot management
+│   ├── moderation.php             # Spam & security
+│   └── add-ons/
+│       ├── mcp/                   # MCP server integration
+│       └── ai-tools/              # AI capabilities system
+├── assets/
+│   ├── js/
+│   │   ├── aichat-frontend.js     # Frontend UI & logic
+│   │   └── settings.js            # Admin settings
+│   └── css/
+│       ├── aichat-frontend.css    # Chat widget styles
+│       └── aichat-admin.css       # Admin panel styles
+└── languages/                     # i18n files (Spanish included)
+```
+
+### 📁 Database Schema
+
+| Table | Purpose | Key Fields |
+|-------|---------|------------|
+| `wp_aichat_bots` | Bot configurations | slug, model, temperature, context_mode, UI settings |
+| `wp_aichat_conversations` | Conversation history | session_id, user_id, bot_slug, message, response |
+| `wp_aichat_contexts` | Content metadata | context_type, remote_endpoint, processing_status |
+| `wp_aichat_chunks` | Embeddings & content | post_id, id_context, embedding, score |
 
 ---
-## Debug / QA
-- Definir en `wp-config.php`: `define('AICHAT_DEBUG', true);` para activar logging PHP (`error_log`).
-- Vista previa rápida: `/?aichat_preview=1&bot=slug` (solo administradores).
-- JS debug: añadir `?aichat_debug=1` en la URL para mostrar trazas en consola.
-- Contexto seleccionado: al enviar con POST `debug=1` se registran en logs los top scores (si debug activo).
+
+## 🔧 Configuration
+
+### Environment Variables
+
+```php
+// wp-config.php
+define('AICHAT_DEBUG', true);              // Enable debug logging
+define('AICHAT_DEBUG_SYS_MAXLEN', 1000);   // Max debug message length
+```
+
+### Bot Settings
+
+Each bot can be configured with:
+- **Provider & Model** – OpenAI, Claude, or Gemini
+- **Temperature** – Control creativity (0.0 - 2.0)
+- **Max Tokens** – Response length limit
+- **Context Mode** – Embeddings, page-specific, or none
+- **UI Customization** – Colors, avatars, positioning
+- **Tools & Capabilities** – Web search, email, custom actions
 
 ---
-## Extensibilidad (Hooks / Puntos de Entrada)
-Filtros / acciones (principales) recomendados (si aún no los ves, puedes añadirlos fácilmente):
-- `aichat_security_policy` para alterar la política fija.
-- `aichat_validate_captcha` para conectar un captcha externo.
-- `aichat_moderation_flags` (potencial) para añadir heurísticas.
-- `aichat_context_results` para post-procesar chunks antes de construir mensajes.
-- `aichat_provider_payload` para ajustar parámetros enviados a OpenAI/Claude.
 
-(Consulta el código para nombres exactos presentes; añade nuevos siguiendo prefijo `aichat_`).
+## 🎨 Customization Examples
+
+### Custom Colors & Avatar
+```php
+[aichat id="sales-bot" color="#ff6b6b" avatar="5" placeholder="How can I help you today?"]
+```
+
+### Inline Layout
+```php
+[aichat id="support-bot" layout="inline" width="600px" height="500px"]
+```
+
+### Minimized by Default
+```php
+[aichat id="my-bot" layout="floating" position="bottom-right" minimized="true"]
+```
 
 ---
-## Desarrollo Local
-1. Clonar en carpeta plugins.
-2. Activar el plugin dentro del admin.
-3. (Opcional) Crear contenido de prueba y ejecutar ingestión PDF para poblar embeddings.
-4. Revisar `includes/class-aichat-ajax.php` si deseas añadir proveedores.
-5. Añadir hooks/filtros sin modificar core creando un pequeño mu-plugin o plugin complementario.
+
+## 🔌 Developer Hooks & Filters
+
+### Available Filters
+
+```php
+// Modify security policy
+add_filter('aichat_security_policy', function($policy) {
+    return $policy . "\nCustom security rule here.";
+});
+
+// Customize context results
+add_filter('aichat_context_results', function($results, $question) {
+    // Modify or filter context chunks
+    return $results;
+}, 10, 2);
+
+// Validate custom CAPTCHA
+add_filter('aichat_validate_captcha', function($valid) {
+    // Add your CAPTCHA validation
+    return $valid;
+});
+```
+
+### Available Actions
+
+```php
+// After response is generated
+add_action('aichat_after_response', function($response, $bot_slug) {
+    // Log, notify, or process response
+}, 10, 2);
+
+// After conversation is saved
+add_action('aichat_conversation_saved', function($conversation_id) {
+    // Custom post-processing
+}, 10, 1);
+```
+
+---
+
+## 🧪 Testing & Debugging
+
+### Enable Debug Mode
+```php
+// wp-config.php
+define('AICHAT_DEBUG', true);
+```
+
+### Preview Bot
+```
+https://yoursite.com/?aichat_preview=1&bot=your-slug
+```
+
+### Debug JavaScript
+```
+https://yoursite.com/page/?aichat_debug=1
+```
+
+### Check Logs
+- PHP: `wp-content/debug.log`
+- AI Logs: `wp-content/debug_ia.log`
+- Admin: **AxiaChat AI > Logs**
+
+---
+
+## 🌐 Internationalization
+
+AxiaChat AI is translation-ready with full support for:
+- Spanish (es_ES) – Included
+- Custom translations via `.po/.pot` files
+- RTL language support
+- Text domain: `axiachat-ai`
+
+### Creating Translations
+```bash
+# Generate .pot file
+wp i18n make-pot . languages/axiachat-ai.pot
+
+# Create translation
+msgfmt languages/axiachat-ai-fr_FR.po -o languages/axiachat-ai-fr_FR.mo
+```
+
+---
+
+## 🚀 Performance Optimization
+
+### Best Practices
+
+1. **Context Management**
+   - Use specific contexts instead of "all content"
+   - Limit context size to 50-100 chunks
+   - Enable auto-sync for fresh content
+
+2. **API Usage**
+   - Set appropriate token limits per bot
+   - Enable daily usage limits
+   - Monitor costs in Usage dashboard
+
+3. **Caching**
+   - Enable object caching (Redis/Memcached)
+   - Use page caching (excludes chat widget)
+
+4. **Database**
+   - Regularly clean old conversation logs
+   - Index custom tables for large sites
+
+---
+
+## 🛡️ Security Features
+
+### Built-in Protection
+
+- ✅ **Nonce validation** on all AJAX requests
+- ✅ **Honeypot field** for bot detection
+- ✅ **Rate limiting** per IP/user
+- ✅ **Spam detection** with heuristics
+- ✅ **Content moderation** filters
+- ✅ **CAPTCHA support** via filters
+- ✅ **Encrypted API keys** in database
+- ✅ **SQL injection prevention** with prepared statements
+- ✅ **XSS protection** with output escaping
+- ✅ **CSRF protection** with WordPress nonces
+
+---
+
+## 📊 Analytics & Monitoring
+
+### Usage Dashboard
+
+Track your chatbot performance:
+- **Today's Stats** – Messages, tokens, costs
+- **7-Day Trends** – Usage patterns
+- **30-Day Overview** – Monthly analytics
+- **Top Models** – Most used AI models
+- **Cost Tracking** – API spending by provider
+
+### Conversation Logs
+
+Review all interactions:
+- Filter by bot, date, user
+- Search message content
+- View conversation threads
+- Export for analysis
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Here's how you can help:
+
+1. **Report Bugs** – [Open an issue](https://github.com/estebanstifli/axiachat-ai/issues)
+2. **Suggest Features** – Share your ideas
+3. **Submit PRs** – Improvements welcome
+4. **Translate** – Help localize the plugin
+
+### Development Setup
+
+```bash
+# Clone repository
+git clone https://github.com/estebanstifli/axiachat-ai.git
+
+# Install in WordPress
+cd wp-content/plugins/
+ln -s /path/to/axiachat-ai axiachat-ai
+
+# Activate plugin
+wp plugin activate axiachat-ai
+```
+
+---
+
+## 📝 Changelog
+
+### Version 1.2.6 (Latest)
+- ✨ Added MCP Server Integration
+- ✨ Provider-native web search (OpenAI, Claude, Gemini)
+- ✨ AI Tools system with email notifications
+- 🐛 Fixed context selection for multi-bot setups
+- 🔧 Improved GDPR consent flow
+- 📚 Enhanced documentation
+
+### Version 1.2.5
+- ✨ Added Gemini provider support
+- ✨ Usage analytics dashboard
+- 🐛 Fixed PDF ingestion for large files
+- 🔧 Performance improvements
+
+[View Full Changelog](https://wordpress.org/plugins/axiachat-ai/#developers)
+
+---
+
+## 📄 License
+
+This plugin is licensed under the **GPLv2 or later**.
+
+```
+Copyright (C) 2024 AxiaChat AI
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+```
+
+---
+
+## 🙏 Support & Resources
+
+- 📖 [Documentation](https://wordpress.org/plugins/axiachat-ai/)
+- 💬 [Support Forum](https://wordpress.org/support/plugin/axiachat-ai/)
+- 🎫 [Premium Support](https://wpbotwriter.com/log-a-support-ticket/)
+- 🌐 [Official Website](https://wpbotwriter.com/)
+- 📺 [Video Tutorials](https://youtu.be/Th41gGUH7Es)
+
+---
+
+## ⭐ Show Your Support
+
+If you find AxiaChat AI helpful, please:
+- ⭐ [Rate it 5 stars](https://wordpress.org/support/plugin/axiachat-ai/reviews/#new-post) on WordPress.org
+- 🐦 Share it on social media
+- 💡 [Request features](https://wpbotwriter.com/log-a-support-ticket/) you'd like to see
+
+---
+
+<div align="center">
+
+**Made with ❤️ for the WordPress community**
+
+[WordPress.org](https://wordpress.org/plugins/axiachat-ai/) • [GitHub](https://github.com/estebanstifli/axiachat-ai) • [Support](https://wpbotwriter.com/log-a-support-ticket/)
+
+</div>
 
 ### Añadir un Nuevo Proveedor (Resumen)
 - Detectar proveedor en `process_message`.
