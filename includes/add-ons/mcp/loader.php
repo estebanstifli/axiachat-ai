@@ -96,8 +96,7 @@ function aichat_mcp_admin_enqueue_scripts( $hook_suffix ) {
     // Calculate base URL from plugin root (same approach as core)
     
     $js_url   = AICHAT_PLUGIN_URL . 'assets/js/mcp-admin.js';
-    aichat_log_debug('[MCP Add-on] Enqueuing admin scripts');
-    aichat_log_debug('[MCP Add-on] JS URL: ' . $js_url);
+  
 
     wp_enqueue_script(
         'aichat-mcp-admin',

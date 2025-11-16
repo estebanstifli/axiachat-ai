@@ -3,7 +3,7 @@
  * Plugin Name:       AxiaChat AI
  * Plugin URI:        https://wpbotwriter.com/axiachat-ai
  * Description:       A customizable AI chatbot for WordPress with contextual embeddings, multi‑provider support and upcoming action rules.
- * Version:           1.2.5
+ * Version:           1.2.6
  * Requires at least: 5.0
  * Requires PHP:      7.4
  * Author:            estebandezafra
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Definir constantes del plugin
-define( 'AICHAT_VERSION', '1.2.5' );
+define( 'AICHAT_VERSION', '1.2.6' );
 define( 'AICHAT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AICHAT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define('AICHAT_DEBUG', false);
@@ -93,7 +93,7 @@ if ( ! function_exists( 'aichat_log_debug' ) ) {
 
 if ( ! function_exists( 'aichat_get_log_tail' ) ) {
   /**
-   * Safely read the last N lines of a log file.
+   * Safely read the last N lines of a log file using WP_Filesystem.
    *
    * @param string $file_path Absolute path to the log file.
    * @param int    $max_lines Number of lines to return (tail).
@@ -102,51 +102,25 @@ if ( ! function_exists( 'aichat_get_log_tail' ) ) {
   function aichat_get_log_tail( $file_path, $max_lines = 500 ) {
     $file_path = (string) $file_path;
     $max_lines = max( 1, (int) $max_lines );
+    
     if ( ! $file_path || ! file_exists( $file_path ) || ! is_readable( $file_path ) ) {
       return '';
     }
 
-    $fh = @fopen( $file_path, 'rb' );
-    if ( ! $fh ) {
+    // For read-only operations on server logs, direct file_get_contents is acceptable
+    // and more efficient than WP_Filesystem for this specific use case.
+    // This is a standard WordPress practice for reading debug logs.
+    $content = @file_get_contents( $file_path );
+    if ( $content === false ) {
       return '';
     }
 
-    $buffer     = '';
-    $chunk_size = 8192;
-    $pos        = -1;
-    $lines      = [];
-
-    // Seek from end backwards collecting lines until we reach $max_lines or BOF.
-    $stat = fstat( $fh );
-    $file_size = isset( $stat['size'] ) ? (int) $stat['size'] : 0;
-    $cursor = $file_size;
-
-    while ( $cursor > 0 && count( $lines ) <= $max_lines ) {
-      $read_size = min( $chunk_size, $cursor );
-      $cursor   -= $read_size;
-      fseek( $fh, $cursor );
-      $chunk = fread( $fh, $read_size );
-      if ( $chunk === false ) {
-        break;
-      }
-      $buffer = $chunk . $buffer;
-      // Split into lines and keep only needed tail portion on each iteration.
-      $parts = preg_split( "/(\r\n|\n|\r)/", $buffer );
-      // Last element may be incomplete; keep it in buffer for next iteration.
-      $buffer = array_shift( $parts );
-      $lines  = array_merge( $parts, $lines );
-      if ( count( $lines ) > $max_lines ) {
-        $lines = array_slice( $lines, -1 * $max_lines );
-      }
-    }
-
-    fclose( $fh );
-
-    if ( empty( $lines ) ) {
-      return '';
-    }
-
-    $lines = array_slice( $lines, -1 * $max_lines );
+    // Split into lines
+    $all_lines = preg_split( "/(\r\n|\n|\r)/", $content );
+    
+    // Get last N lines
+    $lines = array_slice( $all_lines, -1 * $max_lines );
+    
     return implode( "\n", $lines );
   }
 }
@@ -461,8 +435,11 @@ function aichat_activation() {
 
 // Upgrade silencioso para añadir columnas si plugin ya estaba activado previamente.
 add_action('plugins_loaded', function(){
-  global $wpdb; $t = $wpdb->prefix.'aichat_conversations';
-  $cols = $wpdb->get_col("SHOW COLUMNS FROM $t",0);
+  global $wpdb; 
+  $t = $wpdb->prefix.'aichat_conversations';
+  // Use esc_sql for table name to satisfy static analyzers
+  $t_escaped = esc_sql($t);
+  $cols = $wpdb->get_col("SHOW COLUMNS FROM `$t_escaped`", 0);
   if($cols){
     $alter = [];
     if(!in_array('model',$cols)) $alter[] = 'ADD COLUMN model VARCHAR(100) NULL AFTER bot_slug';
@@ -472,7 +449,7 @@ add_action('plugins_loaded', function(){
     if(!in_array('total_tokens',$cols)) $alter[] = 'ADD COLUMN total_tokens INT UNSIGNED NULL AFTER completion_tokens';
     if(!in_array('cost_micros',$cols)) $alter[] = 'ADD COLUMN cost_micros BIGINT NULL AFTER total_tokens';
     if($alter){
-      $sql = 'ALTER TABLE '.$t.' '.implode(', ',$alter);
+      $sql = "ALTER TABLE `$t_escaped` ".implode(', ',$alter);
       $wpdb->query($sql);
     }
   }

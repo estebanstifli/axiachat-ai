@@ -4,7 +4,7 @@ Tags: chatbot, ai, openai, chat, assistant
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.2.5
+Stable tag: 1.2.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -12,48 +12,39 @@ Free AI chatbot with multiple bots, OpenAI & Claude & Gemini, contextual embeddi
 
 == Description ==
 
-**Transform your WordPress site into a 24/7 AI-powered customer service hub.** AxiaChat AI is a cutting-edge chatbot plugin that delivers instant, intelligent responses to your visitors—day or night—using the latest AI technology from OpenAI (ChatGPT), Anthropic Claude, and Google Gemini.
+**Transform your WordPress site into a 24/7 AI-powered customer service hub.** AxiaChat AI delivers instant, intelligent responses using OpenAI (GPT-4, GPT-5), Anthropic Claude, and Google Gemini.
 
-#### 🚀 Why Choose AxiaChat AI?
+#### 🚀 Key Features
 
-**Never Miss a Customer Query Again**
-Your AI assistant works around the clock, answering questions, capturing leads, and guiding visitors—even while you sleep. Reduce response times from hours to seconds and watch your conversion rates soar.
+**Smart Training with RAG**
+Train your bot on YOUR content using Retrieval Augmented Generation. Unlike generic chatbots, AxiaChat AI learns from your website pages, PDFs, and documentation to provide accurate, contextual answers specific to your business.
 
-**Train Your Bot on YOUR Content**
-Unlike generic chatbots, AxiaChat AI learns from your actual website content, PDFs, and documentation using advanced Retrieval Augmented Generation (RAG). Your bot provides accurate, contextual answers based on your products, services, and knowledge base.
+**Multiple AI Providers & Models**
+Choose between OpenAI, Claude, or Gemini. Create multiple specialized bots—one for sales, one for support, each with unique configurations and training.
 
-**Multiple AI Providers, One Plugin**
-Choose between OpenAI (GPT-4, GPT-5), Anthropic Claude, or Google Gemini. Switch providers per bot or use different models for different purposes. Full support for the latest AI capabilities including native web search.
+**MCP Server Integration**
+Connect Model Context Protocol servers to extend your bot beyond Q&A. Perform actions, fetch live data, and integrate with business systems.
 
-**MCP Server Integration (Model Context Protocol)**
-Connect external tools and data sources to your chatbot through MCP servers. Extend your bot's capabilities beyond simple Q&A to perform real actions, fetch live data, and integrate with your business systems.
+**Enterprise Features**
+✅ Context-aware responses (local or Pinecone embeddings)
+✅ PDF ingestion for knowledge bases
+✅ AI tools: web search, email notifications, custom actions
+✅ Usage limits and cost controls
+✅ GDPR-compliant consent management
+✅ Full UI customization (colors, avatars, positioning)
+✅ Floating widget or inline shortcode
+✅ Complete conversation analytics
 
-**Enterprise-Grade Features at Your Fingertips**
-✅ Multiple independent bots with unique personalities and purposes
-✅ Smart context-aware responses using embeddings (local or Pinecone)
-✅ PDF content ingestion for knowledge base creation
-✅ Advanced AI tools and capabilities (web search, email notifications, custom actions)
-✅ Comprehensive usage limits and cost controls
-✅ GDPR-compliant with built-in consent management
-✅ Full conversation logging and analytics
-✅ Complete UI customization (colors, avatars, positioning)
-✅ Floating widget or inline embedding via shortcode
-✅ No external dependencies—your data stays on your server
+#### 🎯 Real Benefits
 
-#### 💼 Perfect For Every Business
+- Reduce support workload by automating common questions
+- Capture leads 24/7 even when your team is offline
+- Improve engagement with instant, helpful responses
+- Scale support without scaling headcount
 
-Whether you run an e-commerce store, service business, SaaS platform, educational site, or corporate website—AxiaChat AI adapts to your needs. Deploy multiple specialized bots: one for sales, one for support, one for FAQs, each trained on relevant content.
+**Perfect for e-commerce, service businesses, SaaS, educational sites, and corporate websites.**
 
-#### 🎯 Real Results
-
-- **Reduce support workload** by handling common questions automatically
-- **Capture leads 24/7** even when your team is offline
-- **Improve user engagement** with instant, helpful responses
-- **Lower bounce rates** by helping visitors find what they need
-- **Scale your support** without scaling your team
-
-**Professional Setup Assistance Available**
-New to AI chatbots? We're here to help! Get personalized assistance configuring prompts, training your bot, and optimizing performance for your specific use case: https://wpbotwriter.com/log-a-support-ticket/
+Need help? Get free setup assistance: https://wpbotwriter.com/log-a-support-ticket/
 
 == Tutorial: Create Your First Bot with AxiaChat AI ==
 
@@ -388,6 +379,10 @@ User prompts (and selected context snippets) are sent to OpenAI. Content may con
 * Lightweight front‑end footprint otherwise
 
 == Changelog ==
+= 1.2.6 =
+* Added: WhatsApp as an input/output channel through integration with another plugin.
+* Enhanced: Tabbed interface in settings for better navigation.
+* Added: New "Advanced" tab in settings.
 
 = 1.2.5 =
 * Added: Support for Google Gemini as a new AI provider.
