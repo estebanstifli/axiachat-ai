@@ -88,14 +88,20 @@ function aichat_mcp_register_menu() {
  */
 function aichat_mcp_admin_enqueue_scripts( $hook_suffix ) {
     // Only load on our MCP page under the AxiaChat menu
-    if ( $hook_suffix !== 'ai-chat_page_aichat-mcp-servers' ) {
+    if ( $hook_suffix !== 'axiachat-ai_page_aichat-mcp-servers' ) {
         return;
     }
 
     // Base handle reused from main plugin admin styles if needed
+    // Calculate base URL from plugin root (same approach as core)
+    
+    $js_url   = AICHAT_PLUGIN_URL . 'assets/js/mcp-admin.js';
+    aichat_log_debug('[MCP Add-on] Enqueuing admin scripts');
+    aichat_log_debug('[MCP Add-on] JS URL: ' . $js_url);
+
     wp_enqueue_script(
         'aichat-mcp-admin',
-        plugins_url( 'assets/js/mcp-admin.js', dirname( dirname( __FILE__ ) ) ),
+        $js_url,
         [ 'jquery' ],
         defined( 'AICHAT_VERSION' ) ? AICHAT_VERSION : false,
         true
@@ -111,38 +117,38 @@ function aichat_mcp_admin_enqueue_scripts( $hook_suffix ) {
             'nonce'   => wp_create_nonce( 'aichat_mcp_nonce' ),
             'ajaxNonce' => wp_create_nonce( 'aichat_mcp_ajax' ),
             'i18n'    => [
-                'selectServerPlaceholder'   => __( ' Select a server ', 'axiachat-ai' ),
-                'selectServerFirst'        => __( ' Select a server first ', 'axiachat-ai' ),
-                'loadingTools'             => __( 'Loading tools...', 'axiachat-ai' ),
-                'noToolsAvailable'         => __( 'No tools available', 'axiachat-ai' ),
-                'noParameters'             => __( 'This tool takes no parameters.', 'axiachat-ai' ),
-                'parametersLabel'          => __( 'Parameters:', 'axiachat-ai' ),
-                'executing'                => __( 'Executing...', 'axiachat-ai' ),
-                'success'                  => __( 'Success', 'axiachat-ai' ),
-                'error'                    => __( 'Error', 'axiachat-ai' ),
-                'requestFailed'            => __( 'Request failed', 'axiachat-ai' ),
-                'networkError'             => __( 'Network error', 'axiachat-ai' ),
-                'connecting'               => __( 'Connecting...', 'axiachat-ai' ),
-                'disabled'                 => __( 'Disabled', 'axiachat-ai' ),
-                'errorUpdatingServer'      => __( 'Error updating server.', 'axiachat-ai' ),
-                'addServer'                => __( 'Add MCP Server', 'axiachat-ai' ),
-                'editServer'               => __( 'Edit MCP Server', 'axiachat-ai' ),
-                'errorSavingServer'        => __( 'Error saving server.', 'axiachat-ai' ),
-                'deleteConfirm'            => __( 'Are you sure you want to delete this server?', 'axiachat-ai' ),
-                'testing'                  => __( 'Testing...', 'axiachat-ai' ),
-                'connectionSuccessful'     => __( 'Connection successful!', 'axiachat-ai' ),
-                'serverInformation'        => __( 'Server Information', 'axiachat-ai' ),
-                'protocolVersion'          => __( 'Protocol Version', 'axiachat-ai' ),
-                'serverName'               => __( 'Server Name', 'axiachat-ai' ),
-                'serverVersion'            => __( 'Server Version', 'axiachat-ai' ),
-                'capabilities'             => __( 'Capabilities', 'axiachat-ai' ),
-                'availableTools'           => __( 'Available Tools', 'axiachat-ai' ),
-                'connectionFailed'         => __( 'Connection failed', 'axiachat-ai' ),
-                'unknownError'             => __( 'Unknown error', 'axiachat-ai' ),
-                'failedToLoadTools'        => __( 'Failed to load tools.', 'axiachat-ai' ),
-                'noToolsForServer'         => __( 'No tools found for this server.', 'axiachat-ai' ),
-                'pleaseSelectServerFirst'  => __( 'Please select a server first.', 'axiachat-ai' ),
-                'errorSaving'              => __( 'Error saving.', 'axiachat-ai' ),
+                'select_server_placeholder' => __( '— Select a server —', 'axiachat-ai' ),
+                'select_server_first'       => __( '— Select a server first —', 'axiachat-ai' ),
+                'loading_tools'             => __( 'Loading tools...', 'axiachat-ai' ),
+                'no_tools_available'        => __( 'No tools available', 'axiachat-ai' ),
+                'no_parameters'             => __( 'This tool takes no parameters.', 'axiachat-ai' ),
+                'parameters_label'          => __( 'Parameters:', 'axiachat-ai' ),
+                'executing'                 => __( 'Executing...', 'axiachat-ai' ),
+                'success'                   => __( 'Success', 'axiachat-ai' ),
+                'error'                     => __( 'Error', 'axiachat-ai' ),
+                'request_failed'            => __( 'Request failed', 'axiachat-ai' ),
+                'network_error'             => __( 'Network error', 'axiachat-ai' ),
+                'connecting'                => __( 'Connecting...', 'axiachat-ai' ),
+                'disabled'                  => __( 'Disabled', 'axiachat-ai' ),
+                'error_updating_server'     => __( 'Error updating server.', 'axiachat-ai' ),
+                'add_server'                => __( 'Add MCP Server', 'axiachat-ai' ),
+                'edit_server'               => __( 'Edit MCP Server', 'axiachat-ai' ),
+                'error_saving_server'       => __( 'Error saving server.', 'axiachat-ai' ),
+                'delete_confirm'            => __( 'Are you sure you want to delete this server?', 'axiachat-ai' ),
+                'testing'                   => __( 'Testing...', 'axiachat-ai' ),
+                'connection_success'        => __( 'Connection successful!', 'axiachat-ai' ),
+                'server_info'               => __( 'Server Information', 'axiachat-ai' ),
+                'protocol_version'          => __( 'Protocol Version', 'axiachat-ai' ),
+                'server_name'               => __( 'Server Name', 'axiachat-ai' ),
+                'server_version'            => __( 'Server Version', 'axiachat-ai' ),
+                'capabilities'              => __( 'Capabilities', 'axiachat-ai' ),
+                'available_tools'           => __( 'Available Tools', 'axiachat-ai' ),
+                'connection_failed'         => __( 'Connection failed', 'axiachat-ai' ),
+                'unknown_error'             => __( 'Unknown error', 'axiachat-ai' ),
+                'failed_load_tools'         => __( 'Failed to load tools.', 'axiachat-ai' ),
+                'no_tools_server'           => __( 'No tools found for this server.', 'axiachat-ai' ),
+                'please_select_server_first'=> __( 'Please select a server first.', 'axiachat-ai' ),
+                'error_saving'              => __( 'Error saving.', 'axiachat-ai' ),
             ],
         ]
     );
