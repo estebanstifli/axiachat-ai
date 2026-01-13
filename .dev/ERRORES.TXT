@@ -1,0 +1,42 @@
+FILE: includes/providers/class-claude-provider.php
+Line	Column	Type	Code	Message	Edit Link
+256	25	ERROR	WordPress.WP.I18n.MissingTranslatorsComment	A function call to __() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
+Learn more (opens in a new tab)	View in code editor (opens in a new tab)
+730	25	ERROR	WordPress.WP.I18n.MissingTranslatorsComment	A function call to __() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
+Learn more (opens in a new tab)	View in code editor (opens in a new tab)
+
+FILE: includes/addon-connect-installer.php
+Line	Column	Type	Code	Message	Edit Link
+48	33	ERROR	WordPress.WP.I18n.MissingTranslatorsComment	A function call to esc_html__() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
+Learn more (opens in a new tab)	View in code editor (opens in a new tab)
+91	9	ERROR	WordPress.WP.I18n.MissingTranslatorsComment	A function call to esc_html__() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
+Learn more (opens in a new tab)	View in code editor (opens in a new tab)
+95	9	ERROR	WordPress.WP.I18n.MissingTranslatorsComment	A function call to esc_html__() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
+Learn more (opens in a new tab)	View in code editor (opens in a new tab)
+99	9	ERROR	WordPress.WP.I18n.MissingTranslatorsComment	A function call to esc_html__() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
+Learn more (opens in a new tab)	View in code editor (opens in a new tab)
+103	9	ERROR	WordPress.WP.I18n.MissingTranslatorsComment	A function call to esc_html__() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
+Learn more (opens in a new tab)	View in code editor (opens in a new tab)
+103	21	ERROR	WordPress.WP.I18n.UnorderedPlaceholdersText	Multiple placeholders in translatable strings should be ordered. Expected "%1$s, %2$s", but got "%s, %s" in 'Choose the %s file you downloaded and click %s.'.
+Learn more (opens in a new tab)	View in code editor (opens in a new tab)
+109	9	ERROR	WordPress.WP.I18n.MissingTranslatorsComment	A function call to esc_html__() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
+Learn more (opens in a new tab)	View in code editor (opens in a new tab)
+118	33	ERROR	WordPress.WP.I18n.MissingTranslatorsComment	A function call to esc_html__() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
+Learn more (opens in a new tab)	View in code editor (opens in a new tab)
+
+FILE: includes/settings/tab-general.php
+Line	Column	Type	Code	Message	Edit Link
+64	80	ERROR	WordPress.WP.I18n.MissingTranslatorsComment	A function call to __() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
+Learn more (opens in a new tab)	View in code editor (opens in a new tab)
+
+FILE: includes/settings/tab-addons.php
+Line	Column	Type	Code	Message	Edit Link
+84	57	ERROR	WordPress.WP.I18n.MissingTranslatorsComment	A function call to esc_html__() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
+Learn more (opens in a new tab)	View in code editor (opens in a new tab)
+89	57	ERROR	WordPress.WP.I18n.MissingTranslatorsComment	A function call to esc_html__() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
+Learn more (opens in a new tab)	View in code editor (opens in a new tab)
+
+FILE: .dev/aichat_settings_page.php
+Line	Column	Type	Code	Message
+99	100	ERROR	WordPress.WP.I18n.MissingTranslatorsComment	A function call to __() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
+Learn more (opens in a new tab)

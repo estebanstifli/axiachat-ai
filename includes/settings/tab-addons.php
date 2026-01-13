@@ -81,11 +81,13 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                             } elseif ( $connect_active ) {
                                 echo esc_html__( 'Andromeda Connect is active. WhatsApp and Telegram routing are available.', 'axiachat-ai' );
                                 if ( $connect_version ) {
+                                    /* translators: %s: Detected Andromeda Connect plugin version. */
                                     echo ' ' . sprintf( esc_html__( '(Version %s detected)', 'axiachat-ai' ), esc_html( $connect_version ) );
                                 }
                             } elseif ( $connect_installed ) {
                                 echo esc_html__( 'Andromeda Connect files are present. Activate the plugin from Plugins → Installed Plugins or enable it here after activation.', 'axiachat-ai' );
                                 if ( $connect_version ) {
+                                    /* translators: %s: Detected Andromeda Connect plugin version. */
                                     echo ' ' . sprintf( esc_html__( '(Version %s detected)', 'axiachat-ai' ), esc_html( $connect_version ) );
                                 }
                             } else {

@@ -250,9 +250,9 @@ class AIChat_Claude_Provider implements AIChat_Provider_Interface {
             
             // Si alcanzamos límite
             if ( $round === $max_rounds ) {
-                /* translators: %d: Maximum number of tool execution rounds allowed before aborting. */
                 return [
                     'error' => sprintf( 
+                        /* translators: %d: Maximum number of tool execution rounds allowed before aborting. */
                         __( 'Maximum tool execution rounds (%d) reached', 'axiachat-ai' ), 
                         $max_rounds 
                     ),
@@ -724,9 +724,9 @@ class AIChat_Claude_Provider implements AIChat_Provider_Interface {
                     aichat_log_debug( "[Claude Provider] Max rounds reached", ['max' => $max_rounds], true );
                 }
                 
-                /* translators: %d: Maximum number of tool execution rounds allowed before aborting. */
                 return [
                     'error' => sprintf( 
+                        /* translators: %d: Maximum number of tool execution rounds allowed before aborting. */
                         __( 'Maximum tool execution rounds (%d) reached', 'axiachat-ai' ), 
                         $max_rounds 
                     ),

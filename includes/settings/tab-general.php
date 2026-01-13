@@ -61,7 +61,12 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                         <label for="aichat_global_bot_slug" class="form-label fw-semibold"><?php echo esc_html__( 'Global Bot', 'axiachat-ai' ); ?></label>
                         <?php if ( empty( $bots ) ) : ?>
                             <select id="aichat_global_bot_slug" class="form-select" disabled name="aichat_global_bot_slug"><option><?php echo esc_html__( 'No bots defined yet', 'axiachat-ai' ); ?></option></select>
-                            <div class="form-text"><?php printf( wp_kses_post( __( 'Create one in <a href="%s">AI Chat → Bots</a>.', 'axiachat-ai' ) ), esc_url( admin_url( 'admin.php?page=aichat-bots-settings' ) ) ); ?></div>
+                            <div class="form-text">
+                                <?php
+                                /* translators: %s: URL to AI Chat Bots settings page. */
+                                printf( wp_kses_post( __( 'Create one in <a href="%s">AI Chat → Bots</a>.', 'axiachat-ai' ) ), esc_url( admin_url( 'admin.php?page=aichat-bots-settings' ) ) );
+                                ?>
+                            </div>
                         <?php else : ?>
                             <select id="aichat_global_bot_slug" class="form-select" name="aichat_global_bot_slug">
                                 <?php foreach ( $bots as $bot ) : ?>

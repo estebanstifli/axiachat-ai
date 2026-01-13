@@ -477,23 +477,8 @@ Opt‑Out / Control:
 
 === 4. Embedded Loader (Your Site’s Frontend) ===
 The public embed script served from your own domain loads the chat UI. It calls only your WordPress `admin-ajax.php` endpoint (dynamic URL) – no third‑party directly from the browser.
-
 Data Flow (Browser → Your Server → Provider):
-1. Browser sends user message + bot slug + nonce to your server.
-2. Server validates (nonce, honeypot, optional moderation) and selects provider.
-3. Server sends sanitized payload to OpenAI/Anthropic (and optionally Pinecone for retrieval).
-4. Response sanitized and returned to browser.
 
-No external JS/CDN calls are required; Bootstrap & Icons are bundled locally.
-
-== Roadmap ==
-== Roadmap ==
-== Roadmap ==
-* Conversation export / anonymize tooling
-* Expanded analytics dashboard
-* Additional AI providers (Azure OpenAI, Anthropic, etc.)
-* Retention policies (auto prune)
-* Rules/Actions engine for conditional bot behavior (planned)
 
 == FAQ ==
 

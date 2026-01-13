@@ -45,6 +45,7 @@ function aichat_addon_connect_installer_page() {
     if ( $plugin_is_active ) {
         echo '<div class="notice notice-success" style="margin-top:20px;"><p><strong>' . esc_html__( 'Andromeda Connect is already active!', 'axiachat-ai' ) . '</strong>';
         if ( $plugin_version ) {
+            /* translators: %s: Detected Andromeda Connect plugin version. */
             echo ' ' . sprintf( esc_html__( '(Version %s detected)', 'axiachat-ai' ), esc_html( $plugin_version ) );
         }
         echo '</p></div>';
@@ -88,24 +89,29 @@ function aichat_addon_connect_installer_page() {
     echo '<h3>' . esc_html__( 'Installation Steps', 'axiachat-ai' ) . '</h3>';
     echo '<ol>';
     echo '<li>' . sprintf(
+        /* translators: %s: The filename of the plugin zip file. */
         esc_html__( 'Download the %s file from the link above.', 'axiachat-ai' ),
         '<code>andromeda-connect.zip</code>'
     ) . '</li>';
     echo '<li>' . sprintf(
+        /* translators: %s: The WordPress admin menu path. */
         esc_html__( 'In your WordPress admin, navigate to %s.', 'axiachat-ai' ),
         '<strong>' . esc_html__( 'Plugins → Add New Plugin', 'axiachat-ai' ) . '</strong>'
     ) . '</li>';
     echo '<li>' . sprintf(
+        /* translators: %s: The button label in the WordPress Plugins screen. */
         esc_html__( 'Click %s at the top of the page.', 'axiachat-ai' ),
         '<strong>' . esc_html__( 'Upload Plugin', 'axiachat-ai' ) . '</strong>'
     ) . '</li>';
     echo '<li>' . sprintf(
-        esc_html__( 'Choose the %s file you downloaded and click %s.', 'axiachat-ai' ),
+        /* translators: 1: The filename of the plugin zip file. 2: The install button label. */
+        esc_html__( 'Choose the %1$s file you downloaded and click %2$s.', 'axiachat-ai' ),
         '<code>andromeda-connect.zip</code>',
         '<strong>' . esc_html__( 'Install Now', 'axiachat-ai' ) . '</strong>'
     ) . '</li>';
     echo '<li>' . esc_html__( 'Once the upload completes, click <strong>Activate Plugin</strong>.', 'axiachat-ai' ) . '</li>';
     echo '<li>' . sprintf(
+        /* translators: %s: The settings menu path where the Add-ons tab lives. */
         esc_html__( 'Return to %s and enable the WhatsApp & Telegram toggle.', 'axiachat-ai' ),
         '<strong>' . esc_html__( 'AxiaChat Settings → Add-ons', 'axiachat-ai' ) . '</strong>'
     ) . '</li>';
@@ -115,6 +121,7 @@ function aichat_addon_connect_installer_page() {
     if ( $plugin_is_present && ! $plugin_is_active ) {
         echo '<div class="notice notice-warning inline" style="margin-top:24px;"><p>' . esc_html__( 'Plugin files already exist on this site. You can activate Andromeda Connect from the Plugins screen.', 'axiachat-ai' );
         if ( $plugin_version ) {
+            /* translators: %s: Detected Andromeda Connect plugin version. */
             echo ' ' . sprintf( esc_html__( '(Version %s detected)', 'axiachat-ai' ), esc_html( $plugin_version ) );
         }
         echo '</p></div>';
