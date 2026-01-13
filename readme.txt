@@ -2,9 +2,9 @@
 Contributors: estebandezafra
 Tags: chatbot, ai, openai, chat, assistant
 Requires at least: 5.0
-Tested up to: 6.8
+Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.2.6
+Stable tag: 1.2.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -330,31 +330,6 @@ Troubleshooting:
 * If embeddings fail, check that your OpenAI API key is valid and that the server can reach api.openai.com.
 * Browser console (when AICHAT_DEBUG true) will include extra debug logs.
 
-== Shortcode Reference ==
-Basic:
-`[aichat id="bot-slug"]`
-
-Aliases: also `bot="bot-slug"`.
-
-Optional overrides (if supported):
-* title="Custom Title"
-* placeholder="Ask me anything..."
-* layout="floating|inline"
-* position="br|bl|tr|tl|bottom-right|bottom-left|top-right|top-left"
-* class="extra-css-class"
-
-Example:
-`[aichat id="support-bot" title="Support Assistant" layout="floating" position="bottom-left"]`
-
-== Data Storage ==
-Custom tables:
-* wp_aichat_conversations – message, response, timestamps, page_id, session_id, bot slug, optional user_id, IP (binary) if limits active
-* wp_aichat_contexts – context definitions
-* wp_aichat_chunks – content chunks & embeddings
-* wp_aichat_bots – bot configuration
-
-Options store API key, limits, GDPR, widget settings. Tables are not auto‑dropped on uninstall (safety).
-
 == Privacy ==
 User prompts (and selected context snippets) are sent to OpenAI. Content may contain personal data if users type it. Inform users and obtain consent where required. Logging can be disabled; if enabled, data stays on your server.
 
@@ -366,19 +341,12 @@ User prompts (and selected context snippets) are sent to OpenAI. Content may con
 * Consent: Optional in‑stream consent bubble blocks input until accepted
 * Recommendation: Add a privacy note near the chat input
 
-== Security ==
-* Nonces on AJAX (`aichat_ajax`, delete actions, etc.)
-* Capability checks (`manage_options`) for admin screens
-* Prepared statements / sanitization for user input
-* Escaped output in admin & front‑end templates
-* API key stored in an option (not exposed publicly)
-
-== Performance ==
-* Assets only enqueued when needed; versioned with filemtime
-* Embedding/PDF ingestion can be heavy—schedule during low traffic
-* Lightweight front‑end footprint otherwise
-
 == Changelog ==
+= 1.2.7 =
+* Added: GPT-5.1 models support (Instant, Thinking) - OpenAI's latest generation.
+* Tested: Fully compatible with WordPress 6.9.
+* Updated: Token limits and pricing for new GPT-5.1 models.
+
 = 1.2.6 =
 * Added: WhatsApp as an input/output channel through integration with another plugin.
 * Enhanced: Tabbed interface in settings for better navigation.
@@ -586,52 +554,6 @@ A: Yes. Use the WordPress.org support forum or contact us directly for priority 
 1. Bot configuration
 2. Context ingestion & indexing
 3. Usage / Costs
-
-== Changelog ==
-= 1.2.0 =
-* Added: Tokens and tools in system instructions
-* Fix: In some installations, the MySQL foreign key was failing
-
-= 1.1.9 =
-* Added: Tools Test for debug
-* Added: Compatibility with the Simply Schedule Appointments booking plugin
-
-= 1.1.8 =
-* Added: new avatars to choose
-
-= 1.1.7 =
-* Added: Spanish (Spain) translations (es_ES).
-
-= 1.1.6 =
-* AI Tools: per‑bot capabilities & macros, including OpenAI native web search with optional domain allowlist
-* Normalized Tools schema for OpenAI Responses models (fixes missing `tools[0].name` errors)
-* AI Tools logs now stored in site‑local timezone for consistency
-* Admin UI/documentation improvements; coding standards cleanups
-
-= 1.1.3 =
-* AutoSync system (diff detection: modified/new/orphans) + queue merging
-* Manual “Run AutoSync Now” modal (modified / modified+new / full)
-* Browse Chunks tab (pagination, filters, excerpts)
-* UI refinements and progress refresh improvements
-* Normalized autosync scope markers (ALL_* vs LIMITED)
-* Updated internationalization strings
-
-= 1.1.2 =
-* Easy Config wizard (guided context + default bot linking)
-* Instruction template selector UI improvements
-* Added support instruction templates
-* Minor bots list loading fix
-
-= 1.1.0 =
-* Logs admin screens (list & detail) + delete with nonce
-* Logging toggle / IP capture for limits
-* Daily usage limits (per user/IP + global)
-* GDPR consent bubble
-* UI enhancements (avatars, window controls, draggable panel)
-* Security/escaping pass & local vendor assets
-
-= 1.0.0 =
-* Initial release
 
 == Support ==
 Use the WordPress.org support forum. Provide WP version, PHP version, logging status, and reproduction steps.

@@ -890,13 +890,15 @@ class AIChat_OpenAI_Provider implements AIChat_Provider_Interface {
     }
     
     /**
-     * Detectar si el modelo es GPT-5
+     * Detectar si el modelo es GPT-5 o GPT-5.x (Responses API)
+     * 
+     * Incluye: gpt-5, gpt-5-mini, gpt-5-nano, gpt-5.1, gpt-5.1-chat-latest, gpt-5.1-codex-max, etc.
      * 
      * @param string $model Nombre del modelo
-     * @return bool True si es GPT-5
+     * @return bool True si es GPT-5 o GPT-5.x
      */
     protected function is_gpt5_model( $model ) {
-        return (bool) preg_match( '/^gpt-5(\b|[-_])/i', (string) $model );
+        return (bool) preg_match( '/^gpt-5(\.\d+)?([\b_-]|$)/i', (string) $model );
     }
     
     /**
@@ -912,6 +914,30 @@ class AIChat_OpenAI_Provider implements AIChat_Provider_Interface {
     public function calculate_cost( $usage, $model ) {
         // Tabla de precios (USD per 1K tokens)
         $pricing = [
+            // GPT-5.1 (Nov 2025) - Latest generation
+            'gpt-5.1-chat-latest' => [
+                'prompt' => 2.00,
+                'completion' => 8.00
+            ],
+            'gpt-5.1' => [
+                'prompt' => 3.00,
+                'completion' => 12.00
+            ],
+            
+            // GPT-5 (2025)
+            'gpt-5' => [
+                'prompt' => 2.50,
+                'completion' => 10.00
+            ],
+            'gpt-5-mini' => [
+                'prompt' => 0.30,
+                'completion' => 1.20
+            ],
+            'gpt-5-nano' => [
+                'prompt' => 0.10,
+                'completion' => 0.40
+            ],
+            
             // GPT-4o (Optimized)
             'gpt-4o' => [
                 'prompt' => 2.50,

@@ -91,9 +91,16 @@
     
     // OpenAI
     return [
+      // GPT-5.1 (Nov 2025) - Latest generation
+      { val:'gpt-5.1-chat-latest', label:'GPT-5.1 Instant (Nov 2025) [RECOMMENDED]' },
+      { val:'gpt-5.1',              label:'GPT-5.1 Thinking (Adaptive Reasoning)' },
+      
+      // GPT-5 (2025)
       { val:'gpt-5',       label:'GPT-5' },
       { val:'gpt-5-mini',  label:'GPT-5 Mini' },
       { val:'gpt-5-nano',  label:'GPT-5 Nano' },
+      
+      // GPT-4o (2024)
       { val:'gpt-4o',      label:'GPT-4o' },
       { val:'gpt-4o-mini', label:'GPT-4o Mini' },
       { val:'gpt-4-turbo', label:'GPT-4 Turbo' },
@@ -128,6 +135,11 @@
 
   /* ================== TOKEN INFO OPCIONAL ================== */
   const MODEL_TOKEN_INFO = {
+    // GPT-5.1 (Nov 2025) - Improved context and output
+    'gpt-5.1-chat-latest': { ctx:256000, comp:65536, rec:32768 },
+    'gpt-5.1':              { ctx:256000, comp:65536, rec:32768 },
+    
+    // GPT-5
     'gpt-5':        { ctx:256000, comp:32768, rec:32768 },
     'gpt-5-mini':   { ctx:128000, comp:16384, rec:12000 },
     'gpt-5-nano':   { ctx:64000,  comp:8192,  rec:6000 },
@@ -151,6 +163,66 @@
     'claude-3-sonnet-20240229':   { ctx:200000, comp:4096,  rec:3500 },
     'claude-3-haiku-20240307':    { ctx:200000, comp:4096,  rec:3000 }
   };
+
+  const DEFAULT_MAX_TOKENS_FALLBACK = 4096;
+  const LEGACY_MAX_TOKENS_DEFAULT = 2048;
+
+  function recommendedMaxTokens(model){
+    const info = MODEL_TOKEN_INFO[model];
+    if (!info) return DEFAULT_MAX_TOKENS_FALLBACK;
+    return info.rec || info.comp || info.ctx || DEFAULT_MAX_TOKENS_FALLBACK;
+  }
+
+  function syncMaxTokensFlag(bot){
+    if (!bot) return;
+    const recommended = recommendedMaxTokens(bot.model);
+    let max = Number(bot.max_tokens);
+    if (!isFinite(max) || max <= 0) {
+      bot.max_tokens = recommended;
+      bot.__maxTokensCustom = false;
+      return;
+    }
+    bot.max_tokens = max;
+    const rounded = Math.round(max);
+    if (rounded === LEGACY_MAX_TOKENS_DEFAULT) {
+      bot.__maxTokensCustom = false;
+      return;
+    }
+    bot.__maxTokensCustom = recommended ? rounded !== Math.round(recommended) : false;
+  }
+
+  function maybeApplyRecommendedMaxTokens(bot, opts){
+    if (!bot) return null;
+    const recommended = recommendedMaxTokens(bot.model);
+    if (!recommended) return null;
+    const force = !!(opts && opts.force);
+    if (!force && bot.__maxTokensCustom) return null;
+
+    const current = Number(bot.max_tokens);
+    if (!force && Math.round(current) === Math.round(recommended)) {
+      bot.__maxTokensCustom = false;
+      return null;
+    }
+
+    bot.max_tokens = recommended;
+    bot.__maxTokensCustom = false;
+    const $panel = $('#aichat-panel');
+    const $input = $panel.find(`#mx-${bot.id}`);
+    if ($input.length) $input.val(recommended);
+    return recommended;
+  }
+
+  function maybeUpgradeLegacyMaxTokens(bot){
+    if (!bot || !bot.id) return;
+    if (bot.__maxTokensCustom) return;
+    const recommended = recommendedMaxTokens(bot.model);
+    const rounded = Math.round(Number(bot.max_tokens));
+    if (!recommended || rounded !== LEGACY_MAX_TOKENS_DEFAULT) return;
+    if (Math.round(recommended) === LEGACY_MAX_TOKENS_DEFAULT) return;
+    bot.max_tokens = recommended;
+    bot.__maxTokensCustom = false;
+    updateBot(bot.id, { max_tokens: recommended });
+  }
 
   function updateModelTokenInfo(botId){
     const b = findBot(botId);
@@ -215,7 +287,8 @@
     provider: 'openai',
     model: 'gpt-5-nano',
     temperature: 0.7,
-    max_tokens: 2048,
+    max_tokens: recommendedMaxTokens('gpt-5-nano'),
+    __maxTokensCustom: false,
     reasoning: 'off',     // off|fast|accurate
     verbosity: 'medium',  // low|medium|high
 
@@ -245,6 +318,13 @@
 
     is_default: 0
   });
+
+  function makeBot(row){
+    const bot = Object.assign(defaults(), row || {});
+    syncMaxTokensFlag(bot);
+    maybeUpgradeLegacyMaxTokens(bot);
+    return bot;
+  }
 
   const embeddingOptions = ()=>{
     const raw = (window.aichat_bots_ajax && Array.isArray(window.aichat_bots_ajax.embedding_options))
@@ -279,17 +359,17 @@
       .done(res=>{
         log('LIST ←', res);
         if (res && res.success && Array.isArray(res.data)) {
-          bots = res.data.map(row => Object.assign(defaults(), row));
+          bots = res.data.map(row => makeBot(row));
           if (bots.length) activeId = bots[0].id;
         } else {
-          bots = [Object.assign(defaults(), {id:0})];
+          bots = [makeBot({id:0})];
           activeId = 0;
         }
         renderAll();
       })
       .fail(err=>{
         console.error('LIST error', err);
-        bots = [Object.assign(defaults(), {id:0})];
+        bots = [makeBot({id:0})];
         activeId = 0;
         renderAll();
       });
@@ -300,7 +380,7 @@
       .done(res=>{
         log('CREATE ←', res);
         if (res && res.success && res.data) {
-          const bot = Object.assign(defaults(), res.data);
+          const bot = makeBot(res.data);
           bots.push(bot);
           activeId = bot.id;
           renderAll();
@@ -325,7 +405,7 @@
       .done(res=>{
         log('DUP ←', res);
         if (res && res.success && res.data) {
-          const copy = Object.assign(defaults(), res.data);
+          const copy = makeBot(res.data);
           bots.push(copy);
           activeId = copy.id;
           renderAll();
@@ -340,7 +420,7 @@
         if (res && res.success && res.data) {
           const idx = bots.findIndex(b => String(b.id)===String(botId));
           if (idx>=0) {
-            bots[idx] = Object.assign(defaults(), res.data);
+            bots[idx] = makeBot(res.data);
             activeId = bots[idx].id;
             renderAll();
           }
@@ -355,7 +435,7 @@
         if (res && res.success) {
           bots = bots.filter(b => String(b.id)!==String(botId));
           if (!bots.length) {
-            bots = [Object.assign(defaults(), {id:0, is_default:1})];
+            bots = [makeBot({id:0, is_default:1})];
           }
           if (!findBot(activeId)) activeId = bots[0].id;
           renderAll();
@@ -899,6 +979,16 @@
         val = isFinite(num) ? num : val;
       }
 
+      if (field === 'max_tokens') {
+        const bot = findBot(id);
+        if (bot) {
+          const numeric = Number(val);
+          bot.max_tokens = isFinite(numeric) ? numeric : 0;
+          const rec = recommendedMaxTokens(bot.model);
+          bot.__maxTokensCustom = rec ? Math.round(bot.max_tokens) !== Math.round(rec) : true;
+        }
+      }
+
       if (field === 'ui_avatar_enabled') {
         $(`#avatar-wrap-${id}`).toggle(!!val);
         try { updateAvaScroll(id); } catch(e){}
@@ -915,7 +1005,12 @@
         if (bot) {
           bot.provider = val;
           rebuildModelSelect(id);
-          updateBot(id, { provider: bot.provider, model: bot.model });
+          const patch = { provider: bot.provider, model: bot.model };
+          const newMax = maybeApplyRecommendedMaxTokens(bot);
+          if (typeof newMax === 'number') {
+            patch.max_tokens = newMax;
+          }
+          updateBot(id, patch);
           schedulePreview(id);
           return;
         }
@@ -925,6 +1020,14 @@
         if (bot) {
           bot.model = val;
           updateModelTokenInfo(id);
+          const patch = { model: bot.model };
+          const newMax = maybeApplyRecommendedMaxTokens(bot);
+          if (typeof newMax === 'number') {
+            patch.max_tokens = newMax;
+          }
+          updateBot(id, patch);
+          schedulePreview(id);
+          return;
         }
       }
 
