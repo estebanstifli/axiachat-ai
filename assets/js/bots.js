@@ -91,9 +91,9 @@
     
     // OpenAI
     return [
-      // GPT-5.1 (Nov 2025) - Latest generation
-      { val:'gpt-5.1-chat-latest', label:'GPT-5.1 Instant (Nov 2025) [RECOMMENDED]' },
-      { val:'gpt-5.1',              label:'GPT-5.1 Thinking (Adaptive Reasoning)' },
+      // GPT-5.2 (Dec 2025) - Latest generation
+      { val:'gpt-5.2-chat-latest', label:'GPT-5.2 Instant (Dec 2025) [RECOMMENDED]' },
+      { val:'gpt-5.2',              label:'GPT-5.2 Thinking (Adaptive Reasoning)' },
       
       // GPT-5 (2025)
       { val:'gpt-5',       label:'GPT-5' },
@@ -135,9 +135,9 @@
 
   /* ================== TOKEN INFO OPCIONAL ================== */
   const MODEL_TOKEN_INFO = {
-    // GPT-5.1 (Nov 2025) - Improved context and output
-    'gpt-5.1-chat-latest': { ctx:256000, comp:65536, rec:32768 },
-    'gpt-5.1':              { ctx:256000, comp:65536, rec:32768 },
+    // GPT-5.2 (Dec 2025) - Improved context and output
+    'gpt-5.2-chat-latest': { ctx:256000, comp:65536, rec:32768 },
+    'gpt-5.2':              { ctx:256000, comp:65536, rec:32768 },
     
     // GPT-5
     'gpt-5':        { ctx:256000, comp:32768, rec:32768 },

@@ -892,7 +892,7 @@ class AIChat_OpenAI_Provider implements AIChat_Provider_Interface {
     /**
      * Detectar si el modelo es GPT-5 o GPT-5.x (Responses API)
      * 
-     * Incluye: gpt-5, gpt-5-mini, gpt-5-nano, gpt-5.1, gpt-5.1-chat-latest, gpt-5.1-codex-max, etc.
+     * Incluye: gpt-5, gpt-5-mini, gpt-5-nano, gpt-5.2, gpt-5.2-chat-latest, gpt-5.2-codex-max, etc.
      * 
      * @param string $model Nombre del modelo
      * @return bool True si es GPT-5 o GPT-5.x
@@ -914,12 +914,12 @@ class AIChat_OpenAI_Provider implements AIChat_Provider_Interface {
     public function calculate_cost( $usage, $model ) {
         // Tabla de precios (USD per 1K tokens)
         $pricing = [
-            // GPT-5.1 (Nov 2025) - Latest generation
-            'gpt-5.1-chat-latest' => [
+            // GPT-5.2 (Dec 2025) - Latest generation
+            'gpt-5.2-chat-latest' => [
                 'prompt' => 2.00,
                 'completion' => 8.00
             ],
-            'gpt-5.1' => [
+            'gpt-5.2' => [
                 'prompt' => 3.00,
                 'completion' => 12.00
             ],
