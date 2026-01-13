@@ -1,4 +1,6 @@
 <?php
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 function aichat_get_chatbot_templates() {
     $templates = [                
         'customer_service_tech_specialist' => [

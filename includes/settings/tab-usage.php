@@ -1,4 +1,6 @@
 <?php
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 /**
  * Usage & Moderation tab markup for AI Chat settings.
  * Depends on helper functions like aichat_get_setting() already loaded.

@@ -1,4 +1,6 @@
 <?php
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 /**
  * Add-ons tab markup for AI Chat settings.
  * Uses variables prepared in parent scope: $connect_option, $connect_install_url,
