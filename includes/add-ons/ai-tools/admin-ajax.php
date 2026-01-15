@@ -1,6 +1,9 @@
 <?php
 if ( ! defined('ABSPATH') ) { exit; }
 
+// Admin-only add-on endpoints; uses direct DB reads/writes for internal tables.
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
 add_action('wp_ajax_aichat_tools_get_rules', function(){
   if ( ! current_user_can('manage_options') ) { wp_send_json_error(['message'=>'forbidden'],403); }
   check_ajax_referer('aichat_tools_nonce','nonce');
@@ -11,6 +14,8 @@ add_action('wp_ajax_aichat_tools_get_rules', function(){
   $rules = isset($decoded[$bot]) && is_array($decoded[$bot]) ? $decoded[$bot] : [];
   wp_send_json_success(['rules'=>$rules]);
 });
+
+// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
 add_action('wp_ajax_aichat_tools_save_rules', function(){
   if ( ! current_user_can('manage_options') ) { wp_send_json_error(['message'=>'forbidden'],403); }
@@ -35,6 +40,7 @@ add_action('wp_ajax_aichat_tools_get_bot_tools', function(){
   global $wpdb; $bot_slug = isset($_POST['bot']) ? sanitize_title(wp_unslash($_POST['bot'])) : '';
   if ($bot_slug==='') { wp_send_json_error(['message'=>'missing_bot'],400); }
     $bots_table = $wpdb->prefix.'aichat_bots';
+  // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin-only internal table read.
   // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is derived from $wpdb->prefix; values use placeholders
   $row = $wpdb->get_row( $wpdb->prepare("SELECT tools_json FROM {$bots_table} WHERE slug=%s", $bot_slug), ARRAY_A );
   $selected = [];
@@ -60,6 +66,7 @@ add_action('wp_ajax_aichat_tools_save_bot_tools', function(){
       if(!in_array($id,$clean,true)) $clean[] = $id; }
   }
     $bots_table = $wpdb->prefix.'aichat_bots';
+  // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin-only internal table update.
   $updated = $wpdb->update($bots_table, [ 'tools_json' => wp_json_encode($clean) ], [ 'slug'=>$bot_slug ] );
   if($updated===false){ wp_send_json_error(['message'=>'db_error']); }
   wp_send_json_success(['saved'=>true,'selected'=>$clean,'bot'=>$bot_slug]);

@@ -40,7 +40,9 @@ function aichat_render_shortcode( $atts, $content = null, $tag = 'aichat' ) {
         if ( $global_on && $global_slug ) {
             $slug = sanitize_title( $global_slug );
         } else {
-            $slug = $wpdb->get_var( "SELECT slug FROM {$wpdb->prefix}aichat_bots ORDER BY id ASC LIMIT 1" );
+            $bots_table = $wpdb->prefix . 'aichat_bots';
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Internal table, no user input.
+            $slug = $wpdb->get_var( "SELECT slug FROM {$bots_table} ORDER BY id ASC LIMIT 1" );
             $slug = $slug ? sanitize_title( $slug ) : '';
         }
     }
@@ -55,7 +57,12 @@ function aichat_render_shortcode( $atts, $content = null, $tag = 'aichat' ) {
 
     // Leer bot de BD
     $table = $wpdb->prefix . 'aichat_bots';
-    $bot   = $wpdb->get_row( $wpdb->prepare("SELECT * FROM {$table} WHERE slug=%s LIMIT 1", $slug), ARRAY_A );
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Frontend read of plugin settings table.
+    $bot   = $wpdb->get_row(
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is a trusted plugin table name.
+        $wpdb->prepare( "SELECT * FROM {$table} WHERE slug=%s LIMIT 1", $slug ),
+        ARRAY_A
+    );
 
     if ( ! $bot ) {
         if ( current_user_can('manage_options') ) {

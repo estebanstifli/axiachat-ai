@@ -11,7 +11,8 @@ function aichat_bots_settings_page() {
   // Carga opciones de contextos (para el selector de embeddings)
   global $wpdb;
   $ctx_table = $wpdb->prefix . 'aichat_contexts';
-  $contexts  = $wpdb->get_results("SELECT id, name FROM $ctx_table ORDER BY id DESC", ARRAY_A);
+  // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Admin-only read of internal table.
+  $contexts  = $wpdb->get_results( "SELECT id, name FROM $ctx_table ORDER BY id DESC", ARRAY_A );
   $embedding_options = array_map(function($r){
       return ['id' => (int)$r['id'], 'text' => $r['name']];
   }, $contexts);

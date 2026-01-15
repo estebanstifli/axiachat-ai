@@ -9,7 +9,13 @@ if ( ! defined('AICHAT_PDF_PAGE_SLUG') ) define('AICHAT_PDF_PAGE_SLUG', 'aichat-
 if ( ! defined('AICHAT_PLUGIN_VER') )   define('AICHAT_PLUGIN_VER', '1.0.0');
 
 add_action('admin_enqueue_scripts', function( $hook ){
-    if ( ! isset($_GET['page']) || $_GET['page'] !== AICHAT_PDF_PAGE_SLUG ) { return; }
+    $page = '';
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only routing param; no state change.
+    if ( isset( $_GET['page'] ) ) {
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only routing param; no state change.
+        $page = sanitize_key( wp_unslash( $_GET['page'] ) );
+    }
+    if ( $page !== AICHAT_PDF_PAGE_SLUG ) { return; }
 
     // === CSS: corrige ancho ===
     $css = "

@@ -84,7 +84,9 @@ if ( ! class_exists( 'AIChat_Core' ) ) {
         /** Devuelve el primer bot por si el slug global está vacío (fallback opcional) */
         private function get_first_bot_slug() {
             global $wpdb;
-            $slug = $wpdb->get_var( "SELECT slug FROM {$wpdb->prefix}aichat_bots ORDER BY id ASC LIMIT 1" );
+            $bots_table = $wpdb->prefix . 'aichat_bots';
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Internal table lookup; small read; safe fallback.
+            $slug = $wpdb->get_var( "SELECT slug FROM {$bots_table} ORDER BY id ASC LIMIT 1" );
             aichat_log_debug('[AIChat Core] get_first_bot_slug: ' . ( $slug ?: 'NULL' ));
             return $slug;
         }

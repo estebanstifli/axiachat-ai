@@ -1,6 +1,10 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+// This module runs on WP-Cron / Action Scheduler and performs internal maintenance.
+// Caching DB reads/writes here is not beneficial and can lead to stale state.
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
 /* ==============================
    Configuración
 ============================== */
@@ -386,7 +390,8 @@ function aichat_autosync_hourly_handler(){
     $table = $wpdb->prefix.'aichat_contexts';
     // Seleccionar contextos locales con autosync activo (tabla conocida -> concatenación segura del nombre de tabla)
     $contexts = $wpdb->get_results(
-        $wpdb->prepare("SELECT id, autosync_mode, autosync_post_types FROM $table WHERE context_type=%s AND autosync=%d", 'local', 1),
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is a trusted plugin table name.
+        $wpdb->prepare( "SELECT id, autosync_mode, autosync_post_types FROM $table WHERE context_type=%s AND autosync=%d", 'local', 1 ),
         ARRAY_A
     );
     if ( empty($contexts) ) { aichat_log_debug('AutoSync: no active contexts'); return; }
@@ -406,29 +411,31 @@ function aichat_autosync_hourly_handler(){
         $base_params = array_merge([$context_id], $post_types);
 
         // 1. Modificados: posts publicados cuyo post_modified_gmt > max(updated_at/created_at) de su set de chunks
-        $modified = $wpdb->get_col( $wpdb->prepare(
+        $modified_sql =
             "SELECT p.ID
              FROM {$wpdb->posts} p
              JOIN {$wpdb->prefix}aichat_chunks c ON c.post_id=p.ID AND c.id_context=%d
              WHERE p.post_status='publish' AND p.post_type IN ($placeholders_types)
              GROUP BY p.ID
              HAVING TIMESTAMP(MAX(COALESCE(c.updated_at,c.created_at))) < TIMESTAMP(MAX(p.post_modified_gmt))
-             LIMIT 100",
-            $base_params
-        ) );
+             LIMIT 100";
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $placeholders_types is generated from sanitized post types; tables are internal.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Prepared immediately below via $wpdb->prepare with variadics.
+        $modified = $wpdb->get_col( $wpdb->prepare( $modified_sql, ...$base_params ) );
 
         // 2. Nuevos (solo si updates_and_new): posts sin chunks
         $new = [];
         if ( $mode === 'updates_and_new' ) {
-            $new = $wpdb->get_col( $wpdb->prepare(
+            $new_sql =
                 "SELECT p.ID
                  FROM {$wpdb->posts} p
                  LEFT JOIN {$wpdb->prefix}aichat_chunks c ON c.post_id=p.ID AND c.id_context=%d
                  WHERE c.post_id IS NULL AND p.post_status='publish' AND p.post_type IN ($placeholders_types)
                  ORDER BY p.ID DESC
-                 LIMIT 100",
-                $base_params
-            ) );
+                 LIMIT 100";
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $placeholders_types is generated from sanitized post types; tables are internal.
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Prepared immediately below via $wpdb->prepare with variadics.
+            $new = $wpdb->get_col( $wpdb->prepare( $new_sql, ...$base_params ) );
         }
 
         // 3. Huérfanos (deleted/unpublished)
@@ -447,7 +454,11 @@ function aichat_autosync_hourly_handler(){
         }
 
         // Cargar items_to_process actual y añadir nuevos IDs (sin duplicar) – por ahora solo reindex (modify/new). Borrados se gestionarán después.
-        $row = $wpdb->get_row( $wpdb->prepare("SELECT items_to_process FROM $table WHERE id=%d", $context_id), ARRAY_A );
+        $row = $wpdb->get_row(
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is a trusted plugin table name.
+            $wpdb->prepare( "SELECT items_to_process FROM $table WHERE id=%d", $context_id ),
+            ARRAY_A
+        );
         $current = maybe_unserialize( $row['items_to_process'] ?? '' );
         if ( ! is_array($current) ) { $current = []; }
 
@@ -463,10 +474,10 @@ function aichat_autosync_hourly_handler(){
         if ( $orphans ) {
             $orph_placeholders = implode(',', array_fill(0, count($orphans), '%d'));
             $del_params = array_merge([$context_id], array_map('intval',$orphans));
-            $wpdb->query( $wpdb->prepare(
-                "DELETE FROM {$wpdb->prefix}aichat_chunks WHERE id_context=%d AND post_id IN ($orph_placeholders)",
-                $del_params
-            ) );
+            $delete_sql = "DELETE FROM {$wpdb->prefix}aichat_chunks WHERE id_context=%d AND post_id IN ($orph_placeholders)";
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $orph_placeholders is generated from validated integers; table is internal.
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Prepared immediately below via $wpdb->prepare with variadics.
+            $wpdb->query( $wpdb->prepare( $delete_sql, ...$del_params ) );
             aichat_log_debug('AutoSync deleted orphan chunks', ['ctx'=>$context_id,'deleted'=>count($orphans)]);
         }
     }
@@ -482,9 +493,9 @@ function aichat_cleanup_tool_states() {
     $table = $wpdb->prefix . 'aichat_tool_states';
     
     // Eliminar estados creados hace más de 1 hora
-    $deleted = $wpdb->query( $wpdb->prepare(
-        "DELETE FROM $table WHERE created_at < DATE_SUB(NOW(), INTERVAL 1 HOUR)"
-    ) );
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Scheduled cleanup on internal table.
+    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- No user input; $table is internal.
+    $deleted = $wpdb->query( "DELETE FROM $table WHERE created_at < DATE_SUB(NOW(), INTERVAL 1 HOUR)" );
     
     if ( defined('AICHAT_DEBUG') && AICHAT_DEBUG && $deleted > 0 ) {
         aichat_log_debug( 'Tool states cleanup', [
@@ -499,3 +510,5 @@ add_action( 'aichat_cleanup_tool_states', 'aichat_cleanup_tool_states' );
 if ( ! wp_next_scheduled( 'aichat_cleanup_tool_states' ) ) {
     wp_schedule_event( time(), 'hourly', 'aichat_cleanup_tool_states' );
 }
+
+// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching

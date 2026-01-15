@@ -126,6 +126,7 @@ trait AIChat_Tool_Execution {
         $table = $wpdb->prefix . 'aichat_tool_calls';
         
         foreach ( $outputs as $output ) {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Internal tool execution audit log.
             $wpdb->insert( $table, [
                 'request_uuid' => $context['request_uuid'] ?? '',
                 'conversation_id' => null, // Se vincula después en process_message

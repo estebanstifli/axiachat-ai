@@ -4,6 +4,9 @@
  */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+// Tool registry + helpers may use direct DB reads/writes for internal plugin tables.
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
 if ( ! function_exists( 'aichat_register_tool' ) ) {
     function aichat_register_tool( $id, $args ) {
         static $tools = [];
@@ -199,6 +202,7 @@ add_filter('aichat_openai_responses_tools', function( $tools, $ctx ){
     if ($bot_slug === '') return $tools;
     // Load bot row to inspect selected capabilities (tools_json)
     global $wpdb; $bots_table = $wpdb->prefix.'aichat_bots';
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Internal table read during tool injection.
     // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name safe; slug uses placeholder
     $row = $wpdb->get_row( $wpdb->prepare("SELECT tools_json FROM {$bots_table} WHERE slug=%s", $bot_slug), ARRAY_A );
     $selected = [];
@@ -253,6 +257,8 @@ add_filter('aichat_openai_responses_tools', function( $tools, $ctx ){
     return $tools;
 }, 10, 2);
 
+// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
 // Inject google_search tool for Gemini when selected via macro
 add_filter('aichat_gemini_tools', function( $tools, $ctx ){
     // $ctx: ['model'=>..., 'bot'=>bot_slug]
@@ -271,6 +277,7 @@ add_filter('aichat_gemini_tools', function( $tools, $ctx ){
     
     // Load bot row to inspect selected capabilities (tools_json)
     global $wpdb; $bots_table = $wpdb->prefix.'aichat_bots';
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Internal table read during tool injection.
     // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name safe; slug uses placeholder
     $row = $wpdb->get_row( $wpdb->prepare("SELECT tools_json FROM {$bots_table} WHERE slug=%s", $bot_slug), ARRAY_A );
     $selected = [];

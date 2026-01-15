@@ -6,7 +6,8 @@ if(!defined('ABSPATH')) exit;
 function aichat_usage_admin_page(){
   if(!current_user_can('manage_options')) return;
   
-  $active_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'usage';
+  // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- View-only tab switch; no state changes.
+  $active_tab = isset($_GET['tab']) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : 'usage';
   
   echo '<div class="wrap"><h1>'.esc_html__('AI Chat – Usage / Cost','axiachat-ai').'</h1>';
   
@@ -43,7 +44,7 @@ function aichat_render_usage_tab(){
 function aichat_render_pricing_tab(){
   $pricing = aichat_model_pricing();
   
-  echo '<p class="description">'.esc_html__('Current pricing per 1K tokens (input / output). Standard rates only.','axiachat-ai').' <em>'.esc_html__('Updated: November 14, 2025','axiachat-ai').'</em></p>';
+  echo '<p class="description">'.esc_html__('Current pricing per 1K tokens (input / output). Standard rates only.','axiachat-ai').' <em>'.esc_html__('Updated: January 15, 2026','axiachat-ai').'</em></p>';
   
   // OpenAI Section
   echo '<h2 style="margin-top:20px;">OpenAI Models <a href="https://openai.com/api/pricing/" target="_blank" class="button button-small" style="margin-left:10px;">'.esc_html__('Official Pricing','axiachat-ai').' ↗</a></h2>';

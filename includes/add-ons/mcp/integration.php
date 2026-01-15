@@ -11,6 +11,9 @@
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+// MCP integration uses internal plugin tables directly.
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
 /**
  * Check if a specific MCP tool is enabled
  * 
@@ -22,15 +25,20 @@ function aichat_mcp_is_tool_enabled( $server_id, $tool_name ) {
     global $wpdb;
     $table = $wpdb->prefix . 'aichat_tools';
     
-    $row = $wpdb->get_row( $wpdb->prepare(
-        "SELECT enabled FROM $table WHERE type = 'mcp' AND source_id = %s AND name = %s",
-        $server_id,
-        $tool_name
-    ) );
+    $row = $wpdb->get_row(
+        $wpdb->prepare(
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is plugin-controlled via $wpdb->prefix.
+            "SELECT enabled FROM {$table} WHERE type = 'mcp' AND source_id = %s AND name = %s",
+            $server_id,
+            $tool_name
+        )
+    );
     
     // Si no hay registro, por defecto está enabled
     return $row ? (bool) $row->enabled : true;
 }
+
+// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
 /**
  * Sync MCP tools to unified aichat_tools table
@@ -61,11 +69,14 @@ function aichat_mcp_sync_tools_to_db( $server_id, $tools ) {
         $definition_json = wp_json_encode( $tool );
         
         // Check if tool already exists
-        $existing = $wpdb->get_var( $wpdb->prepare(
-            "SELECT id FROM $table WHERE type = 'mcp' AND source_id = %s AND name = %s",
-            $server_id,
-            $tool_name
-        ) );
+        $existing = $wpdb->get_var(
+            $wpdb->prepare(
+                // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is plugin-controlled via $wpdb->prefix.
+                "SELECT id FROM {$table} WHERE type = 'mcp' AND source_id = %s AND name = %s",
+                $server_id,
+                $tool_name
+            )
+        );
         
         if ( $existing ) {
             // Tool already in DB - skip (table is read-only except on add/test)
@@ -135,7 +146,10 @@ function aichat_mcp_register_server_tools( $server_id = null ) {
 
     $sql .= ' ORDER BY source_id, name';
 
-    $mcp_tools = $wpdb->get_results( $wpdb->prepare( $sql, $params ), ARRAY_A );
+    // Use variadics so PHPCS can verify placeholders are bound.
+    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is a trusted plugin table name.
+    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is built from static fragments with placeholders and prepared immediately.
+    $mcp_tools = $wpdb->get_results( $wpdb->prepare( $sql, ...$params ), ARRAY_A );
     
     if ( empty( $mcp_tools ) ) {
         return;
@@ -304,16 +318,18 @@ function aichat_mcp_register_macros( $server_id = null ) {
     
     if ( $server_id !== null ) {
         // Get tools for specific server
-        $tools = $wpdb->get_results( $wpdb->prepare(
-            "SELECT source_id, name, enabled FROM $table WHERE type = 'mcp' AND source_id = %s",
-            $server_id
-        ), ARRAY_A );
-    } else {
-        // Get all MCP tools
         $tools = $wpdb->get_results(
-            "SELECT source_id, name, enabled FROM $table WHERE type = 'mcp'",
+            $wpdb->prepare(
+                // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is plugin-controlled via $wpdb->prefix.
+                "SELECT source_id, name, enabled FROM {$table} WHERE type = 'mcp' AND source_id = %s",
+                $server_id
+            ),
             ARRAY_A
         );
+    } else {
+        // Get all MCP tools
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is plugin-controlled via $wpdb->prefix.
+        $tools = $wpdb->get_results( "SELECT source_id, name, enabled FROM {$table} WHERE type = 'mcp'", ARRAY_A );
     }
     
     if ( empty( $tools ) ) {

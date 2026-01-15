@@ -21,12 +21,11 @@ function aichat_get_usage_summary(){
   // Build a prepared query for the last 30 days (local time) starting from local midnight 30 days ago.
   $start_30_midnight = $d_30 . ' 00:00:00';
   $sql_summary = $wpdb->prepare(
-    "SELECT DATE(created_at) d, SUM(total_tokens) tt, SUM(cost_micros) cm, COUNT(*) c
-       FROM {$conv}
-      WHERE created_at >= %s
-      GROUP BY DATE(created_at)",
+    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $conv is a trusted plugin table name.
+    "SELECT DATE(created_at) d, SUM(total_tokens) tt, SUM(cost_micros) cm, COUNT(*) c FROM {$conv} WHERE created_at >= %s GROUP BY DATE(created_at)",
     $start_30_midnight
   );
+  // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above; admin dashboard read.
   $rows = $wpdb->get_results( $sql_summary, ARRAY_A ) ?: [];
   $today = ['tokens'=>0,'cost'=>0,'conversations'=>0];
   $last7 = ['tokens'=>0,'cost'=>0,'conversations'=>0];
@@ -39,14 +38,11 @@ function aichat_get_usage_summary(){
   }
   // Top modelos últimos 30 días (mismo rango calculado) usando consulta preparada.
   $sql_top = $wpdb->prepare(
-    "SELECT model, provider, SUM(cost_micros) cm
-       FROM {$conv}
-      WHERE created_at >= %s AND cost_micros IS NOT NULL
-      GROUP BY model, provider
-      ORDER BY cm DESC
-      LIMIT 10",
+    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $conv is a trusted plugin table name.
+    "SELECT model, provider, SUM(cost_micros) cm FROM {$conv} WHERE created_at >= %s AND cost_micros IS NOT NULL GROUP BY model, provider ORDER BY cm DESC LIMIT 10",
     $start_30_midnight
   );
+  // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above; admin dashboard read.
   $top_models = $wpdb->get_results( $sql_top, ARRAY_A ) ?: [];
   wp_send_json_success([
     'today'=>$today,
@@ -61,8 +57,8 @@ function aichat_get_usage_timeseries(){
   check_ajax_referer('aichat_usage','nonce');
   aichat_usage_cap_check();
   global $wpdb; $conv = $wpdb->prefix.'aichat_conversations';
-  $date_from = isset($_POST['date_from']) ? sanitize_text_field($_POST['date_from']) : '';
-  $date_to = isset($_POST['date_to']) ? sanitize_text_field($_POST['date_to']) : '';
+  $date_from = isset($_POST['date_from']) ? sanitize_text_field( wp_unslash( $_POST['date_from'] ) ) : '';
+  $date_to = isset($_POST['date_to']) ? sanitize_text_field( wp_unslash( $_POST['date_to'] ) ) : '';
   if(!$date_from || !$date_to){
     $ts_today = current_time('timestamp');
     $date_to = wp_date('Y-m-d', $ts_today);
@@ -77,14 +73,12 @@ function aichat_get_usage_timeseries(){
   $end_ts = $date_to.' 23:59:59';
   // Build fully prepared query (table name is trusted via $wpdb->prefix). Using prepare for date bounds appeases phpcs.
   $sql = $wpdb->prepare(
-    "SELECT DATE(created_at) d, SUM(prompt_tokens) p, SUM(completion_tokens) c, SUM(total_tokens) t, SUM(cost_micros) m
-       FROM {$conv}
-      WHERE created_at BETWEEN %s AND %s
-      GROUP BY DATE(created_at)
-      ORDER BY d ASC",
+    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $conv is a trusted plugin table name.
+    "SELECT DATE(created_at) d, SUM(prompt_tokens) p, SUM(completion_tokens) c, SUM(total_tokens) t, SUM(cost_micros) m FROM {$conv} WHERE created_at BETWEEN %s AND %s GROUP BY DATE(created_at) ORDER BY d ASC",
       $start_ts,
       $end_ts
   );
+  // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above; admin dashboard read.
   $rows = $wpdb->get_results($sql, ARRAY_A) ?: [];
   wp_send_json_success(['series'=>$rows,'date_from'=>$date_from,'date_to'=>$date_to]);
 }

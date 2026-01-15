@@ -11,6 +11,9 @@
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+// MCP client manager may use direct DB reads/writes for internal plugin state.
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
 class AIChat_MCP_Client_Manager {
     
     /**
@@ -345,6 +348,7 @@ class AIChat_MCP_Client_Manager {
                 
                 // Query by sanitized safe name
                 $tool_row = $wpdb->get_row( $wpdb->prepare(
+                    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is a trusted plugin table name.
                     "SELECT source_id, name FROM {$table} WHERE type = 'mcp' AND REPLACE(LOWER(CONCAT(source_id, '_', name)), '-', '_') = %s LIMIT 1",
                     strtolower( $tool_name )
                 ), ARRAY_A );
@@ -588,3 +592,5 @@ class AIChat_MCP_Client_Manager {
         }
     }
 }
+
+// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching

@@ -9,6 +9,9 @@
 // - Las descriptions en propiedades del schema deben ser explícitas (formato de fechas, unidades, rangos).
 if ( ! defined('ABSPATH') ) { exit; }
 
+// Sample tools/macros; uses internal DB checks and writes.
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
 // Helper wrapper for safe tool registration
 if ( ! function_exists('aichat_register_tool_safe') ) {
     function aichat_register_tool_safe($id, $args) {
@@ -19,6 +22,8 @@ if ( ! function_exists('aichat_register_tool_safe') ) {
     }
 }
 
+// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
 // Defer registration until tables are created (after plugin activation)
 add_action( 'init', 'aichat_register_sample_tools_and_macros', 20 );
 
@@ -26,7 +31,7 @@ function aichat_register_sample_tools_and_macros() {
     // Only register if tables exist
     global $wpdb;
     $tools_table = $wpdb->prefix . 'aichat_tools';
-    if ( $wpdb->get_var( "SHOW TABLES LIKE '$tools_table'" ) !== $tools_table ) {
+  if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $tools_table ) ) !== $tools_table ) {
         return; // Tables not created yet, skip registration
     }
 
@@ -273,10 +278,13 @@ function aichat_sync_local_tools_to_db() {
         }
         
         // Check if tool already exists in DB
-        $existing = $wpdb->get_var( $wpdb->prepare(
-            "SELECT id FROM $table WHERE type = 'local' AND name = %s",
+        $existing = $wpdb->get_var(
+          $wpdb->prepare(
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is a trusted plugin table name.
+            "SELECT id FROM {$table} WHERE type = 'local' AND name = %s",
             $tool_name
-        ) );
+          )
+        );
         
         if ( $existing ) {
             continue; // Already synced

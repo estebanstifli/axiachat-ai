@@ -692,19 +692,26 @@
           // Opcional: volver a mostrar el mensaje de límite (no duplicar demasiadas veces)
           return;
         }
+      // Evita doble-submit mientras una petición está en curso
+      if ($root.data('aichatInFlight')) {
+        if (DEBUG) console.log('[AIChat] send ignored (in-flight)');
+        return;
+      }
       var message = ($input.val() || '').trim();
       if (!message) {
         if (/[^\s]/.test($input.val() || '')) $input.val(''); // limpia si eran espacios
         return;
       }
 
-      appendUser($messages, message);
+      var $userMsg = appendUser($messages, message);
       $input.val('');
 
       var $typing = appendTyping($messages);
   // Programar secuencia temporal (solo para PRIMERA espera de respuesta)
   scheduleThinkingStages($typing);
       lockInputs($input, $sendBtn, true);
+
+      $root.data('aichatInFlight', 1);
 
       var payload = {
         action:   'aichat_process_message',
@@ -731,6 +738,11 @@
         $typing.remove();
         // Caso límite (success true con limited)
         if (response && response.success && response.data) {
+          // Duplicado (doble-submit / retry): no mostrar error ni dejar burbuja huérfana.
+          if (response.data.duplicate) {
+            try { if ($userMsg && $userMsg.length) $userMsg.remove(); } catch(e) {}
+            return;
+          }
           // Handshake tool_pending (Responses gpt-5*)
           if (response.data.status === 'tool_pending' && Array.isArray(response.data.tool_calls)) {
             handleToolPending($root, $messages, $input, $sendBtn, botSlug, sessionId, response.data);
@@ -764,6 +776,7 @@
         appendError($messages, 'Error de comunicación: ' + (errorThrown || textStatus || 'desconocido'));
       })
       .always(function(){
+        $root.removeData('aichatInFlight');
         lockInputs($input, $sendBtn, false);
         scrollToBottom($messages);
       });
@@ -859,8 +872,10 @@
       }
 
     function appendUser($messages, text) {
-      $messages.append('<div class="message user-message">' + escapeHtml(text) + '</div>');
+      var $el = $('<div class="message user-message">' + escapeHtml(text) + '</div>');
+      $messages.append($el);
       scrollToBottom($messages);
+      return $el;
     }
 
     function appendBot($messages, text) {

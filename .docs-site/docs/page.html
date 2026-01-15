@@ -1,0 +1,802 @@
+<!-- wp:html -->
+<style>
+.ac-hero {
+    background: linear-gradient(135deg, #00b4db 0%, #0083b0 100%);
+    border-radius: 20px;
+    padding: 60px 40px;
+    text-align: center;
+    color: white;
+    margin-bottom: 40px;
+}
+.ac-hero h1 {
+    font-size: 2.8rem;
+    margin-bottom: 20px;
+    color: white;
+}
+.ac-hero p {
+    font-size: 1.3rem;
+    opacity: 0.95;
+    max-width: 700px;
+    margin: 0 auto 30px;
+}
+.ac-badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.2);
+    padding: 8px 20px;
+    border-radius: 50px;
+    font-weight: 600;
+    margin: 5px;
+    backdrop-filter: blur(10px);
+}
+.ac-section {
+    padding: 50px 0;
+}
+.ac-section-title {
+    text-align: center;
+    margin-bottom: 40px;
+}
+.ac-section-title h2 {
+    font-size: 2.2rem;
+    color: #1a1a2e;
+    margin-bottom: 15px;
+}
+.ac-section-title p {
+    color: #666;
+    font-size: 1.1rem;
+}
+.ac-feature-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 30px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+    height: 100%;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid #eee;
+}
+.ac-feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.12);
+}
+.ac-feature-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    margin-bottom: 20px;
+}
+.ac-icon-blue { background: linear-gradient(135deg, #00b4db, #0083b0); }
+.ac-icon-green { background: linear-gradient(135deg, #11998e, #38ef7d); }
+.ac-icon-orange { background: linear-gradient(135deg, #f093fb, #f5576c); }
+.ac-icon-purple { background: linear-gradient(135deg, #667eea, #764ba2); }
+.ac-icon-red { background: linear-gradient(135deg, #fa709a, #fee140); }
+.ac-icon-teal { background: linear-gradient(135deg, #30cfd0, #330867); }
+.ac-feature-card h3 {
+    font-size: 1.3rem;
+    margin-bottom: 12px;
+    color: #1a1a2e;
+}
+.ac-feature-card p {
+    color: #666;
+    line-height: 1.7;
+    margin: 0;
+}
+.ac-provider-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 25px;
+    margin-top: 30px;
+}
+.ac-provider-card {
+    background: #f0f9ff;
+    border-radius: 12px;
+    padding: 25px;
+    border-left: 4px solid #00b4db;
+}
+.ac-provider-card h4 {
+    color: #1a1a2e;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.ac-provider-card ul {
+    margin: 0;
+    padding-left: 20px;
+    color: #555;
+}
+.ac-provider-card li {
+    margin-bottom: 5px;
+}
+.ac-highlight-box {
+    background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%);
+    border-radius: 16px;
+    padding: 40px;
+    margin: 40px 0;
+}
+.ac-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 20px;
+    text-align: center;
+}
+@media (max-width: 992px) {
+    .ac-stat-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 768px) {
+    .ac-stat-grid { grid-template-columns: repeat(2, 1fr); }
+    .ac-hero { padding: 40px 20px; }
+    .ac-hero h1 { font-size: 2rem; }
+}
+.ac-stat-item h3 {
+    font-size: 2.5rem;
+    color: #0083b0;
+    margin-bottom: 5px;
+}
+.ac-stat-item p {
+    color: #666;
+    margin: 0;
+    font-weight: 500;
+}
+.ac-steps {
+    counter-reset: step-counter;
+}
+.ac-step {
+    display: flex;
+    gap: 25px;
+    margin-bottom: 30px;
+    align-items: flex-start;
+}
+.ac-step-number {
+    counter-increment: step-counter;
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(135deg, #00b4db, #0083b0);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+.ac-step-number::before {
+    content: counter(step-counter);
+}
+.ac-step-content h4 {
+    margin: 0 0 8px;
+    color: #1a1a2e;
+}
+.ac-step-content p {
+    margin: 0;
+    color: #666;
+}
+.ac-cta-section {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border-radius: 20px;
+    padding: 60px 40px;
+    text-align: center;
+    color: white;
+    margin: 50px 0;
+}
+.ac-cta-section h2 {
+    color: white;
+    font-size: 2rem;
+    margin-bottom: 15px;
+}
+.ac-cta-section p {
+    opacity: 0.9;
+    margin-bottom: 30px;
+    font-size: 1.1rem;
+}
+.ac-btn {
+    display: inline-block;
+    padding: 15px 35px;
+    border-radius: 50px;
+    font-weight: 600;
+    text-decoration: none;
+    margin: 8px;
+    transition: transform 0.3s ease;
+}
+.ac-btn:hover {
+    transform: translateY(-3px);
+}
+.ac-btn-primary {
+    background: linear-gradient(135deg, #00b4db, #0083b0);
+    color: white;
+}
+.ac-btn-secondary {
+    background: white;
+    color: #1a1a2e;
+}
+.ac-use-case {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.06);
+    text-align: center;
+}
+.ac-use-case-icon {
+    font-size: 40px;
+    margin-bottom: 15px;
+}
+.ac-use-case h4 {
+    color: #1a1a2e;
+    margin-bottom: 10px;
+}
+.ac-use-case p {
+    color: #666;
+    font-size: 0.95rem;
+    margin: 0;
+}
+.ac-free-banner {
+    background: linear-gradient(135deg, #11998e, #38ef7d);
+    color: white;
+    padding: 20px 30px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin: 30px 0;
+}
+.ac-free-banner h3 {
+    margin: 0;
+    color: white;
+    font-size: 1.4rem;
+}
+.ac-free-banner p {
+    margin: 5px 0 0;
+    opacity: 0.95;
+}
+.ac-capability-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin: 30px 0;
+}
+.ac-capability-item {
+    background: #f8f9ff;
+    border-radius: 10px;
+    padding: 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+}
+.ac-capability-item .icon {
+    font-size: 24px;
+    flex-shrink: 0;
+}
+.ac-capability-item h4 {
+    margin: 0 0 5px;
+    font-size: 1rem;
+    color: #1a1a2e;
+}
+.ac-capability-item p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #666;
+}
+.ac-rag-box {
+    background: linear-gradient(135deg, #fff9e6 0%, #fff3cd 100%);
+    border-radius: 16px;
+    padding: 40px;
+    margin: 40px 0;
+    display: flex;
+    align-items: center;
+    gap: 30px;
+    flex-wrap: wrap;
+}
+.ac-rag-icon {
+    font-size: 60px;
+}
+.ac-rag-content h3 {
+    color: #1a1a2e;
+    margin: 0 0 10px;
+}
+.ac-rag-content p {
+    color: #666;
+    margin: 0;
+    max-width: 600px;
+}
+.ac-security-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin: 20px 0;
+}
+.ac-security-item {
+    background: #e8f5e9;
+    border-radius: 8px;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.ac-security-item .check {
+    color: #4caf50;
+    font-size: 20px;
+}
+.ac-security-item span {
+    color: #2e7d32;
+    font-weight: 500;
+}
+.ac-reviews-section {
+    background: linear-gradient(135deg, #fff9e6 0%, #fff3cd 100%);
+    border-radius: 16px;
+    padding: 40px;
+    margin: 40px 0;
+    text-align: center;
+}
+.ac-reviews-section h3 {
+    color: #1a1a2e;
+    margin-bottom: 10px;
+}
+.ac-stars {
+    font-size: 2rem;
+    color: #ffc107;
+    margin-bottom: 15px;
+}
+.ac-reviews-text {
+    color: #666;
+    font-size: 1.1rem;
+    margin-bottom: 20px;
+}
+.ac-reviews-text strong {
+    color: #1a1a2e;
+}
+.ac-review-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    margin-top: 25px;
+    text-align: left;
+}
+.ac-review-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+}
+.ac-review-card .stars {
+    color: #ffc107;
+    margin-bottom: 10px;
+}
+.ac-review-card p {
+    color: #555;
+    font-style: italic;
+    margin-bottom: 10px;
+    font-size: 0.95rem;
+}
+.ac-review-card .author {
+    color: #888;
+    font-size: 0.85rem;
+}
+</style>
+
+<!-- Hero Section -->
+<div class="ac-hero">
+    <span class="ac-badge">🆓 100% FREE Plugin</span>
+    <span class="ac-badge">🤖 GPT-5 • Claude • Gemini</span>
+    <span class="ac-badge">⭐ 700+ Active Installs</span>
+    <h1>💬 AxiaChat AI: Your 24/7 AI Customer Assistant</h1>
+    <p>Transform your WordPress site into an intelligent customer service hub. Train your chatbot on YOUR content and let AI handle customer questions automatically.</p>
+    <a href="https://wordpress.org/plugins/axiachat-ai/" class="ac-btn ac-btn-secondary" target="_blank">📥 Download Free</a>
+    <a href="https://wpbotwriter.com/log-a-support-ticket/" class="ac-btn ac-btn-primary">💬 Free Setup Help</a>
+</div>
+
+<!-- Stats Section -->
+<div class="ac-highlight-box">
+    <div class="ac-stat-grid">
+        <div class="ac-stat-item">
+            <h3>700+</h3>
+            <p>Active Installations</p>
+        </div>
+        <div class="ac-stat-item">
+            <h3>⭐ 5/5</h3>
+            <p>User Rating</p>
+        </div>
+        <div class="ac-stat-item">
+            <h3>3+</h3>
+            <p>AI Providers</p>
+        </div>
+        <div class="ac-stat-item">
+            <h3>24/7</h3>
+            <p>Always Available</p>
+        </div>
+        <div class="ac-stat-item">
+            <h3>0€</h3>
+            <p>Plugin Cost</p>
+        </div>
+    </div>
+</div>
+
+<!-- Reviews Section -->
+<div class="ac-reviews-section">
+    <h3>🏆 Loved by WordPress Users</h3>
+    <div class="ac-stars">⭐⭐⭐⭐⭐</div>
+    <p class="ac-reviews-text"><strong>6 reviews</strong> — All rated <strong>5 out of 5 stars</strong> on WordPress.org</p>
+    <div class="ac-review-cards">
+        <div class="ac-review-card">
+            <div class="stars">★★★★★</div>
+            <p>"Absolutely fantastic plugin! The RAG feature is a game-changer—my chatbot actually understands my business and gives accurate answers. Setup was surprisingly easy with the wizard."</p>
+            <span class="author">— WordPress User</span>
+        </div>
+        <div class="ac-review-card">
+            <div class="stars">★★★★★</div>
+            <p>"Finally, a chatbot that learns from MY content! Customer support queries dropped by 60% since installing AxiaChat. The multiple bot feature is perfect for our different departments."</p>
+            <span class="author">— WordPress User</span>
+        </div>
+        <div class="ac-review-card">
+            <div class="stars">★★★★★</div>
+            <p>"Great plugin with excellent support! I was able to train it on our PDF documentation and now it handles technical questions perfectly. The GDPR compliance features are a huge plus."</p>
+            <span class="author">— WordPress User</span>
+        </div>
+    </div>
+    <a href="https://wordpress.org/support/plugin/axiachat-ai/reviews/?filter=5" class="ac-btn ac-btn-primary" target="_blank" style="margin-top: 25px;">📖 Read All Reviews on WordPress.org</a>
+</div>
+
+<!-- RAG Feature Box -->
+<div class="ac-rag-box">
+    <div class="ac-rag-icon">🧠</div>
+    <div class="ac-rag-content">
+        <h3>Smart Training with RAG (Retrieval Augmented Generation)</h3>
+        <p>Unlike generic chatbots, AxiaChat AI <strong>learns from YOUR content</strong>. Train it on your website pages, PDFs, and documentation to provide accurate, contextual answers specific to your business. No more generic AI responses!</p>
+    </div>
+</div>
+
+<!-- Main Features -->
+<div class="ac-section">
+    <div class="ac-section-title">
+        <h2>✨ Why AxiaChat AI Stands Out</h2>
+        <p>Enterprise-grade features without the enterprise price tag</p>
+    </div>
+    
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="ac-feature-card">
+                <div class="ac-feature-icon ac-icon-blue">🤖</div>
+                <h3>Multiple AI Providers</h3>
+                <p>Choose between OpenAI (GPT-4, GPT-5), Anthropic Claude, or Google Gemini. Use the best model for your needs—switch anytime without reconfiguring.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="ac-feature-card">
+                <div class="ac-feature-icon ac-icon-green">📚</div>
+                <h3>Train on Your Content</h3>
+                <p>Ingest your website pages, blog posts, WooCommerce products, and PDF documents. Your bot answers based on YOUR knowledge base, not generic AI.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="ac-feature-card">
+                <div class="ac-feature-icon ac-icon-orange">🔌</div>
+                <h3>MCP Server Integration</h3>
+                <p>Connect Model Context Protocol servers to extend capabilities. Fetch live data, query databases, integrate with CRMs—your bot becomes a true assistant.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="ac-feature-card">
+                <div class="ac-feature-icon ac-icon-purple">🎨</div>
+                <h3>Fully Customizable UI</h3>
+                <p>Match your brand perfectly with custom colors, avatars, positioning, and window controls. Draggable, minimizable, closable—you decide the experience.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="ac-feature-card">
+                <div class="ac-feature-icon ac-icon-red">📊</div>
+                <h3>Usage Limits & Analytics</h3>
+                <p>Control API costs with daily limits (per-user, per-IP, global). Monitor conversations, track token usage, and review detailed analytics.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="ac-feature-card">
+                <div class="ac-feature-icon ac-icon-teal">🔒</div>
+                <h3>GDPR Compliant</h3>
+                <p>Built-in consent management, optional logging, IP anonymization. Your data stays on YOUR server—no external SaaS proxy. Full privacy control.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Free Banner -->
+<div class="ac-free-banner">
+    <div>
+        <h3>💰 Zero Plugin Fees</h3>
+        <p>AxiaChat AI is completely free. You only pay your chosen AI provider for API usage (typically $0.001-0.01 per conversation).</p>
+    </div>
+    <a href="https://wordpress.org/plugins/axiachat-ai/" class="ac-btn ac-btn-secondary" target="_blank">Get Started Free →</a>
+</div>
+
+<!-- AI Providers -->
+<div class="ac-section">
+    <div class="ac-section-title">
+        <h2>🧠 Supported AI Providers</h2>
+        <p>Choose the best AI model for your use case</p>
+    </div>
+    
+    <div class="ac-provider-grid">
+        <div class="ac-provider-card">
+            <h4><span style="color:#10a37f">●</span> OpenAI</h4>
+            <ul>
+                <li>GPT-5.2 (Instant & Thinking)</li>
+                <li>GPT-5.1, GPT-5, GPT-4o</li>
+                <li>Native web search support</li>
+                <li>Industry-leading quality</li>
+            </ul>
+        </div>
+        <div class="ac-provider-card">
+            <h4><span style="color:#d4a574">●</span> Anthropic Claude</h4>
+            <ul>
+                <li>Claude 4.x models</li>
+                <li>Web search capability</li>
+                <li>Excellent for detailed answers</li>
+                <li>Strong reasoning abilities</li>
+            </ul>
+        </div>
+        <div class="ac-provider-card">
+            <h4><span style="color:#4285f4">●</span> Google Gemini</h4>
+            <ul>
+                <li>Gemini Pro & Flash</li>
+                <li>Google Search integration</li>
+                <li>Great multilingual support</li>
+                <li>🏷️ FREE tier available</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- AI Tools / Capabilities -->
+<div class="ac-section">
+    <div class="ac-section-title">
+        <h2>🛠️ AI Tools & Capabilities</h2>
+        <p>Supercharge your chatbot beyond simple Q&A</p>
+    </div>
+    
+    <div class="ac-capability-grid">
+        <div class="ac-capability-item">
+            <div class="icon">🌐</div>
+            <div>
+                <h4>Web Search</h4>
+                <p>Real-time internet lookups with cited sources. Answer questions about current events.</p>
+            </div>
+        </div>
+        <div class="ac-capability-item">
+            <div class="icon">📧</div>
+            <div>
+                <h4>Email Notifications</h4>
+                <p>Send alerts to your team when leads are captured or urgent issues arise.</p>
+            </div>
+        </div>
+        <div class="ac-capability-item">
+            <div class="icon">🔌</div>
+            <div>
+                <h4>MCP Servers</h4>
+                <p>Connect to external APIs, databases, and business systems.</p>
+            </div>
+        </div>
+        <div class="ac-capability-item">
+            <div class="icon">🎤</div>
+            <div>
+                <h4>Voice Input</h4>
+                <p>Let users speak their questions instead of typing.</p>
+            </div>
+        </div>
+        <div class="ac-capability-item">
+            <div class="icon">📋</div>
+            <div>
+                <h4>Rules Engine</h4>
+                <p>Define conditions to trigger automatic actions and follow-ups.</p>
+            </div>
+        </div>
+        <div class="ac-capability-item">
+            <div class="icon">📊</div>
+            <div>
+                <h4>Tools Logging</h4>
+                <p>Full transparency with logged tool calls, duration, and outputs.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- How It Works -->
+<div class="ac-section">
+    <div class="ac-section-title">
+        <h2>🚀 Get Started in 5 Minutes</h2>
+        <p>The Easy Config Wizard does the heavy lifting for you</p>
+    </div>
+    
+    <div class="ac-steps" style="max-width: 700px; margin: 0 auto;">
+        <div class="ac-step">
+            <div class="ac-step-number"></div>
+            <div class="ac-step-content">
+                <h4>Install & Activate</h4>
+                <p>Download from WordPress.org or search "AxiaChat AI" in Plugins → Add New.</p>
+            </div>
+        </div>
+        <div class="ac-step">
+            <div class="ac-step-number"></div>
+            <div class="ac-step-content">
+                <h4>Add Your API Key</h4>
+                <p>Enter your OpenAI, Claude, or Gemini API key in Settings. That's all you need!</p>
+            </div>
+        </div>
+        <div class="ac-step">
+            <div class="ac-step-number"></div>
+            <div class="ac-step-content">
+                <h4>Run Easy Config Wizard</h4>
+                <p>The wizard automatically scans your site, creates embeddings, and configures your bot. Smart mode prioritizes important pages.</p>
+            </div>
+        </div>
+        <div class="ac-step">
+            <div class="ac-step-number"></div>
+            <div class="ac-step-content">
+                <h4>Customize & Deploy</h4>
+                <p>Adjust appearance, add more content (PDFs, specific pages), and enable the floating widget or use shortcodes.</p>
+            </div>
+        </div>
+        <div class="ac-step">
+            <div class="ac-step-number"></div>
+            <div class="ac-step-content">
+                <h4>Watch It Work! ✨</h4>
+                <p>Your AI assistant is now live, answering customer questions 24/7 based on YOUR content.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Use Cases -->
+<div class="ac-section">
+    <div class="ac-section-title">
+        <h2>💡 Perfect For</h2>
+        <p>AxiaChat AI adapts to any business</p>
+    </div>
+    
+    <div class="row g-4">
+        <div class="col-md-3 col-6">
+            <div class="ac-use-case">
+                <div class="ac-use-case-icon">🛒</div>
+                <h4>E-commerce</h4>
+                <p>Answer product questions & guide customers</p>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="ac-use-case">
+                <div class="ac-use-case-icon">💼</div>
+                <h4>SaaS</h4>
+                <p>Support users & reduce ticket volume</p>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="ac-use-case">
+                <div class="ac-use-case-icon">🏢</div>
+                <h4>Corporate</h4>
+                <p>Internal FAQ bot & employee assistant</p>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="ac-use-case">
+                <div class="ac-use-case-icon">🎓</div>
+                <h4>Education</h4>
+                <p>Student support & course guidance</p>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="ac-use-case">
+                <div class="ac-use-case-icon">🏥</div>
+                <h4>Healthcare</h4>
+                <p>Appointment info & general inquiries</p>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="ac-use-case">
+                <div class="ac-use-case-icon">🏠</div>
+                <h4>Real Estate</h4>
+                <p>Property questions & lead capture</p>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="ac-use-case">
+                <div class="ac-use-case-icon">⚖️</div>
+                <h4>Legal</h4>
+                <p>Initial consultations & FAQ handling</p>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="ac-use-case">
+                <div class="ac-use-case-icon">🎯</div>
+                <h4>Agencies</h4>
+                <p>Client support across multiple sites</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Security & Privacy -->
+<div class="ac-section">
+    <div class="ac-section-title">
+        <h2>🔒 Security & Privacy First</h2>
+        <p>Enterprise-grade security without compromising functionality</p>
+    </div>
+    
+    <div class="ac-security-grid">
+        <div class="ac-security-item">
+            <span class="check">✓</span>
+            <span>GDPR Consent Management</span>
+        </div>
+        <div class="ac-security-item">
+            <span class="check">✓</span>
+            <span>Data Stays on YOUR Server</span>
+        </div>
+        <div class="ac-security-item">
+            <span class="check">✓</span>
+            <span>Encrypted API Keys</span>
+        </div>
+        <div class="ac-security-item">
+            <span class="check">✓</span>
+            <span>Optional Conversation Logging</span>
+        </div>
+        <div class="ac-security-item">
+            <span class="check">✓</span>
+            <span>IP Anonymization</span>
+        </div>
+        <div class="ac-security-item">
+            <span class="check">✓</span>
+            <span>No External SaaS Proxy</span>
+        </div>
+        <div class="ac-security-item">
+            <span class="check">✓</span>
+            <span>WordPress Security Standards</span>
+        </div>
+        <div class="ac-security-item">
+            <span class="check">✓</span>
+            <span>Local Vendor Assets (No CDN)</span>
+        </div>
+    </div>
+</div>
+
+<!-- Multiple Bots Feature -->
+<div class="ac-highlight-box" style="text-align: center;">
+    <h3 style="margin-bottom: 15px;">🤖 Create Multiple Specialized Bots</h3>
+    <p style="max-width: 700px; margin: 0 auto 20px; color: #555;">
+        One for sales, one for support, one for FAQs—each with <strong>unique configurations, training data, personality, and appearance</strong>. Deploy them on different pages or let users choose. Unlimited bots, zero extra cost!
+    </p>
+    <div style="display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; margin-top: 20px;">
+        <span class="ac-badge" style="background: #e3f2fd; color: #1565c0;">💼 Sales Bot</span>
+        <span class="ac-badge" style="background: #e8f5e9; color: #2e7d32;">🛠️ Support Bot</span>
+        <span class="ac-badge" style="background: #fff3e0; color: #ef6c00;">❓ FAQ Bot</span>
+        <span class="ac-badge" style="background: #fce4ec; color: #c2185b;">🛒 Product Bot</span>
+    </div>
+</div>
+
+<!-- CTA Section -->
+<div class="ac-cta-section">
+    <h2>🎯 Ready to Automate Your Customer Support?</h2>
+    <p>Join <strong>700+ WordPress users</strong> who've transformed their customer experience with AxiaChat AI.</p>
+    <a href="https://wordpress.org/plugins/axiachat-ai/" class="ac-btn ac-btn-primary" target="_blank">📥 Download AxiaChat AI Free</a>
+    <a href="https://wpbotwriter.com/log-a-support-ticket/" class="ac-btn ac-btn-secondary">🆘 Get Free Setup Help</a>
+</div>
+
+<!-- Video Section -->
+<div class="ac-section">
+    <div class="ac-section-title">
+        <h2>🎬 See AxiaChat AI in Action</h2>
+        <p>Create your first AI chatbot in just 5 minutes</p>
+    </div>
+    <div style="max-width: 800px; margin: 0 auto; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.15);">
+        <iframe width="100%" height="450" src="https://www.youtube.com/embed/Th41gGUH7Es" frameborder="0" allowfullscreen style="display: block;"></iframe>
+    </div>
+</div>
+
+<!-- Final Note -->
+<div class="ac-highlight-box" style="text-align: center;">
+    <h3 style="margin-bottom: 15px;">🆘 Free Personalized Setup Assistance</h3>
+    <p style="max-width: 600px; margin: 0 auto; color: #666;">
+        Not sure where to start? Our team provides <strong>FREE setup help</strong>—we'll configure your bot, optimize prompts, train it on your content, and ensure it works perfectly for your use case.
+    </p>
+    <a href="https://wpbotwriter.com/log-a-support-ticket/" class="ac-btn ac-btn-primary" style="margin-top: 20px;">Request Free Setup →</a>
+</div>
+<!-- /wp:html -->

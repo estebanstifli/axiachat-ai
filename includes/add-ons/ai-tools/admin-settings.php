@@ -1,9 +1,13 @@
 <?php
 if ( ! defined('ABSPATH') ) { exit; }
 
+// Admin-only settings page; direct DB reads are expected here.
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
 function aichat_tools_settings_page(){
   echo '<div class="wrap aichat-tools-settings">';
   global $wpdb; $bots_table = $wpdb->prefix.'aichat_bots';
+  // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin-only internal table read.
   // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name from $wpdb->prefix; no user input in this query
   $bots = $wpdb->get_results("SELECT slug,name FROM {$bots_table} ORDER BY name ASC", ARRAY_A);
   echo '<div id="aichat-tools-panel-header" class="mb-3"><h1>'.esc_html__('AI Tools Settings','axiachat-ai').'</h1>';
@@ -134,3 +138,5 @@ function aichat_tools_settings_page(){
   echo '</div>'; // end tab-content
   echo '</div>';
 }
+
+// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching

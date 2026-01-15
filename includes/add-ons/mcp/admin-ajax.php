@@ -11,6 +11,11 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
+// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
+// Admin-only MCP endpoints; direct DB reads/writes are expected here.
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
 /**
  * Get a single server configuration
  */
@@ -22,7 +27,7 @@ function aichat_mcp_ajax_get_server() {
         wp_send_json_error( __( 'Insufficient permissions.', 'axiachat-ai' ) );
     }
 
-    $server_id = sanitize_text_field( $_POST['server_id'] ?? '' );
+    $server_id = sanitize_text_field( wp_unslash( $_POST['server_id'] ?? '' ) );
     if ( empty( $server_id ) ) {
         wp_send_json_error( __( 'Server ID is required.', 'axiachat-ai' ) );
     }
@@ -53,8 +58,8 @@ function aichat_mcp_ajax_save_server() {
     }
 
     // Sanitize input
-    $server_id   = sanitize_text_field( $_POST['server_id'] ?? '' );
-    $name        = sanitize_text_field( $_POST['name'] ?? '' );
+    $server_id   = sanitize_text_field( wp_unslash( $_POST['server_id'] ?? '' ) );
+    $name        = sanitize_text_field( wp_unslash( $_POST['name'] ?? '' ) );
     $transport   = 'http';
     
     if ( empty( $name ) ) {
@@ -80,11 +85,11 @@ function aichat_mcp_ajax_save_server() {
         'enabled'   => true, // Enable by default when creating
     ];
 
-    $server['url']         = esc_url_raw( $_POST['url'] ?? '' );
-    $server['auth_type']   = sanitize_text_field( $_POST['auth_type'] ?? 'none' );
-    $server['auth_token']  = sanitize_text_field( $_POST['auth_token'] ?? '' );
-    $server['auth_header'] = sanitize_text_field( $_POST['auth_header'] ?? '' );
-    $server['custom_headers'] = sanitize_textarea_field( $_POST['custom_headers'] ?? '' );
+    $server['url']            = esc_url_raw( wp_unslash( $_POST['url'] ?? '' ) );
+    $server['auth_type']      = sanitize_text_field( wp_unslash( $_POST['auth_type'] ?? 'none' ) );
+    $server['auth_token']     = sanitize_text_field( wp_unslash( $_POST['auth_token'] ?? '' ) );
+    $server['auth_header']    = sanitize_text_field( wp_unslash( $_POST['auth_header'] ?? '' ) );
+    $server['custom_headers'] = sanitize_textarea_field( wp_unslash( $_POST['custom_headers'] ?? '' ) );
 
     if ( empty( $server['url'] ) ) {
         wp_send_json_error( __( 'URL is required for HTTP transport.', 'axiachat-ai' ) );
@@ -145,7 +150,7 @@ function aichat_mcp_ajax_delete_server() {
         wp_send_json_error( __( 'Insufficient permissions.', 'axiachat-ai' ) );
     }
 
-    $server_id = sanitize_text_field( $_POST['server_id'] ?? '' );
+    $server_id = sanitize_text_field( wp_unslash( $_POST['server_id'] ?? '' ) );
     if ( empty( $server_id ) ) {
         wp_send_json_error( __( 'Server ID is required.', 'axiachat-ai' ) );
     }
@@ -194,8 +199,8 @@ function aichat_mcp_ajax_toggle_server() {
         wp_send_json_error( __( 'Insufficient permissions.', 'axiachat-ai' ) );
     }
 
-    $server_id = sanitize_text_field( $_POST['server_id'] ?? '' );
-    $enabled   = isset( $_POST['enabled'] ) ? (bool) intval( $_POST['enabled'] ) : false;
+    $server_id = sanitize_text_field( wp_unslash( $_POST['server_id'] ?? '' ) );
+    $enabled   = isset( $_POST['enabled'] ) ? (bool) intval( wp_unslash( $_POST['enabled'] ) ) : false;
 
     if ( empty( $server_id ) ) {
         wp_send_json_error( __( 'Server ID is required.', 'axiachat-ai' ) );
@@ -236,7 +241,7 @@ function aichat_mcp_ajax_test_server() {
         wp_send_json_error( __( 'Insufficient permissions.', 'axiachat-ai' ) );
     }
 
-    $server_id = sanitize_text_field( $_POST['server_id'] ?? '' );
+    $server_id = sanitize_text_field( wp_unslash( $_POST['server_id'] ?? '' ) );
     if ( empty( $server_id ) ) {
         wp_send_json_error( __( 'Server ID is required.', 'axiachat-ai' ) );
     }
@@ -471,7 +476,7 @@ function aichat_mcp_ajax_list_tools() {
         wp_send_json_error( __( 'Insufficient permissions.', 'axiachat-ai' ) );
     }
 
-    $server_id = sanitize_text_field( $_POST['server_id'] ?? '' );
+    $server_id = sanitize_text_field( wp_unslash( $_POST['server_id'] ?? '' ) );
     if ( empty( $server_id ) ) {
         wp_send_json_error( __( 'Server ID is required.', 'axiachat-ai' ) );
     }
@@ -486,10 +491,14 @@ function aichat_mcp_ajax_list_tools() {
     global $wpdb;
     $table = $wpdb->prefix . 'aichat_tools';
     
-    $tools_rows = $wpdb->get_results( $wpdb->prepare(
-        "SELECT name, description, definition_json FROM $table WHERE type = 'mcp' AND source_id = %s ORDER BY name ASC",
-        $server_id
-    ), ARRAY_A );
+    $tools_rows = $wpdb->get_results(
+        $wpdb->prepare(
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is a trusted plugin table name.
+            "SELECT name, description, definition_json FROM {$table} WHERE type = 'mcp' AND source_id = %s ORDER BY name ASC",
+            $server_id
+        ),
+        ARRAY_A
+    );
     
     if ( empty( $tools_rows ) ) {
         // No tools in database - might be a new server that hasn't been tested yet
@@ -528,8 +537,9 @@ function aichat_mcp_ajax_run_tool() {
         wp_send_json_error( __( 'Insufficient permissions.', 'axiachat-ai' ) );
     }
 
-    $server_id = sanitize_text_field( $_POST['server_id'] ?? '' );
-    $tool_name = sanitize_text_field( $_POST['tool_name'] ?? '' );
+    $server_id = sanitize_text_field( wp_unslash( $_POST['server_id'] ?? '' ) );
+    $tool_name = sanitize_text_field( wp_unslash( $_POST['tool_name'] ?? '' ) );
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON payload validated via json_decode.
     $arguments_json = wp_unslash( $_POST['arguments'] ?? '{}' );
 
     if ( empty( $server_id ) || empty( $tool_name ) ) {
@@ -578,11 +588,10 @@ function aichat_mcp_ajax_run_tool() {
         // Verify tool exists in database
         global $wpdb;
         $table = $wpdb->prefix . 'aichat_tools';
-        $tool_exists = $wpdb->get_var( $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$table} WHERE type = 'mcp' AND source_id = %s AND name = %s",
-            $server_id,
-            $tool_name
-        ) );
+        $tool_exists = $wpdb->get_var(
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is a trusted plugin table name.
+            $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE type = 'mcp' AND source_id = %s AND name = %s", $server_id, $tool_name )
+        );
         
         aichat_log_debug( "[AIChat MCP Run Tool] DB check | tool_exists: $tool_exists | table: $table" );
         
@@ -627,7 +636,7 @@ function aichat_mcp_ajax_get_server_tools_status() {
         wp_send_json_error( __( 'Insufficient permissions.', 'axiachat-ai' ) );
     }
 
-    $server_id = sanitize_text_field( $_POST['server_id'] ?? '' );
+    $server_id = sanitize_text_field( wp_unslash( $_POST['server_id'] ?? '' ) );
     if ( empty( $server_id ) ) {
         wp_send_json_error( __( 'Server ID is required.', 'axiachat-ai' ) );
     }
@@ -642,10 +651,12 @@ function aichat_mcp_ajax_get_server_tools_status() {
     global $wpdb;
     $table = $wpdb->prefix . 'aichat_tools';
     
-    $tools_rows = $wpdb->get_results( $wpdb->prepare(
-        "SELECT name, description, enabled FROM $table WHERE type = 'mcp' AND source_id = %s ORDER BY name ASC",
-        $server_id
-    ), ARRAY_A );
+    $tools_rows = $wpdb->get_results(
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin-only read of internal table.
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is a trusted plugin table name.
+        $wpdb->prepare( "SELECT name, description, enabled FROM $table WHERE type = 'mcp' AND source_id = %s ORDER BY name ASC", $server_id ),
+        ARRAY_A
+    );
     
     if ( empty( $tools_rows ) ) {
         // No tools in database - might be a new server that hasn't been tested yet
@@ -679,7 +690,8 @@ function aichat_mcp_ajax_save_tools_status() {
         wp_send_json_error( __( 'Insufficient permissions.', 'axiachat-ai' ) );
     }
 
-    $server_id = sanitize_text_field( $_POST['server_id'] ?? '' );
+    $server_id = sanitize_text_field( wp_unslash( $_POST['server_id'] ?? '' ) );
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON payload validated via json_decode.
     $tools_status_json = wp_unslash( $_POST['tools_status'] ?? '{}' );
     
     if ( empty( $server_id ) ) {
@@ -700,11 +712,10 @@ function aichat_mcp_ajax_save_tools_status() {
         $tool_name = sanitize_text_field( $tool_name );
         
         // Buscar el registro existente
-        $existing = $wpdb->get_row( $wpdb->prepare(
-            "SELECT id FROM $table WHERE type = 'mcp' AND source_id = %s AND name = %s",
-            $server_id,
-            $tool_name
-        ) );
+        $existing = $wpdb->get_row(
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is a trusted plugin table name.
+            $wpdb->prepare( "SELECT id FROM $table WHERE type = 'mcp' AND source_id = %s AND name = %s", $server_id, $tool_name )
+        );
         
         if ( $existing ) {
             // Actualizar enabled

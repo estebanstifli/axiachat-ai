@@ -80,12 +80,14 @@ if ( ! function_exists( 'aichat_log_debug' ) ) {
       }
     }
     $line = '[AIChat] ' . $message;
+    // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Controlled by debug settings; not used for production flow.
     error_log( $line );
     // Optional secondary AI log file for model I/O, etc.
     if ( $active_ai ) {
       $ai_log = trailingslashit( WP_CONTENT_DIR ) . 'debug_ia.log';
       // Use message_type = 3 to append to a specific file path.
       // Suppress warnings if the file is not writable to avoid breaking normal flow.
+      // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Controlled by debug settings; uses explicit log path.
       @error_log( $line . "\n", 3, $ai_log );
     }
   }
@@ -315,7 +317,7 @@ function aichat_activation() {
           autosync_mode ENUM('updates','updates_and_new') NOT NULL DEFAULT 'updates',
           autosync_post_types VARCHAR(255) DEFAULT NULL,
           autosync_last_scan DATETIME NULL
-                ) $charset_collate;";
+            ) $charset_collate;"; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Activation-time dbDelta DDL; internal table/charset.
 
     require_once ABSPATH . 'wp-admin/includes/upgrade.php';
     dbDelta( $sql_contexts );
@@ -342,7 +344,7 @@ function aichat_activation() {
     KEY idx_page (page_id),
     KEY idx_model (model),
     KEY idx_created_at (created_at)
-    ) $charset_collate;";
+    ) $charset_collate;"; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Activation-time dbDelta DDL; internal table/charset.
 
     require_once ABSPATH . 'wp-admin/includes/upgrade.php';
     dbDelta( $sql );
@@ -364,7 +366,7 @@ function aichat_activation() {
     KEY idx_context (id_context),
     KEY idx_post_context (post_id,id_context),
     FOREIGN KEY (id_context) REFERENCES $contexts_table(id) ON DELETE SET NULL
-  ) $charset_collate;";
+  ) $charset_collate;"; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Activation-time dbDelta DDL; internal table/charset.
 
     dbDelta( $chunks_sql );
 
@@ -380,7 +382,7 @@ function aichat_activation() {
       cost_micros BIGINT UNSIGNED NOT NULL DEFAULT 0,
       conversations BIGINT UNSIGNED NOT NULL DEFAULT 0,
       PRIMARY KEY(date, provider, model)
-    ) $charset_collate;";
+    ) $charset_collate;"; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Uses plugin-controlled internal table name/charset.
     dbDelta($usage_sql);
 
     // Tabla de estados de tools (tool_pending handshake para Claude/OpenAI)
@@ -392,7 +394,7 @@ function aichat_activation() {
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (response_id),
       KEY idx_created (created_at)
-    ) $charset_collate;";
+    ) $charset_collate;"; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Uses plugin-controlled internal table name/charset.
     dbDelta($tool_states_sql);
 
     // tabla de bots
@@ -404,6 +406,7 @@ function aichat_activation() {
     } else {
         // Marcador existe: aún así validar que la tabla no esté vacía (caso limpieza manual)
         $table = $wpdb->prefix.'aichat_bots';
+      // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Activation-time internal table check.
         $rows  = (int)$wpdb->get_var("SELECT COUNT(*) FROM $table");
         if ($rows === 0) {
             delete_option('aichat_default_bot_seeded');
@@ -439,6 +442,7 @@ add_action('plugins_loaded', function(){
   $t = $wpdb->prefix.'aichat_conversations';
   // Use esc_sql for table name to satisfy static analyzers
   $t_escaped = esc_sql($t);
+  // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Internal schema inspection.
   $cols = $wpdb->get_col("SHOW COLUMNS FROM `$t_escaped`", 0);
   if($cols){
     $alter = [];
@@ -450,14 +454,17 @@ add_action('plugins_loaded', function(){
     if(!in_array('cost_micros',$cols)) $alter[] = 'ADD COLUMN cost_micros BIGINT NULL AFTER total_tokens';
     if($alter){
       $sql = "ALTER TABLE `$t_escaped` ".implode(', ',$alter);
+      // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- Intentional plugin upgrade DDL.
       $wpdb->query($sql);
     }
   }
   // Ensure daily usage table exists
   $usage_daily = $wpdb->prefix.'aichat_usage_daily';
+  // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Internal schema inspection.
   $exists = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name=%s", $usage_daily));
   if(!$exists){
     $charset = $wpdb->get_charset_collate();
+    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- Intentional plugin upgrade DDL; table name is plugin-controlled.
     $wpdb->query("CREATE TABLE $usage_daily (
       date DATE NOT NULL,
       provider VARCHAR(40) NOT NULL DEFAULT 'openai',
@@ -468,21 +475,23 @@ add_action('plugins_loaded', function(){
       cost_micros BIGINT UNSIGNED NOT NULL DEFAULT 0,
       conversations BIGINT UNSIGNED NOT NULL DEFAULT 0,
       PRIMARY KEY(date, provider, model)
-    ) $charset");
+    ) $charset"); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name/charset are plugin-controlled.
   }
   
   // Ensure tool states table exists (for tool_pending handshake)
   $tool_states = $wpdb->prefix.'aichat_tool_states';
+  // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Internal schema inspection.
   $exists_states = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name=%s", $tool_states));
   if(!$exists_states){
     $charset = $wpdb->get_charset_collate();
+    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- Intentional plugin upgrade DDL; table name is plugin-controlled.
     $wpdb->query("CREATE TABLE $tool_states (
       response_id VARCHAR(64) NOT NULL,
       state_data LONGTEXT NOT NULL,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (response_id),
       KEY idx_created (created_at)
-    ) $charset");
+    ) $charset"); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name/charset are plugin-controlled.
   }
   
   // Migrate old 'openai_web_search' capability to unified 'web_search' (v2.5.0+)
@@ -492,9 +501,10 @@ add_action('plugins_loaded', function(){
     $bots_table = $wpdb->prefix . 'aichat_bots';
     
     // Find bots with old macro name
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- One-time migration; internal table read.
     $bots = $wpdb->get_results(
       $wpdb->prepare(
-        "SELECT id, tools_json FROM {$bots_table} WHERE tools_json LIKE %s",
+        "SELECT id, tools_json FROM {$bots_table} WHERE tools_json LIKE %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Trusted internal table name.
         '%openai_web_search%'
       ),
       ARRAY_A
@@ -512,6 +522,7 @@ add_action('plugins_loaded', function(){
       
       // Only update if there was a change
       if ( $updated !== $tools ) {
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- One-time migration; internal table update.
         $wpdb->update(
           $bots_table,
           ['tools_json' => wp_json_encode($updated)],
@@ -526,12 +537,11 @@ add_action('plugins_loaded', function(){
     // Also migrate capability settings (stored in wp_aichat_bots_meta or options)
     // This updates the 'openai_web_search' key to 'web_search' in capability settings
     $cap_meta_table = $wpdb->prefix . 'aichat_bots_meta';
-    if ( $wpdb->get_var("SHOW TABLES LIKE '{$cap_meta_table}'") === $cap_meta_table ) {
-      $wpdb->query(
-        "UPDATE {$cap_meta_table} 
-         SET meta_key = 'capability_settings_web_search' 
-         WHERE meta_key = 'capability_settings_openai_web_search'"
-      );
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Internal table existence check.
+    $cap_meta_exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $cap_meta_table ) );
+    if ( $cap_meta_exists === $cap_meta_table ) {
+      // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- One-time migration; trusted internal table name.
+      $wpdb->query( "UPDATE {$cap_meta_table} SET meta_key = 'capability_settings_web_search' WHERE meta_key = 'capability_settings_openai_web_search'" );
     }
     
     // Mark migration as completed
@@ -669,9 +679,11 @@ add_action('admin_init', function(){
   global $wpdb; $table = $wpdb->prefix.'aichat_chunks';
   // Asegurar tabla tool calls (upgrade silencioso)
   $tool_calls = $wpdb->prefix.'aichat_tool_calls';
+  // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Internal schema inspection.
   $exists_tool = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name=%s", $tool_calls));
   if ( ! $exists_tool ) {
     $charset = $wpdb->get_charset_collate();
+    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- Intentional plugin upgrade DDL; table name is plugin-controlled.
     $wpdb->query("CREATE TABLE $tool_calls (
       id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
       request_uuid CHAR(36) NOT NULL,
@@ -696,9 +708,11 @@ add_action('admin_init', function(){
   
   // Asegurar tabla macros (upgrade silencioso)
   $macros_table = $wpdb->prefix.'aichat_macros';
+  // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Internal schema inspection.
   $exists_macros = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name=%s", $macros_table));
   if ( ! $exists_macros ) {
     $charset = $wpdb->get_charset_collate();
+    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- Intentional plugin upgrade DDL; table name is plugin-controlled.
     $wpdb->query("CREATE TABLE $macros_table (
       id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
       name VARCHAR(100) NOT NULL,
@@ -719,30 +733,40 @@ add_action('admin_init', function(){
   
   // Upgrade bots table add tools_json if missing
   $bots_table = aichat_bots_table();
+  // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Internal schema inspection; table name is plugin-controlled.
   $bots_cols = $wpdb->get_col("SHOW COLUMNS FROM $bots_table",0);
   if ( $bots_cols && ! in_array('tools_json',$bots_cols,true) ) {
+    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- Intentional plugin upgrade DDL; table name is plugin-controlled.
     $wpdb->query("ALTER TABLE $bots_table ADD COLUMN tools_json LONGTEXT NULL AFTER context_max_length");
   }
   // Add ui_width/ui_height if missing
   if ( $bots_cols && ! in_array('ui_width',$bots_cols,true) ) {
+    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- Intentional plugin upgrade DDL; table name is plugin-controlled.
     $wpdb->query("ALTER TABLE $bots_table ADD COLUMN ui_width INT NOT NULL DEFAULT 380 AFTER ui_button_send");
   }
   // refresh columns list for subsequent check
+  // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Internal schema inspection; table name is plugin-controlled.
   $bots_cols = $wpdb->get_col("SHOW COLUMNS FROM $bots_table",0);
   if ( $bots_cols && ! in_array('ui_height',$bots_cols,true) ) {
     // place after ui_width when possible
+    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- Intentional plugin upgrade DDL; table name is plugin-controlled.
     $wpdb->query("ALTER TABLE $bots_table ADD COLUMN ui_height INT NOT NULL DEFAULT 380 AFTER ui_width");
   }
   // Add ui_role if missing
+  // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Internal schema inspection; table name is plugin-controlled.
   $bots_cols = $wpdb->get_col("SHOW COLUMNS FROM $bots_table",0);
   if ( $bots_cols && ! in_array('ui_role',$bots_cols,true) ) {
+    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- Intentional plugin upgrade DDL; table name is plugin-controlled.
     $wpdb->query("ALTER TABLE $bots_table ADD COLUMN ui_role VARCHAR(120) NOT NULL DEFAULT 'AI Agent Specialist' AFTER ui_start_sentence");
   }
+  // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Internal schema inspection; table name is plugin-controlled.
   $cols = $wpdb->get_results("SHOW COLUMNS FROM $table LIKE 'chunk_index'");
   if (empty($cols)) {
+    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- Intentional plugin upgrade DDL; table name is plugin-controlled.
     $wpdb->query("ALTER TABLE $table ADD COLUMN chunk_index INT NOT NULL DEFAULT 0 AFTER post_id");
   }
   // Adjust unique key if old one exists
+  // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Internal schema inspection; table name is plugin-controlled.
   $indexes = $wpdb->get_results("SHOW INDEX FROM $table");
   $has_old_unique = false; $has_new_unique = false;
   foreach($indexes as $ix){
@@ -750,7 +774,9 @@ add_action('admin_init', function(){
     if ($ix->Key_name === 'uniq_post_ctx_chunk') $has_new_unique = true;
   }
   if ($has_old_unique && ! $has_new_unique) {
+    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- Intentional plugin upgrade DDL; table name is plugin-controlled.
     $wpdb->query("ALTER TABLE $table DROP INDEX unique_post_context");
+    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- Intentional plugin upgrade DDL; table name is plugin-controlled.
     $wpdb->query("ALTER TABLE $table ADD UNIQUE KEY uniq_post_ctx_chunk (post_id,id_context,chunk_index)");
   }
 });
@@ -915,8 +941,8 @@ function aichat_admin_menu() {
 
 
   add_action('admin_enqueue_scripts', function($hook){
-    if ( ! isset($_GET['page']) ) return;
-    $page = sanitize_text_field( wp_unslash( $_GET['page'] ) );
+    if ( ! isset($_GET['page']) ) return; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Admin page load; no state change.
+    $page = sanitize_text_field( wp_unslash( $_GET['page'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Admin page load; no state change.
   // Incluir también la página principal de ajustes para usar Bootstrap en el rediseño
   $needs_bootstrap_pages = [ 'aichat-settings','aichat-bots-settings','aichat-logs','aichat-logs-detail','aichat-contexto-settings','aichat-contexto-create','aichat-contexto-pdf' ];
   if ( (int) get_option('aichat_addon_ai_tools_enabled', 1 ) === 1 ) {
@@ -1008,10 +1034,8 @@ function aichat_admin_menu() {
 
       global $wpdb;
       $contexts_table = $wpdb->prefix . 'aichat_contexts';
-      $rows = $wpdb->get_results(
-        "SELECT id, name FROM {$contexts_table} WHERE processing_status = 'completed' ORDER BY name ASC",
-        ARRAY_A
-      );
+      // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Admin-only internal table read.
+      $rows = $wpdb->get_results( "SELECT id, name FROM {$contexts_table} WHERE processing_status = 'completed' ORDER BY name ASC", ARRAY_A );
       $embedding_options = [];
       if ( is_array($rows) ) {
         foreach ( $rows as $r ) {
@@ -1157,10 +1181,11 @@ function aichat_admin_menu() {
 
 // para vista previa del bot en el front (shortcode)
 add_action('template_redirect', function () {
-  if (!isset($_GET['aichat_preview'])) return;
+  if (!isset($_GET['aichat_preview'])) return; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Preview is read-only.
   if (!current_user_can('manage_options')) { status_header(403); exit; }
 
-  $slug = sanitize_title($_GET['bot'] ?? 'default');
+  // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Preview is read-only.
+  $slug = sanitize_title( wp_unslash( $_GET['bot'] ?? 'default' ) );
 
   status_header(200);
   nocache_headers();
@@ -1186,7 +1211,7 @@ add_action('template_redirect', function () {
 
 // Vista previa sobre la página de inicio real: inyecta el widget encima del tema activo
 add_action('template_redirect', function(){
-  if (!isset($_GET['aichat_preview_home'])) return;
+  if (!isset($_GET['aichat_preview_home'])) return; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Preview is read-only.
   if (!current_user_can('manage_options')) { status_header(403); exit; }
 
   // Ocultar la barra de admin dentro del iframe para una vista más realista
@@ -1211,7 +1236,8 @@ add_action('template_redirect', function(){
   }, 1);
 
   // Inyectar el shortcode del bot al final del cuerpo sin alterar la plantilla
-  $slug = sanitize_title($_GET['bot'] ?? 'default');
+  // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Preview is read-only.
+  $slug = sanitize_title( wp_unslash( $_GET['bot'] ?? 'default' ) );
   add_action('wp_footer', function() use ($slug){
     echo do_shortcode('[aichat id="'.esc_attr($slug).'"]');
   }, 10);
@@ -1242,7 +1268,7 @@ function aichat_handle_delete_conversation() {
   if ( $session_id && $bot_slug ) {
     global $wpdb; 
     $table = $wpdb->prefix . 'aichat_conversations';
-    $wpdb->query( $wpdb->prepare( "DELETE FROM $table WHERE session_id=%s AND bot_slug=%s", $session_id, $bot_slug ) );
+    $wpdb->query( $wpdb->prepare( "DELETE FROM $table WHERE session_id=%s AND bot_slug=%s", $session_id, $bot_slug ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin action; internal table delete.
   }
 
   wp_safe_redirect( add_query_arg( [ 'page'=>'aichat-logs', 'deleted'=>1 ], admin_url('admin.php') ) );
@@ -1256,8 +1282,10 @@ if ( ! function_exists('aichat_get_ip') ) {
     $order = apply_filters( 'aichat_ip_header_order', ['HTTP_CF_CONNECTING_IP','HTTP_X_REAL_IP','HTTP_CLIENT_IP','HTTP_X_FORWARDED_FOR','REMOTE_ADDR'] );
     foreach ( $order as $k ) {
         if ( empty( $_SERVER[ $k ] ) ) { continue; }
-        $first = explode( ',', (string) $_SERVER[ $k ] )[0];
-        $cand  = trim( $first );
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Value is unslashed/sanitized and validated as IP.
+        $raw   = wp_unslash( (string) $_SERVER[ $k ] );
+        $first = explode( ',', $raw, 2 )[0];
+        $cand  = sanitize_text_field( trim( $first ) );
         if ( filter_var( $cand, FILTER_VALIDATE_IP ) ) {
             return $cand; // return first valid
         }
@@ -1320,7 +1348,7 @@ if ( ! function_exists('aichat_collect_embed_allowed_origins') ) {
 // Simple JSON endpoint: /?aichat_embed_nonce=1  --> { nonce:"..." }
 // Only returns nonce if HTTP_ORIGIN is empty (same-origin) or allowed in stored option list.
 add_action('init', function(){
-  if ( ! isset($_GET['aichat_embed_nonce']) ) return; // bail if not requested
+  if ( ! isset($_GET['aichat_embed_nonce']) ) return; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only embed nonce endpoint.
   nocache_headers();
   header('Content-Type: application/json; charset=utf-8');
   $origin = isset($_SERVER['HTTP_ORIGIN']) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_ORIGIN'] ) ) : '';
@@ -1339,8 +1367,8 @@ add_action('init', function(){
 
   // Optional: bots list (?bots=slug1,slug2)
   $ui_map = [];
-  if ( isset($_GET['bots']) ) {
-    $list_raw = explode(',', sanitize_text_field( wp_unslash($_GET['bots']) ) );
+  if ( isset($_GET['bots']) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only embed config.
+    $list_raw = explode(',', sanitize_text_field( wp_unslash($_GET['bots']) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only embed config.
     $slugs = [];
     foreach($list_raw as $s){ $s = sanitize_title($s); if($s!=='') $slugs[] = $s; }
     $slugs = array_unique($slugs);
@@ -1349,7 +1377,9 @@ add_action('init', function(){
       // Prepare placeholders dynamically
       $placeholders = implode(',', array_fill(0, count($slugs), '%s'));
       $query = "SELECT slug, ui_color, ui_position, ui_avatar_enabled, ui_avatar_key, ui_icon_url, ui_start_sentence, ui_placeholder, ui_button_send, ui_closable, ui_minimizable, ui_draggable, ui_minimized_default, ui_superminimized_default FROM $table WHERE slug IN ($placeholders)";
-      $rows = $wpdb->get_results( $wpdb->prepare($query, $slugs), ARRAY_A );
+      // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is plugin-controlled via $wpdb->prefix.
+      // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is prepared immediately below; placeholders bound via $wpdb->prepare.
+      $rows = $wpdb->get_results( $wpdb->prepare($query, ...$slugs), ARRAY_A ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Read-only embed config lookup.
       if ($rows){
         foreach($rows as $row){
           $avatar_url = '';
@@ -1392,7 +1422,9 @@ add_action('init', function(){
 add_filter('init', function(){
   // Only apply on AJAX context after WP loaded vars
   if ( ! defined('DOING_AJAX') || ! DOING_AJAX ) return;
-  if ( empty($_POST['action']) ) return;
+  // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Read-only action name check; handler verifies nonce separately.
+  $action = isset( $_POST['action'] ) ? sanitize_key( wp_unslash( $_POST['action'] ) ) : '';
+  if ( $action === '' ) return;
 
   $origin = isset($_SERVER['HTTP_ORIGIN']) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_ORIGIN'] ) ) : '';
   if ( ! $origin ) {
@@ -1483,7 +1515,8 @@ if ( ! function_exists('aichat_spam_signature_check') ) {
     $hash = substr( md5( $plain ), 0, 12 );
     $k = 'aichat_lastmsg_'. ( is_user_logged_in() ? 'u'.get_current_user_id() : 'ip'.md5(aichat_get_ip()) );
     $last = get_transient($k);
-    set_transient($k, $hash, 10 * MINUTE_IN_SECONDS);
+    // Ventana corta (segundos): previene doble-submit accidental sin bloquear usos normales.
+    set_transient($k, $hash, 30);
     if ( $last && $last === $hash ) {
   return new WP_Error('aichat_dup', __( 'Duplicate message detected.', 'axiachat-ai' ) );
     }

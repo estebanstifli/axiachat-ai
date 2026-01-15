@@ -239,10 +239,12 @@ add_action('wp_ajax_aichat_upload_file', function(){
     if ( ! current_user_can('manage_options') ) {
         wp_send_json_error(array('message'=>'Unauthorized'), 403);
     }
-    if (empty($_FILES['file'])) {
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- $_FILES handled via server-side validation and sanitize_file_name().
+    if ( empty( $_FILES['file'] ) ) {
         wp_send_json_error(array('message'=>'No file'), 400);
     }
 
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- $_FILES handled via server-side validation and sanitize_file_name().
     $f = $_FILES['file'];
     if ($f['error'] !== UPLOAD_ERR_OK) {
         wp_send_json_error(array('message'=>'Upload error code '.$f['error']), 400);
@@ -322,9 +324,11 @@ add_action('wp_ajax_aichat_list_uploads', function(){
         wp_send_json_error(array('message'=>'Unauthorized'), 403);
     }
 
-    $page = max(1, (int)($_POST['page'] ?? 1));
-    $per  = max(1, min(100, (int)($_POST['per_page'] ?? 10)));
-    $s    = sanitize_text_field($_POST['search'] ?? '');
+    $page = isset( $_POST['page'] ) ? absint( wp_unslash( $_POST['page'] ) ) : 1;
+    $page = max( 1, $page );
+    $per  = isset( $_POST['per_page'] ) ? absint( wp_unslash( $_POST['per_page'] ) ) : 10;
+    $per  = max( 1, min( 100, $per ) );
+    $s    = sanitize_text_field( wp_unslash( $_POST['search'] ?? '' ) );
 
     $args = array(
         'post_type'      => 'aichat_upload',
@@ -357,8 +361,9 @@ add_action('wp_ajax_aichat_parse_upload', function(){
     if ( ! current_user_can('manage_options') ) {
         wp_send_json_error(array('message'=>'Unauthorized'), 403);
     }
-    $upload_id = (int)($_POST['upload_id'] ?? 0);
-    $force = !empty($_POST['force']);
+    $upload_id = isset( $_POST['upload_id'] ) ? absint( wp_unslash( $_POST['upload_id'] ) ) : 0;
+    $force_raw = sanitize_text_field( wp_unslash( $_POST['force'] ?? '' ) );
+    $force     = (bool) filter_var( $force_raw, FILTER_VALIDATE_BOOLEAN );
 
     if ($upload_id <= 0) {
         wp_send_json_error(array('message'=>'Invalid upload_id'), 400);
@@ -430,7 +435,7 @@ add_action('wp_ajax_aichat_get_chunks_for_upload', function(){
     if ( ! current_user_can('manage_options') ) {
         wp_send_json_error(array('message'=>'Unauthorized'), 403);
     }
-    $upload_id = (int)($_POST['upload_id'] ?? 0);
+    $upload_id = isset( $_POST['upload_id'] ) ? absint( wp_unslash( $_POST['upload_id'] ) ) : 0;
     if ($upload_id<=0) {
         wp_send_json_error(array('message'=>'Invalid upload_id'), 400);
     }
@@ -457,7 +462,7 @@ add_action('wp_ajax_aichat_delete_upload', function(){
     if ( ! current_user_can('manage_options') ) {
         wp_send_json_error(array('message'=>'Unauthorized'), 403);
     }
-    $upload_id = (int)($_POST['upload_id'] ?? 0);
+    $upload_id = isset( $_POST['upload_id'] ) ? absint( wp_unslash( $_POST['upload_id'] ) ) : 0;
     if ($upload_id<=0) {
         wp_send_json_error(array('message'=>'Invalid upload_id'), 400);
     }

@@ -748,6 +748,7 @@ class AIChat_Gemini_Provider implements AIChat_Provider_Interface {
                     'function_calls' => $function_calls,
                 ];
 
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Internal tool state persistence.
                 $inserted = $wpdb->insert(
                     $table,
                     [
@@ -850,8 +851,10 @@ class AIChat_Gemini_Provider implements AIChat_Provider_Interface {
         }
 
         $table = $wpdb->prefix . 'aichat_tool_states';
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Internal tool state lookup.
         $row = $wpdb->get_row(
-            $wpdb->prepare("SELECT state_data FROM {$table} WHERE response_id = %s", $response_id)
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is a trusted plugin table name.
+            $wpdb->prepare( "SELECT state_data FROM {$table} WHERE response_id = %s", $response_id )
         );
 
         if (!$row || empty($row->state_data)) {
@@ -867,6 +870,7 @@ class AIChat_Gemini_Provider implements AIChat_Provider_Interface {
         }
 
         // One-time use state – delete immediately to avoid reuse
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Internal tool state cleanup.
         $wpdb->delete($table, ['response_id' => $response_id], ['%s']);
 
         $state = maybe_unserialize($row->state_data);

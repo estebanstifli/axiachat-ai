@@ -24,10 +24,10 @@ function aichat_logs_page() {
         return;
     }
 
-    $date_from = isset($_GET['date_from']) ? sanitize_text_field($_GET['date_from']) : '';
-    $date_to   = isset($_GET['date_to'])   ? sanitize_text_field($_GET['date_to'])   : '';
+    $date_from = isset($_GET['date_from']) ? sanitize_text_field( wp_unslash( $_GET['date_from'] ) ) : '';
+    $date_to   = isset($_GET['date_to'])   ? sanitize_text_field( wp_unslash( $_GET['date_to'] ) )   : '';
     $user_id   = isset($_GET['user_id'])   ? absint($_GET['user_id']) : 0;
-    $bot_slug  = isset($_GET['bot_slug'])  ? sanitize_title($_GET['bot_slug']) : '';
+    $bot_slug  = isset($_GET['bot_slug'])  ? sanitize_title( wp_unslash( $_GET['bot_slug'] ) ) : '';
 
     $where = [];
     $params = [];
@@ -67,9 +67,10 @@ function aichat_logs_page() {
     ";
     // Evitar llamar a prepare sin placeholders
     if ( $params ) {
-        $total = (int) $wpdb->get_var( $wpdb->prepare( $sql_count, $params ) );
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared immediately below via $wpdb->prepare; admin-only listing.
+        $total = (int) $wpdb->get_var( $wpdb->prepare( $sql_count, ...$params ) );
     } else {
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Static query without user-supplied input (no filters); safe.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Static query without user-supplied input (no filters); admin-only listing.
         $total = (int) $wpdb->get_var( $sql_count );
     }
 
@@ -97,10 +98,12 @@ function aichat_logs_page() {
 
     // Preparar consulta listado
     if ( $params ) {
-        $rows = $wpdb->get_results( $wpdb->prepare($sql, $q_params), ARRAY_A );
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared immediately below via $wpdb->prepare; admin-only listing.
+        $rows = $wpdb->get_results( $wpdb->prepare($sql, ...$q_params), ARRAY_A );
     } else {
         // Cuando no hay filtros dinámicos, sólo per_page y offset son variables
-        $rows = $wpdb->get_results( $wpdb->prepare($sql, [ $per_page, $offset ] ), ARRAY_A );
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared immediately below via $wpdb->prepare; admin-only listing.
+        $rows = $wpdb->get_results( $wpdb->prepare($sql, $per_page, $offset ), ARRAY_A );
     }
 
     // Obtener último mensaje corto
@@ -110,7 +113,8 @@ function aichat_logs_page() {
         $placeholders = implode(',', array_fill(0, count($last_ids), '%d'));
     // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- IN clause placeholders (%d) generated to match sanitized integer IDs; executed with $wpdb->prepare.
     $sql_last = "SELECT id, response, message FROM $table WHERE id IN ($placeholders)";
-        $last_res = $wpdb->get_results( $wpdb->prepare($sql_last, $last_ids), ARRAY_A );
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared immediately below via $wpdb->prepare; admin-only listing.
+        $last_res = $wpdb->get_results( $wpdb->prepare($sql_last, ...$last_ids), ARRAY_A );
         foreach($last_res as $r){
             $txt = trim( wp_strip_all_tags( $r['response'] ?: $r['message'] ) );
             if ( mb_strlen($txt) > 120 ) {
@@ -121,9 +125,11 @@ function aichat_logs_page() {
     }
 
     // Bots para filtro
+    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin-only filters; internal table read.
     $bots = $wpdb->get_col("SELECT DISTINCT bot_slug FROM $table ORDER BY bot_slug ASC");
 
     // Usuarios (opcional: sólo los que aparecen)
+    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin-only filters; internal table read.
     $users = $wpdb->get_col("SELECT DISTINCT user_id FROM $table WHERE user_id>0 ORDER BY user_id ASC");
     ?>
     <div class="wrap">

@@ -2,6 +2,9 @@
 if ( ! defined('ABSPATH') ) { exit; }
 // Moved Macro Tools Layer (from includes/macro-tools.php)
 
+// Macro persistence uses internal plugin tables.
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
 global $AICHAT_MACRO_TOOLS;
 if ( ! is_array( $AICHAT_MACRO_TOOLS ) ) { $AICHAT_MACRO_TOOLS = []; }
 
@@ -29,19 +32,22 @@ function aichat_persist_macro( $data ) {
   $insert = array_merge($defaults, $data);
   
   // Check if exists
-  $exists = $wpdb->get_var($wpdb->prepare(
-    "SELECT id FROM $table WHERE name = %s",
-    $insert['name']
-  ));
+  // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Internal table existence check.
+  $exists = $wpdb->get_var(
+    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is a trusted plugin table name.
+    $wpdb->prepare( "SELECT id FROM $table WHERE name = %s", $insert['name'] )
+  );
   
   if ( $exists ) {
     // Update
     $insert['updated_at'] = current_time('mysql');
     unset($insert['created_at']); // Don't update created_at
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Internal table update.
     $wpdb->update($table, $insert, ['name' => $insert['name']]);
     return (int) $exists;
   } else {
     // Insert
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Internal table insert.
     $wpdb->insert($table, $insert);
     return (int) $wpdb->insert_id;
   }
@@ -53,6 +59,7 @@ function aichat_persist_macro( $data ) {
 function aichat_delete_macro( $name ) {
   global $wpdb;
   $table = $wpdb->prefix . 'aichat_macros';
+  // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Internal table delete.
   return $wpdb->delete($table, ['name' => sanitize_key($name)]);
 }
 
@@ -64,11 +71,13 @@ function aichat_delete_macros_by_source( $source, $source_ref = null ) {
   $table = $wpdb->prefix . 'aichat_macros';
   
   if ( $source_ref !== null ) {
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Internal table delete.
     return $wpdb->delete($table, [
       'source' => sanitize_key($source),
       'source_ref' => sanitize_text_field($source_ref)
     ]);
   } else {
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Internal table delete.
     return $wpdb->delete($table, ['source' => sanitize_key($source)]);
   }
 }
@@ -119,6 +128,8 @@ function aichat_get_registered_macros(){
   
   if ( $table_exists ) {
     $rows = $wpdb->get_results(
+      // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin/runtime read of internal table.
+      // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- No user input; $table is internal.
       "SELECT * FROM $table WHERE enabled = 1 ORDER BY label ASC",
       ARRAY_A
     );
@@ -158,3 +169,5 @@ function aichat_expand_macros_to_atomic( array $selected_ids ){
   }
   $uniq = []; foreach($out as $t){ if(!isset($uniq[$t])) $uniq[$t]=true; } return array_keys($uniq);
 }
+
+// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching

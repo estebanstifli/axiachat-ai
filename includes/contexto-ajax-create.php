@@ -126,17 +126,18 @@ function aichat_process_context() {
     $t0 = microtime(true);
     $rid = function_exists('wp_generate_uuid4') ? substr(wp_generate_uuid4(),0,8) : substr(uniqid('',true),-8);
 
-    $context_name    = sanitize_text_field( $_POST['context_name'] ?? '' );
-    $context_type    = sanitize_text_field( $_POST['context_type'] ?? 'local' );
-    $remote_type     = sanitize_text_field( $_POST['remote_type'] ?? '' );
-    $remote_api_key  = sanitize_text_field( $_POST['remote_api_key'] ?? '' );
-    $remote_endpoint = sanitize_text_field( $_POST['remote_endpoint'] ?? '' );
-    $selected_items  = isset($_POST['selected']) ? array_map('absint',(array)$_POST['selected']) : [];
-    $all_selected    = isset($_POST['all_selected']) ? array_map('sanitize_text_field',(array)$_POST['all_selected']) : [];
-    $batch           = isset($_POST['batch']) ? absint($_POST['batch']) : 0;
+    $context_name    = sanitize_text_field( wp_unslash( $_POST['context_name'] ?? '' ) );
+    $context_type    = sanitize_text_field( wp_unslash( $_POST['context_type'] ?? 'local' ) );
+    $remote_type     = sanitize_text_field( wp_unslash( $_POST['remote_type'] ?? '' ) );
+    $remote_api_key  = sanitize_text_field( wp_unslash( $_POST['remote_api_key'] ?? '' ) );
+    $remote_endpoint = sanitize_text_field( wp_unslash( $_POST['remote_endpoint'] ?? '' ) );
+    $selected_items  = isset( $_POST['selected'] ) ? array_map( 'absint', (array) wp_unslash( $_POST['selected'] ) ) : [];
+    $all_selected    = isset( $_POST['all_selected'] ) ? array_map( 'sanitize_text_field', (array) wp_unslash( $_POST['all_selected'] ) ) : [];
+    $batch           = isset( $_POST['batch'] ) ? absint( wp_unslash( $_POST['batch'] ) ) : 0;
     // New autosync related fields
-    $autosync        = isset($_POST['autosync']) ? ( (int)$_POST['autosync'] ? 1 : 0 ) : 0;
-    $autosync_mode   = isset($_POST['autosync_mode']) ? sanitize_text_field($_POST['autosync_mode']) : 'updates';
+    $autosync_raw    = sanitize_text_field( wp_unslash( $_POST['autosync'] ?? '' ) );
+    $autosync        = in_array( strtolower( $autosync_raw ), [ '1', 'true', 'on', 'yes' ], true ) ? 1 : 0;
+    $autosync_mode   = isset( $_POST['autosync_mode'] ) ? sanitize_text_field( wp_unslash( $_POST['autosync_mode'] ) ) : 'updates';
     if (!in_array($autosync_mode, ['updates','updates_and_new'], true)) { $autosync_mode = 'updates'; }
 
     $AJAX_BATCH_SIZE = 10;
@@ -147,6 +148,7 @@ function aichat_process_context() {
     aichat_log($rid, "START handler | name='$context_name' type=$context_type remote_type=$remote_type endpoint='$endpoint_key' api=$api_masked batch=$batch sel=".count($selected_items)." all=".count($all_selected));
 
     // 1) Buscar contexto
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- AJAX handler reading internal context row.
     $existing = $wpdb->get_row(
         $wpdb->prepare("SELECT * FROM {$wpdb->prefix}aichat_contexts WHERE remote_endpoint=%s AND name=%s", $endpoint_key, $context_name),
         ARRAY_A
@@ -211,6 +213,7 @@ function aichat_process_context() {
         aichat_log($rid, "AUTOSYNC scope: autosync=$autosync mode=$autosync_mode post_types='$autosync_post_types'");
 
         if ( ! $existing ) {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- AJAX handler writing internal contexts table.
             $wpdb->insert( $wpdb->prefix.'aichat_contexts', [
                 'name'                => $context_name,
                 'context_type'        => $context_type,
@@ -243,6 +246,7 @@ function aichat_process_context() {
                 $update_data['autosync_mode']       = $autosync_mode;
                 $update_data['autosync_post_types'] = $autosync_post_types;
             }
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- AJAX handler writing internal contexts table.
             $wpdb->update( $wpdb->prefix.'aichat_contexts', $update_data, [ 'id'=>$context_id ] );
             aichat_log($rid, "CONTEXT reset id=$context_id");
         }
@@ -283,6 +287,7 @@ function aichat_process_context() {
 
     // 4) Trabajo protegido por lock
     try {
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- AJAX handler reading internal contexts table.
         $context = $wpdb->get_row(
             $wpdb->prepare("SELECT * FROM {$wpdb->prefix}aichat_contexts WHERE id=%d",$context_id),
             ARRAY_A
@@ -305,6 +310,7 @@ function aichat_process_context() {
         aichat_log($rid, "STATE | total=$total cursor=$cursor status={$context['processing_status']}");
 
         if ($total === 0) {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Update internal contexts table.
             $wpdb->update($wpdb->prefix.'aichat_contexts',['processing_status'=>'completed','processing_progress'=>100],['id'=>$context_id]);
             aichat_log($rid, "EMPTY list → completed");
             aichat_ajax_success($rid, [
@@ -313,6 +319,7 @@ function aichat_process_context() {
             ], $lock_key, $start_key);
         }
         if ($cursor >= $total) {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Update internal contexts table.
             $wpdb->update($wpdb->prefix.'aichat_contexts',['processing_status'=>'completed','processing_progress'=>100],['id'=>$context_id]);
             aichat_log($rid, "ALREADY completed (cursor>=total)");
             aichat_ajax_success($rid, [
@@ -402,6 +409,7 @@ function aichat_process_context() {
         if ($last_post_id) update_option(aichat_last_post_key($context_id), (int)$last_post_id, false);
 
         $progress = (int) floor($new_cursor * 100 / max(1,$total));
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Update internal contexts table.
         $wpdb->update($wpdb->prefix.'aichat_contexts',
             ['processing_progress'=>$progress, 'processing_status'=> ($progress>=100 ? 'completed':'in_progress')],
             ['id'=>$context_id]
@@ -448,10 +456,10 @@ add_action( 'wp_ajax_aichat_load_items', 'aichat_load_items' );
 function aichat_load_items() {
     check_ajax_referer( 'aichat_nonce', 'nonce' );
 
-    $pt     = sanitize_text_field( $_POST['post_type'] ?? '' );
-    $tab    = sanitize_text_field( $_POST['tab'] ?? 'recent' );
-    $search = sanitize_text_field( $_POST['search'] ?? '' );
-    $paged  = isset( $_POST['paged'] ) ? absint( $_POST['paged'] ) : 1;
+    $pt     = sanitize_text_field( wp_unslash( $_POST['post_type'] ?? '' ) );
+    $tab    = sanitize_text_field( wp_unslash( $_POST['tab'] ?? 'recent' ) );
+    $search = sanitize_text_field( wp_unslash( $_POST['search'] ?? '' ) );
+    $paged  = isset( $_POST['paged'] ) ? absint( wp_unslash( $_POST['paged'] ) ) : 1;
 
     // aichat_upload (PADRES) son privados; el resto publish
     $status = ($pt === 'aichat_upload') ? 'private' : 'publish';

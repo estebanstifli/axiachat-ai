@@ -85,12 +85,19 @@ function aichat_run_moderation_checks( $message ) {
 
 function aichat_detect_client_ip() {
     $candidates = [];
-    if (!empty($_SERVER['HTTP_CF_CONNECTING_IP'])) $candidates[] = $_SERVER['HTTP_CF_CONNECTING_IP'];
-    if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-        $parts = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-        foreach ($parts as $p) { $candidates[] = trim($p); }
+    if ( ! empty( $_SERVER['HTTP_CF_CONNECTING_IP'] ) ) {
+        $candidates[] = sanitize_text_field( wp_unslash( $_SERVER['HTTP_CF_CONNECTING_IP'] ) );
     }
-    if (!empty($_SERVER['REMOTE_ADDR'])) $candidates[] = $_SERVER['REMOTE_ADDR'];
+    if ( ! empty( $_SERVER['HTTP_X_FORWARDED_FOR'] ) ) {
+        $xff_raw = sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_FORWARDED_FOR'] ) );
+        $parts   = explode( ',', (string) $xff_raw );
+        foreach ( $parts as $p ) {
+            $candidates[] = sanitize_text_field( trim( (string) $p ) );
+        }
+    }
+    if ( ! empty( $_SERVER['REMOTE_ADDR'] ) ) {
+        $candidates[] = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) );
+    }
     foreach ($candidates as $ip) {
         if (filter_var($ip, FILTER_VALIDATE_IP)) return $ip;
     }

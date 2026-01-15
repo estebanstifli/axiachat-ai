@@ -21,7 +21,7 @@ function aichat_load_contexts() {
                    (SELECT COUNT(*) FROM $table_chunks ch WHERE ch.id_context = c.id) AS chunk_count,
                    (SELECT COUNT(DISTINCT post_id) FROM $table_chunks ch2 WHERE ch2.id_context = c.id) AS post_count
             FROM $table_ctx c ORDER BY c.id ASC";
-    $contexts = $wpdb->get_results( $sql, ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Query uses only plugin-controlled table names and no user input.
+    $contexts = $wpdb->get_results( $sql, ARRAY_A ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Admin AJAX listing; internal tables; no user input.
     if ( ! $contexts ) { $contexts = []; }
     wp_send_json_success( [ 'contexts' => $contexts ] );
 }
@@ -31,23 +31,27 @@ add_action( 'wp_ajax_aichat_update_context_name', 'aichat_update_context_name' )
 function aichat_update_context_name() {
     check_ajax_referer( 'aichat_nonce', 'nonce' );
     global $wpdb;
-    $id = absint( $_POST['id'] );
-    $name = sanitize_text_field( $_POST['name'] );
+    $id = isset( $_POST['id'] ) ? absint( wp_unslash( $_POST['id'] ) ) : 0;
+    $name = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '';
+    if ( $id <= 0 || $name === '' ) {
+        wp_send_json_error( [ 'message' => 'Missing parameters.' ], 400 );
+    }
     $data = [ 'name' => $name ];
     $formats = [ '%s' ];
 
     // Opcionales: autosync settings si vienen en la petición
     if ( isset($_POST['autosync']) ) {
-        $autosync = (int)$_POST['autosync'] ? 1 : 0;
+        $autosync = absint( wp_unslash( $_POST['autosync'] ) ) ? 1 : 0;
         $data['autosync'] = $autosync; $formats[] = '%d';
     }
     if ( isset($_POST['autosync_mode']) ) {
-        $mode = sanitize_text_field($_POST['autosync_mode']);
+        $mode = sanitize_text_field( wp_unslash( $_POST['autosync_mode'] ) );
         if (! in_array($mode, ['updates','updates_and_new'], true) ) {
             $mode = 'updates';
         }
         $data['autosync_mode'] = $mode; $formats[] = '%s';
     }
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin AJAX update; internal table.
     $result = $wpdb->update(
         $wpdb->prefix . 'aichat_contexts',
         $data,
@@ -67,9 +71,14 @@ add_action( 'wp_ajax_aichat_delete_context', 'aichat_delete_context' );
 function aichat_delete_context() {
     check_ajax_referer( 'aichat_nonce', 'nonce' );
     global $wpdb;
-    $id = absint( $_POST['id'] );
+    $id = isset( $_POST['id'] ) ? absint( wp_unslash( $_POST['id'] ) ) : 0;
+    if ( $id <= 0 ) {
+        wp_send_json_error( [ 'message' => 'Missing id.' ], 400 );
+    }
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin AJAX delete; internal table.
     $result = $wpdb->delete( $wpdb->prefix . 'aichat_contexts', [ 'id' => $id ], [ '%d' ] );
     if ( $result !== false ) {
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin AJAX update; internal table.
         $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}aichat_chunks SET id_context = 0 WHERE id_context = %d", $id ) );
         wp_send_json_success();
     } else {
@@ -81,8 +90,12 @@ function aichat_delete_context() {
 add_action( 'wp_ajax_aichat_update_progress', 'aichat_update_progress' );
 function aichat_update_progress() {
     check_ajax_referer( 'aichat_nonce', 'nonce' );
-    $context_id = absint( $_POST['context_id'] );
+    $context_id = isset( $_POST['context_id'] ) ? absint( wp_unslash( $_POST['context_id'] ) ) : 0;
+    if ( $context_id <= 0 ) {
+        wp_send_json_error( [ 'message' => 'Missing context_id' ], 400 );
+    }
     global $wpdb;
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin AJAX read; internal table.
     $context = $wpdb->get_row( $wpdb->prepare( "SELECT processing_progress FROM {$wpdb->prefix}aichat_contexts WHERE id = %d", $context_id ), ARRAY_A );
     if ($context) {
         wp_send_json_success( [ 'progress' => $context['processing_progress'] ] );
@@ -98,9 +111,9 @@ function aichat_search_context_chunks(){
     if ( ! current_user_can('manage_options') ) {
         wp_send_json_error(['message'=>'Forbidden'], 403);
     }
-    $context_id = isset($_POST['context_id']) ? absint($_POST['context_id']) : 0;
+    $context_id = isset($_POST['context_id']) ? absint( wp_unslash( $_POST['context_id'] ) ) : 0;
     $query      = isset($_POST['q']) ? trim( sanitize_text_field( wp_unslash($_POST['q']) ) ) : '';
-    $limit      = isset($_POST['limit']) ? max(1, min(20, absint($_POST['limit']))) : 10;
+    $limit      = isset($_POST['limit']) ? max(1, min(20, absint( wp_unslash( $_POST['limit'] ) ))) : 10;
     if ($context_id <= 0) {
         wp_send_json_error(['message'=>'Missing context_id']);
     }
@@ -113,7 +126,7 @@ function aichat_search_context_chunks(){
         wp_send_json_error(['message'=>'Embedding failed']);
     }
     global $wpdb; $table = $wpdb->prefix.'aichat_chunks';
-    $rows = $wpdb->get_results( $wpdb->prepare("SELECT post_id, title, content, embedding, type FROM $table WHERE id_context=%d", $context_id), ARRAY_A );
+    $rows = $wpdb->get_results( $wpdb->prepare("SELECT post_id, title, content, embedding, type FROM $table WHERE id_context=%d", $context_id), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin AJAX semantic test; internal table read.
     if ( ! $rows ) { wp_send_json_success(['results'=>[]]); }
     $scored = [];
     foreach($rows as $r){
@@ -139,14 +152,36 @@ add_action('wp_ajax_aichat_get_context_meta','aichat_get_context_meta');
 function aichat_get_context_meta(){
     check_ajax_referer('aichat_nonce','nonce');
     if ( ! current_user_can('manage_options') ) { wp_send_json_error(['message'=>'Forbidden'],403); }
-    $id = isset($_POST['id']) ? absint($_POST['id']) : 0;
+    $id = isset($_POST['id']) ? absint( wp_unslash( $_POST['id'] ) ) : 0;
     if ($id<=0) { wp_send_json_error(['message'=>'Missing id']); }
     global $wpdb; $ctx_table = $wpdb->prefix.'aichat_contexts'; $chunks_table = $wpdb->prefix.'aichat_chunks';
-    $row = $wpdb->get_row( $wpdb->prepare("SELECT id, name, context_type, remote_type, created_at, processing_status, processing_progress, autosync, autosync_mode, autosync_post_types FROM $ctx_table WHERE id=%d", $id), ARRAY_A );
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin AJAX read; internal table.
+    $row = $wpdb->get_row(
+        $wpdb->prepare(
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $ctx_table is a trusted plugin table name.
+            "SELECT id, name, context_type, remote_type, created_at, processing_status, processing_progress, autosync, autosync_mode, autosync_post_types FROM {$ctx_table} WHERE id=%d",
+            $id
+        ),
+        ARRAY_A
+    );
     if ( ! $row ) { wp_send_json_error(['message'=>'Not found']); }
-    $chunk_count = (int)$wpdb->get_var( $wpdb->prepare("SELECT COUNT(*) FROM $chunks_table WHERE id_context=%d", $id) );
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin AJAX read; internal table.
+    $chunk_count = (int) $wpdb->get_var(
+        $wpdb->prepare(
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $chunks_table is a trusted plugin table name.
+            "SELECT COUNT(*) FROM {$chunks_table} WHERE id_context=%d",
+            $id
+        )
+    );
     // Conteo posts únicos
-    $post_count = (int)$wpdb->get_var( $wpdb->prepare("SELECT COUNT(DISTINCT post_id) FROM $chunks_table WHERE id_context=%d", $id) );
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin AJAX read; internal table.
+    $post_count = (int) $wpdb->get_var(
+        $wpdb->prepare(
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $chunks_table is a trusted plugin table name.
+            "SELECT COUNT(DISTINCT post_id) FROM {$chunks_table} WHERE id_context=%d",
+            $id
+        )
+    );
     $row['chunk_count'] = $chunk_count;
     $row['post_count']  = $post_count;
     wp_send_json_success(['context'=>$row]);
@@ -158,11 +193,19 @@ function aichat_autosync_run_now(){
     check_ajax_referer('aichat_nonce','nonce');
     if ( ! current_user_can('manage_options') ) { wp_send_json_error(['message'=>'Forbidden'],403); }
     global $wpdb;
-    $ctx_id = isset($_POST['context_id']) ? absint($_POST['context_id']) : 0;
-    $mode_req = isset($_POST['mode']) ? sanitize_text_field($_POST['mode']) : 'modified';
+    $ctx_id = isset($_POST['context_id']) ? absint( wp_unslash( $_POST['context_id'] ) ) : 0;
+    $mode_req = isset($_POST['mode']) ? sanitize_text_field( wp_unslash( $_POST['mode'] ) ) : 'modified';
     if ($ctx_id<=0) { wp_send_json_error(['message'=>'Missing context_id']); }
     $table_ctx = $wpdb->prefix.'aichat_contexts';
-    $row = $wpdb->get_row($wpdb->prepare("SELECT id, context_type, autosync, autosync_mode, autosync_post_types, items_to_process, processing_status FROM $table_ctx WHERE id=%d", $ctx_id), ARRAY_A);
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin AJAX read; internal table.
+    $row = $wpdb->get_row(
+        $wpdb->prepare(
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table_ctx is a trusted plugin table name.
+            "SELECT id, context_type, autosync, autosync_mode, autosync_post_types, items_to_process, processing_status FROM {$table_ctx} WHERE id=%d",
+            $ctx_id
+        ),
+        ARRAY_A
+    );
     if(!$row){ wp_send_json_error(['message'=>'Context not found']); }
     if($row['context_type'] !== 'local'){ wp_send_json_error(['message'=>'Only local contexts supported']); }
 
@@ -202,25 +245,25 @@ function aichat_autosync_run_now(){
     // Queries similar to cron
     // Modified
     $modified_params = array_merge( [ $ctx_id ], $wp_types );
-    $modified = $wpdb->get_col( $wpdb->prepare("SELECT p.ID
-        FROM {$wpdb->posts} p
-        JOIN {$wpdb->prefix}aichat_chunks c ON c.post_id=p.ID AND c.id_context=%d
-        WHERE p.post_status='publish' AND p.post_type IN ($placeholders_types)
-        GROUP BY p.ID
-        HAVING TIMESTAMP(MAX(COALESCE(c.updated_at,c.created_at))) < TIMESTAMP(MAX(p.post_modified_gmt))
-        LIMIT 500", $modified_params ) );
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin AJAX read; internal tables.
+    $modified = $wpdb->get_col( $wpdb->prepare(
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $placeholders_types built from sanitized post types; executed via prepare.
+        "SELECT p.ID FROM {$wpdb->posts} p JOIN {$wpdb->prefix}aichat_chunks c ON c.post_id=p.ID AND c.id_context=%d WHERE p.post_status='publish' AND p.post_type IN ($placeholders_types) GROUP BY p.ID HAVING TIMESTAMP(MAX(COALESCE(c.updated_at,c.created_at))) < TIMESTAMP(MAX(p.post_modified_gmt)) LIMIT 500",
+        $modified_params
+    ) );
 
     if ( $effective === 'modified_and_new' ) {
         $new_params = array_merge( [ $ctx_id ], $wp_types );
-        $new = $wpdb->get_col( $wpdb->prepare("SELECT p.ID
-            FROM {$wpdb->posts} p
-            LEFT JOIN {$wpdb->prefix}aichat_chunks c ON c.post_id=p.ID AND c.id_context=%d
-            WHERE c.post_id IS NULL AND p.post_status='publish' AND p.post_type IN ($placeholders_types)
-            ORDER BY p.ID DESC
-            LIMIT 500", $new_params ) );
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin AJAX read; internal tables.
+        $new = $wpdb->get_col( $wpdb->prepare(
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $placeholders_types built from sanitized post types; executed via prepare.
+            "SELECT p.ID FROM {$wpdb->posts} p LEFT JOIN {$wpdb->prefix}aichat_chunks c ON c.post_id=p.ID AND c.id_context=%d WHERE c.post_id IS NULL AND p.post_status='publish' AND p.post_type IN ($placeholders_types) ORDER BY p.ID DESC LIMIT 500",
+            $new_params
+        ) );
     }
 
     // Orphans
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin AJAX read; internal tables.
     $orphans = $wpdb->get_col( $wpdb->prepare("SELECT DISTINCT c.post_id
         FROM {$wpdb->prefix}aichat_chunks c
         LEFT JOIN {$wpdb->posts} p ON p.ID = c.post_id
@@ -233,7 +276,14 @@ function aichat_autosync_run_now(){
         // - If scope includes ALL_* tokens, we re-scan full post lists for those types.
         $full_ids=[];
         if($limited){
-            $full_ids = $wpdb->get_col( $wpdb->prepare("SELECT DISTINCT post_id FROM {$wpdb->prefix}aichat_chunks WHERE id_context=%d", $ctx_id) );
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin AJAX read; internal table.
+            $full_ids = $wpdb->get_col(
+                $wpdb->prepare(
+                    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Internal plugin table name.
+                    "SELECT DISTINCT post_id FROM {$wpdb->prefix}aichat_chunks WHERE id_context=%d",
+                    $ctx_id
+                )
+            );
         } else {
             foreach($wp_types as $pt){
                 $ids = get_posts(['post_type'=>$pt,'post_status'=>'publish','numberposts'=>-1,'fields'=>'ids']);
@@ -256,6 +306,7 @@ function aichat_autosync_run_now(){
     }
 
     // Update context row
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin AJAX update; internal table.
     $wpdb->update($table_ctx,[
         'items_to_process' => maybe_serialize($new_queue),
         'processing_status'=> 'pending',
@@ -267,8 +318,10 @@ function aichat_autosync_run_now(){
     if(!empty($orphans)){
         $orph_placeholders = implode(',', array_fill(0, count($orphans), '%d'));
         $del_params = array_merge([$ctx_id], array_map('intval',$orphans));
-        $delete_sql = $wpdb->prepare("DELETE FROM {$wpdb->prefix}aichat_chunks WHERE id_context=%d AND post_id IN ($orph_placeholders)", $del_params);
-        $wpdb->query($delete_sql);
+        $delete_sql = "DELETE FROM {$wpdb->prefix}aichat_chunks WHERE id_context=%d AND post_id IN ($orph_placeholders)";
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $orph_placeholders is generated from validated integers; internal table.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Prepared immediately below via $wpdb->prepare with variadics; admin AJAX cleanup.
+        $wpdb->query( $wpdb->prepare( $delete_sql, ...$del_params ) );
         $deleted_orphans = count($orphans);
     }
 
@@ -290,21 +343,30 @@ function aichat_browse_context_chunks(){
     check_ajax_referer('aichat_nonce','nonce');
     if ( ! current_user_can('manage_options') ) { wp_send_json_error(['message'=>'Forbidden'],403); }
     global $wpdb; $ctx_table = $wpdb->prefix.'aichat_contexts'; $chunks_table = $wpdb->prefix.'aichat_chunks';
-    $ctx_id = isset($_POST['context_id']) ? absint($_POST['context_id']) : 0;
+    $ctx_id = isset($_POST['context_id']) ? absint( wp_unslash( $_POST['context_id'] ) ) : 0;
     if($ctx_id<=0){ wp_send_json_error(['message'=>'Missing context_id']); }
-    $context = $wpdb->get_row($wpdb->prepare("SELECT id, context_type FROM $ctx_table WHERE id=%d", $ctx_id), ARRAY_A);
+    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is plugin-controlled via $wpdb->prefix.
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin AJAX read; internal table.
+    $context = $wpdb->get_row(
+        $wpdb->prepare(
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $ctx_table is a trusted plugin table name.
+            "SELECT id, context_type FROM {$ctx_table} WHERE id=%d",
+            $ctx_id
+        ),
+        ARRAY_A
+    );
     if(!$context){ wp_send_json_error(['message'=>'Context not found']); }
     if($context['context_type']!=='local'){ wp_send_json_error(['message'=>'Browse not available for remote contexts']); }
 
-    $page = isset($_POST['page']) ? max(1, absint($_POST['page'])) : 1;
-    $per_page = isset($_POST['per_page']) ? absint($_POST['per_page']) : 25;
+    $page = isset($_POST['page']) ? max(1, absint( wp_unslash( $_POST['page'] ) )) : 1;
+    $per_page = isset($_POST['per_page']) ? absint( wp_unslash( $_POST['per_page'] ) ) : 25;
     if($per_page <=0) $per_page=25; if($per_page>50) $per_page=50;
     $offset = ($page-1)*$per_page;
-    $q = isset($_POST['q']) ? trim(wp_unslash($_POST['q'])) : '';
+    $q = isset($_POST['q']) ? trim( sanitize_text_field( wp_unslash( $_POST['q'] ) ) ) : '';
     if(strlen($q)>80) $q = substr($q,0,80);
     // Escape LIKE wildcards
     $q_like = $q!=='' ? '%' . $wpdb->esc_like($q) . '%' : '';
-    $filter_type = isset($_POST['type']) ? sanitize_key($_POST['type']) : '';
+    $filter_type = isset($_POST['type']) ? sanitize_key( wp_unslash( $_POST['type'] ) ) : '';
     $allowed_types = ['post','page','product','upload'];
     if($filter_type && !in_array($filter_type,$allowed_types,true)) $filter_type='';
 
@@ -324,7 +386,8 @@ function aichat_browse_context_chunks(){
 
     // Count total
     $count_sql = "SELECT COUNT(*) FROM $chunks_table c WHERE $where_sql";
-    $total = (int)$wpdb->get_var($wpdb->prepare($count_sql, $where_params));
+    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Prepared immediately below; $where_sql uses only whitelisted fragments with placeholders; admin AJAX read.
+    $total = (int)$wpdb->get_var($wpdb->prepare($count_sql, ...$where_params));
     if($total===0){
         wp_send_json_success([
             'context_id'=>$ctx_id,
@@ -343,7 +406,10 @@ function aichat_browse_context_chunks(){
         ORDER BY COALESCE(c.updated_at,c.created_at) DESC, c.id DESC
         LIMIT %d OFFSET %d";
     $rows_params = array_merge($where_params, [$per_page, $offset]);
-    $prepared = $wpdb->prepare($sql, $rows_params);
+    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is plugin-controlled via $wpdb->prefix.
+    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Prepared immediately below; $where_sql uses only whitelisted fragments with placeholders.
+    $prepared = $wpdb->prepare($sql, ...$rows_params);
+    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above; admin AJAX read.
     $rows_raw = $wpdb->get_results($prepared, ARRAY_A);
     $rows = [];
     foreach($rows_raw as $r){

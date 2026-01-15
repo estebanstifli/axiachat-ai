@@ -6,6 +6,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // Página de settings para Configuración y Mantenimiento de Contextos
 function aichat_contexto_settings_page() {
     global $wpdb;
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin screen listing internal context tables.
     $contexts = $wpdb->get_results(
         "SELECT c.id, c.name, c.processing_progress, c.processing_status, c.created_at,
                 (SELECT COUNT(*) FROM {$wpdb->prefix}aichat_chunks ch WHERE ch.id_context=c.id) AS chunk_count,

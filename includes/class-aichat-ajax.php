@@ -9,6 +9,10 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
+// This file performs real-time chat processing and internal logging.
+// Caching DB access here is not appropriate; we intentionally use direct DB calls.
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
 // Definir bandera de depuración si no existe para evitar notices
 if ( ! defined( 'AICHAT_DEBUG') ) {
     define( 'AICHAT_DEBUG', false );
@@ -48,24 +52,55 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             }
 
             // Flujo de continuación de tools (segunda fase)
-            $is_continue = ! empty($_POST['continue_tool']);
+            // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified above via wp_verify_nonce.
+            $is_continue = false;
+            if ( isset( $_POST['continue_tool'] ) ) {
+                $is_continue = (bool) filter_var( wp_unslash( $_POST['continue_tool'] ), FILTER_VALIDATE_BOOLEAN );
+            }
             $continue_response_id = '';
             $continue_tool_calls = [];
 
             $message  = isset( $_POST['message'] )  ? sanitize_textarea_field( wp_unslash( $_POST['message'] ) ) : '';
             $bot_slug = isset( $_POST['bot_slug'] ) ? sanitize_title( wp_unslash( $_POST['bot_slug'] ) ) : '';
             // Session id sanitize (regex + length bound)
+            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Sanitized via aichat_sanitize_session_id().
             $session  = isset( $_POST['session_id'] ) ? aichat_sanitize_session_id( wp_unslash( $_POST['session_id'] ) ) : '';
             if ($session==='') { $session = wp_generate_uuid4(); }
             if ( $is_continue ) {
                 // Segunda fase: no exigimos message, sí parámetros response_id + tool_calls
                 $continue_response_id = isset($_POST['response_id']) ? sanitize_text_field( wp_unslash($_POST['response_id']) ) : '';
-                $tool_calls_raw = isset($_POST['tool_calls']) ? wp_unslash($_POST['tool_calls']) : '';
+                // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified above via wp_verify_nonce.
+                // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON payload decoded and normalized below.
+                $tool_calls_raw = isset( $_POST['tool_calls'] ) ? wp_unslash( $_POST['tool_calls'] ) : '';
                 if ( is_string($tool_calls_raw) && $tool_calls_raw !== '' ) {
                     $decoded = json_decode($tool_calls_raw, true);
                     if ( is_array($decoded) ) { $continue_tool_calls = $decoded; }
-                } elseif ( is_array($_POST['tool_calls'] ?? null) ) {
-                    $continue_tool_calls = $_POST['tool_calls'];
+                } elseif ( is_array( $_POST['tool_calls'] ?? null ) ) {
+                    // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified above via wp_verify_nonce.
+                    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Array payload normalized below.
+                    $continue_tool_calls = wp_unslash( $_POST['tool_calls'] );
+                }
+                // Normalizar estructura para evitar entradas inesperadas
+                if ( ! empty( $continue_tool_calls ) ) {
+                    $continue_tool_calls = array_values( array_filter( array_map( static function( $tc ) {
+                        if ( ! is_array( $tc ) ) {
+                            return null;
+                        }
+                        $call_id = isset( $tc['call_id'] ) ? sanitize_text_field( (string) $tc['call_id'] ) : '';
+                        $name    = isset( $tc['name'] ) ? sanitize_text_field( (string) $tc['name'] ) : '';
+                        $args    = $tc['args'] ?? ( $tc['arguments'] ?? '{}' );
+                        if ( is_array( $args ) ) {
+                            $args = wp_json_encode( $args );
+                        }
+                        if ( ! is_string( $args ) ) {
+                            $args = '{}';
+                        }
+                        return [
+                            'call_id' => $call_id,
+                            'name'    => $name,
+                            'args'    => $args,
+                        ];
+                    }, $continue_tool_calls ) ) );
                 }
                 if ( $continue_response_id === '' || empty($continue_tool_calls) ) {
                     wp_send_json_error( [ 'message' => 'Missing continuation parameters.' ], 400 );
@@ -92,7 +127,9 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             }
 
             // ---- Honeypot anti bots ----
-            if ( ! empty( $_POST['aichat_hp'] ) ) { // Honeypot present -> block
+            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Honeypot value is used only for a strict empty-check.
+            $hp = isset( $_POST['aichat_hp'] ) ? (string) wp_unslash( $_POST['aichat_hp'] ) : '';
+            if ( $hp !== '' ) { // Honeypot present -> block
                 aichat_log_debug("[AIChat AJAX][$uid] honeypot filled");
                 wp_send_json_error( [ 'message' => __( 'Request blocked.', 'axiachat-ai' ) ], 403 );
             }
@@ -117,7 +154,18 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             if ( function_exists('aichat_spam_signature_check') ) {
                 $sig = aichat_spam_signature_check( $message );
                 if ( is_wp_error( $sig ) && $sig->get_error_code() !== 'aichat_empty' ) {
-                    aichat_log_debug("[AIChat AJAX][$uid] spam signature: " . $sig->get_error_code());
+                    $sig_code = $sig->get_error_code();
+                    aichat_log_debug("[AIChat AJAX][$uid] spam signature: " . $sig_code);
+
+                    // Si es un duplicado, no lo tratamos como un error duro.
+                    // Esto evita que un doble-submit (o un retry del navegador) rompa la UX con un "Blocked".
+                    if ( $sig_code === 'aichat_dup' ) {
+                        wp_send_json_success( [
+                            'message'   => '',
+                            'duplicate' => true,
+                        ] );
+                    }
+
                     wp_send_json_error( [ 'message' => __( 'Blocked.', 'axiachat-ai' ) ], 400 );
                 }
             }
@@ -413,10 +461,14 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
 
                 // Comprobar límite global (total)
                 if ( $max_total > 0 ) {
-                    $count_total = (int)$wpdb->get_var( $wpdb->prepare(
-                        "SELECT COUNT(*) FROM $conv_table WHERE created_at BETWEEN %s AND %s",
-                        $today_start, $today_end
-                    ) );
+                    $count_total = (int) $wpdb->get_var(
+                        $wpdb->prepare(
+                            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $conv_table is a trusted plugin table name.
+                            "SELECT COUNT(*) FROM {$conv_table} WHERE created_at BETWEEN %s AND %s",
+                            $today_start,
+                            $today_end
+                        )
+                    );
                     if ( $count_total >= $max_total ) {
                         // Según comportamiento: devolvemos mensaje (disabled) o lo tratamos como oculto
                         aichat_log_debug("[AIChat AJAX][$uid] global limit reached count=$count_total max=$max_total behavior=$beh_total");
@@ -1067,8 +1119,9 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             $pending_tool_outputs = [];
             // request_uuid opcional para enlazar tool_calls con la conversación al persistir
             $request_uuid = '';
-            if ( ! empty($_REQUEST['aichat_request_uuid']) ) {
-                $uuid = sanitize_text_field( (string)$_REQUEST['aichat_request_uuid'] );
+            // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Optional request correlation ID; no state change.
+            if ( ! empty( $_REQUEST['aichat_request_uuid'] ) ) {
+                $uuid = sanitize_text_field( wp_unslash( (string) $_REQUEST['aichat_request_uuid'] ) );
                 if ( preg_match('/^[a-f0-9-]{36}$/i',$uuid) ) { $request_uuid = $uuid; }
             }
             // Asegurar NOT NULL en la columna (fallback si el cliente no envió UUID)
@@ -1287,17 +1340,29 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
         protected function update_last_conversation_response( $session_id, $bot_slug, $final_answer, $request_uuid = '' ) {
             global $wpdb; $table = $wpdb->prefix.'aichat_conversations';
             // Busca la última conversación para este par
-            $row = $wpdb->get_row( $wpdb->prepare(
-                "SELECT id FROM $table WHERE session_id=%s AND bot_slug=%s ORDER BY id DESC LIMIT 1",
-                $session_id, sanitize_title($bot_slug)
-            ), ARRAY_A );
+            $row = $wpdb->get_row(
+                $wpdb->prepare(
+                    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is a trusted plugin table name.
+                    "SELECT id FROM {$table} WHERE session_id=%s AND bot_slug=%s ORDER BY id DESC LIMIT 1",
+                    $session_id,
+                    sanitize_title( $bot_slug )
+                ),
+                ARRAY_A
+            );
             if ( $row && isset($row['id']) ) {
                 $conv_id = (int)$row['id'];
                 $wpdb->update( $table, [ 'response' => wp_kses_post($final_answer) ], [ 'id' => $conv_id ], [ '%s' ], [ '%d' ] );
                 // Vincular tool_calls si disponemos de request_uuid
                 if ( $request_uuid && preg_match('/^[a-f0-9-]{36}$/i',$request_uuid) ) {
                     $tool_tbl = $wpdb->prefix.'aichat_tool_calls';
-                    $wpdb->query( $wpdb->prepare("UPDATE $tool_tbl SET conversation_id=%d WHERE request_uuid=%s AND conversation_id IS NULL", $conv_id, $request_uuid) );
+                    $wpdb->query(
+                        $wpdb->prepare(
+                            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $tool_tbl is a trusted plugin table name.
+                            "UPDATE {$tool_tbl} SET conversation_id=%d WHERE request_uuid=%s AND conversation_id IS NULL",
+                            $conv_id,
+                            $request_uuid
+                        )
+                    );
                 }
             }
         }
@@ -1311,7 +1376,11 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
 
             if ( ! empty( $bot_slug ) ) {
                 $bot = $wpdb->get_row(
-                    $wpdb->prepare( "SELECT * FROM {$table} WHERE slug = %s LIMIT 1", $bot_slug ),
+                    $wpdb->prepare(
+                        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is a trusted plugin table name.
+                        "SELECT * FROM {$table} WHERE slug = %s LIMIT 1",
+                        $bot_slug
+                    ),
                     ARRAY_A
                 );
                 if ( $bot ) return $bot;
@@ -1322,13 +1391,18 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
 
             if ( $global_on && ! empty( $global_slug ) ) {
                 $bot = $wpdb->get_row(
-                    $wpdb->prepare( "SELECT * FROM {$table} WHERE slug = %s LIMIT 1", sanitize_title( $global_slug ) ),
+                    $wpdb->prepare(
+                        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is a trusted plugin table name.
+                        "SELECT * FROM {$table} WHERE slug = %s LIMIT 1",
+                        sanitize_title( $global_slug )
+                    ),
                     ARRAY_A
                 );
                 if ( $bot ) return $bot;
             }
 
             // Fallback al primero
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is a trusted plugin table name.
             $bot = $wpdb->get_row( "SELECT * FROM {$table} ORDER BY id ASC LIMIT 1", ARRAY_A );
             return $bot ?: null;
         }
@@ -1789,10 +1863,13 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             // Obtener IP del usuario (preferimos REMOTE_ADDR; opcionalmente cabeceras proxy confiables)
             $ip_raw = '';
             $candidates = [];
-            if ( ! empty( $_SERVER['HTTP_CF_CONNECTING_IP'] ) ) { $candidates[] = $_SERVER['HTTP_CF_CONNECTING_IP']; }
-            if ( ! empty( $_SERVER['HTTP_X_REAL_IP'] ) ) { $candidates[] = $_SERVER['HTTP_X_REAL_IP']; }
-            if ( ! empty( $_SERVER['HTTP_X_FORWARDED_FOR'] ) ) { $candidates[] = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'])[0]; }
-            if ( ! empty( $_SERVER['REMOTE_ADDR'] ) ) { $candidates[] = $_SERVER['REMOTE_ADDR']; }
+            if ( ! empty( $_SERVER['HTTP_CF_CONNECTING_IP'] ) ) { $candidates[] = sanitize_text_field( wp_unslash( $_SERVER['HTTP_CF_CONNECTING_IP'] ) ); }
+            if ( ! empty( $_SERVER['HTTP_X_REAL_IP'] ) ) { $candidates[] = sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_REAL_IP'] ) ); }
+            if ( ! empty( $_SERVER['HTTP_X_FORWARDED_FOR'] ) ) {
+                $xff = sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_FORWARDED_FOR'] ) );
+                $candidates[] = explode( ',', $xff )[0];
+            }
+            if ( ! empty( $_SERVER['REMOTE_ADDR'] ) ) { $candidates[] = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ); }
             foreach ( $candidates as $cand ) {
                 $cand = trim( (string)$cand );
                 if ( filter_var( $cand, FILTER_VALIDATE_IP ) ) { $ip_raw = $cand; break; }
@@ -1821,7 +1898,10 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             ];
             $formats = [ '%d','%s','%s','%s','%s','%d','%s','%s','%d','%d','%d','%d','%s' ];
             // Sólo añadimos ip_address si la columna existe
-            $has_ip = $wpdb->get_var( $wpdb->prepare("SHOW COLUMNS FROM `$table` LIKE %s", 'ip_address') );
+            $has_ip = $wpdb->get_var(
+                // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is a trusted plugin table name.
+                $wpdb->prepare( "SHOW COLUMNS FROM `$table` LIKE %s", 'ip_address' )
+            );
             if ( $has_ip ) {
                 $data['ip_address'] = $ip_binary; // puede ser null
                 // ip_address ya considerado en order actual: reordenar arrays si hiciera falta
@@ -1840,11 +1920,15 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             // Hook after insert
             if ( ! empty( $wpdb->insert_id ) ) {
             // Vincular tool calls si request_uuid vino en la petición
-            if ( ! empty($_REQUEST['aichat_request_uuid']) ) {
-                $uuid = sanitize_text_field( (string)$_REQUEST['aichat_request_uuid'] );
+            // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Optional request correlation ID; no state change.
+            if ( ! empty( $_REQUEST['aichat_request_uuid'] ) ) {
+                $uuid = sanitize_text_field( wp_unslash( (string) $_REQUEST['aichat_request_uuid'] ) );
                 if ( preg_match('/^[a-f0-9-]{36}$/i',$uuid) ) {
                     $tool_tbl = $wpdb->prefix.'aichat_tool_calls';
-                    $wpdb->query( $wpdb->prepare("UPDATE $tool_tbl SET conversation_id=%d WHERE request_uuid=%s AND conversation_id IS NULL", $wpdb->insert_id, $uuid) );
+                    $wpdb->query(
+                        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $tool_tbl is a trusted plugin table name.
+                        $wpdb->prepare( "UPDATE $tool_tbl SET conversation_id=%d WHERE request_uuid=%s AND conversation_id IS NULL", $wpdb->insert_id, $uuid )
+                    );
                 }
             }
             do_action('aichat_conversation_saved', [
@@ -1877,15 +1961,16 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             if ( empty($nonce) || ! wp_verify_nonce( $nonce, 'aichat_ajax' ) ) {
                 wp_send_json_error( [ 'message' => __( 'Nonce inválido.', 'axiachat-ai' ) ], 403 );
             }
-            $session  = isset( $_POST['session_id'] ) ? aichat_sanitize_session_id( wp_unslash( $_POST['session_id'] ) ) : '';
+            $session_raw = isset( $_POST['session_id'] ) ? sanitize_text_field( wp_unslash( $_POST['session_id'] ) ) : '';
+            $session  = aichat_sanitize_session_id( $session_raw );
             $bot_slug = isset( $_POST['bot_slug'] ) ? sanitize_title( wp_unslash( $_POST['bot_slug'] ) ) : '';
-            $limit_raw = isset( $_POST['limit'] ) ? wp_unslash( $_POST['limit'] ) : 50;
+            $limit_raw = isset( $_POST['limit'] ) ? absint( wp_unslash( $_POST['limit'] ) ) : 50;
             $limit    = aichat_bounded_int( $limit_raw, 1, 200, 50 );
             if ($session==='' || $bot_slug==='') wp_send_json_success( [ 'items' => [] ] );
 
             global $wpdb; $t = $wpdb->prefix.'aichat_conversations';
             $rows = $wpdb->get_results(
-                $wpdb->prepare("SELECT message, response, created_at FROM $t WHERE session_id=%s AND bot_slug=%s ORDER BY id ASC LIMIT %d", $session, $bot_slug, $limit),
+                $wpdb->prepare( "SELECT message, response, created_at FROM $t WHERE session_id=%s AND bot_slug=%s ORDER BY id ASC LIMIT %d", $session, $bot_slug, $limit ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $t is a trusted plugin table name.
                 ARRAY_A
             );
             // Ya guardamos sanitizado; evitamos doble-escape en cliente.
@@ -1922,9 +2007,12 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             global $wpdb;
             $t = $wpdb->prefix.'aichat_conversations';
             $rows = $wpdb->get_results(
+                // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $t is a trusted plugin table name.
                 $wpdb->prepare(
-                    "SELECT message, response FROM $t WHERE session_id=%s AND bot_slug=%s ORDER BY id DESC LIMIT %d",
-                    $session_id, $bot_slug, max(1,(int)$max_pairs)
+                    "SELECT message, response FROM $t WHERE session_id=%s AND bot_slug=%s ORDER BY id DESC LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $t is a trusted plugin table name.
+                    $session_id,
+                    $bot_slug,
+                    max( 1, (int) $max_pairs )
                 ),
                 ARRAY_A
             );
@@ -2800,3 +2888,5 @@ function aichat_generate_bot_response_for_phone( $bot_slug, $phone, $message, $a
         $args['session_id'] = $session_id;
         return aichat_generate_bot_response( $bot_slug, $message, $args );
 }
+
+    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching

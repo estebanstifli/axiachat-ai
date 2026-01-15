@@ -97,10 +97,11 @@ class AIChat_Claude_Provider implements AIChat_Provider_Interface {
         
         // Recuperar estado desde base de datos (más robusto que transients)
         $table = $wpdb->prefix . 'aichat_tool_states';
-        $row = $wpdb->get_row( $wpdb->prepare(
-            "SELECT state_data FROM $table WHERE response_id = %s",
-            $response_id
-        ) );
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Internal tool state lookup.
+        $row = $wpdb->get_row(
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is a trusted plugin table name.
+            $wpdb->prepare( "SELECT state_data FROM $table WHERE response_id = %s", $response_id )
+        );
         
         if ( ! $row || empty($row->state_data) ) {
             // Estado no encontrado - puede ser expirado o error de guardado
@@ -121,6 +122,7 @@ class AIChat_Claude_Provider implements AIChat_Provider_Interface {
         }
         
         // Eliminar estado consumido (one-time use)
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Internal tool state cleanup.
         $wpdb->delete( $table, [ 'response_id' => $response_id ], [ '%s' ] );
         
         // Extraer estado
@@ -655,6 +657,7 @@ class AIChat_Claude_Provider implements AIChat_Provider_Interface {
                 ];
                 
                 // Insertar estado en DB
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Internal tool state persistence.
                 $inserted = $wpdb->insert(
                     $table,
                     [

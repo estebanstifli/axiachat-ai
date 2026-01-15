@@ -8,21 +8,24 @@ function aichat_logs_detail_page() {
     global $wpdb;
     $table = $wpdb->prefix.'aichat_conversations';
 
-    $session = isset($_GET['session']) ? preg_replace('/[^a-z0-9\-]/i','', $_GET['session']) : '';
-    $bot     = isset($_GET['bot']) ? sanitize_title($_GET['bot']) : '';
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only detail view; no state changes.
+    $session_raw = sanitize_text_field( wp_unslash( $_GET['session'] ?? '' ) );
+    $session     = $session_raw !== '' ? preg_replace( '/[^a-z0-9\-]/i', '', (string) $session_raw ) : '';
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only detail view; no state changes.
+    $bot     = sanitize_title( wp_unslash( $_GET['bot'] ?? '' ) );
 
     if ( ! $session || ! $bot ) {
     echo '<div class="wrap"><h1>'.esc_html__('Conversation Detail','axiachat-ai').'</h1><p>'.esc_html__('Missing parameters.','axiachat-ai').'</p></div>';
         return;
     }
 
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin-only detail view; internal table read.
     $rows = $wpdb->get_results(
         $wpdb->prepare(
-            "SELECT id, user_id, message, response, created_at 
-             FROM $table
-             WHERE session_id=%s AND bot_slug=%s
-             ORDER BY id ASC",
-            $session, $bot
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is a trusted plugin table name.
+            "SELECT id, user_id, message, response, created_at FROM {$table} WHERE session_id=%s AND bot_slug=%s ORDER BY id ASC",
+            $session,
+            $bot
         ),
         ARRAY_A
     );

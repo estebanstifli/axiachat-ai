@@ -5,6 +5,10 @@
 
 if ( ! defined('ABSPATH') ) { exit; }
 
+// phpcs:disable WordPress.Security.NonceVerification.Missing -- All handlers call aichat_bots_check() which verifies the nonce.
+// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Uses trusted internal plugin tables via $wpdb->prefix.
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin-only internal table operations.
+
 add_action('wp_ajax_aichat_bots_list',     'aichat_bots_list');
 add_action('wp_ajax_aichat_bot_create',    'aichat_bot_create');
 add_action('wp_ajax_aichat_bot_update',    'aichat_bot_update');
@@ -253,13 +257,16 @@ function aichat_bot_update(){
   aichat_bots_check(); aichat_bots_maybe_create();
   global $wpdb; $t=aichat_bots_table();
 
-  $id = isset($_POST['id']) ? absint($_POST['id']) : 0;
+  // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in aichat_bots_check().
+  $id = isset($_POST['id']) ? absint( wp_unslash( $_POST['id'] ) ) : 0;
   if ($id<=0) wp_send_json_error(['message'=>'Missing id'],400);
 
   $row = $wpdb->get_row( $wpdb->prepare("SELECT * FROM $t WHERE id=%d",$id), ARRAY_A );
   if (!$row) wp_send_json_error(['message'=>'Bot not found'],404);
 
-  $raw = isset($_POST['patch']) ? $_POST['patch'] : '{}';
+  // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in aichat_bots_check().
+  // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON patch validated by aichat_validate_patch_payload().
+  $raw = isset($_POST['patch']) ? wp_unslash( $_POST['patch'] ) : '{}';
   $patch = aichat_validate_patch_payload( $raw );
   if ( is_wp_error( $patch ) ) {
     wp_send_json_error( [ 'message' => $patch->get_error_message() ], 400 );
@@ -289,7 +296,8 @@ function aichat_bot_duplicate(){
   aichat_bots_check(); aichat_bots_maybe_create();
   global $wpdb; $t=aichat_bots_table();
 
-  $id = isset($_POST['id']) ? absint($_POST['id']) : 0;
+  // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in aichat_bots_check().
+  $id = isset($_POST['id']) ? absint( wp_unslash( $_POST['id'] ) ) : 0;
   if ($id<=0) wp_send_json_error(['message'=>'Missing id'],400);
 
   $r = $wpdb->get_row( $wpdb->prepare("SELECT * FROM $t WHERE id=%d",$id), ARRAY_A );
@@ -316,7 +324,8 @@ function aichat_bot_reset(){
   aichat_bots_check(); aichat_bots_maybe_create();
   global $wpdb; $t=aichat_bots_table();
 
-  $id = isset($_POST['id']) ? absint($_POST['id']) : 0;
+  // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in aichat_bots_check().
+  $id = isset($_POST['id']) ? absint( wp_unslash( $_POST['id'] ) ) : 0;
   if ($id<=0) wp_send_json_error(['message'=>'Missing id'],400);
 
   $r = $wpdb->get_row( $wpdb->prepare("SELECT * FROM $t WHERE id=%d",$id), ARRAY_A );
@@ -343,7 +352,8 @@ function aichat_bot_delete(){
   aichat_bots_check(); aichat_bots_maybe_create();
   global $wpdb; $t=aichat_bots_table();
 
-  $id = isset($_POST['id']) ? absint($_POST['id']) : 0;
+  // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in aichat_bots_check().
+  $id = isset($_POST['id']) ? absint( wp_unslash( $_POST['id'] ) ) : 0;
   if ($id<=0) wp_send_json_error(['message'=>'Missing id'],400);
 
   $r = $wpdb->get_row( $wpdb->prepare("SELECT id,slug FROM $t WHERE id=%d",$id), ARRAY_A );
@@ -358,3 +368,7 @@ function aichat_bot_delete(){
 
   wp_send_json_success(['deleted'=>true,'id'=>$id]);
 }
+
+// phpcs:enable WordPress.Security.NonceVerification.Missing
+// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching

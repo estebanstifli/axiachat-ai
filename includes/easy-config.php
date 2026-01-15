@@ -1,6 +1,9 @@
 <?php
 if ( ! defined('ABSPATH') ) { exit; }
 
+// Easy Config wizard uses internal DB reads/writes; caching is not appropriate here.
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
 /**
  * Easy Config Wizard backend scaffolding
  */
@@ -28,7 +31,7 @@ add_action('wp_ajax_aichat_easycfg_discover', function(){
     aichat_easycfg_require_cap();
     check_ajax_referer('aichat_easycfg','nonce');
 
-    $mode = isset($_POST['mode']) ? sanitize_text_field($_POST['mode']) : 'legacy';
+    $mode = isset( $_POST['mode'] ) ? sanitize_text_field( wp_unslash( $_POST['mode'] ) ) : 'legacy';
     if ($mode === 'smart') {
         $data = aichat_easycfg_discover_smart();
         wp_send_json_success($data);
@@ -59,6 +62,8 @@ add_action('wp_ajax_aichat_easycfg_discover', function(){
         'mode'  => 'legacy'
     ]);
 });
+
+// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
 /**
  * Smart discovery: prioriza homepage -> enlaces internos -> páginas legales -> productos/categorías clave.
@@ -202,14 +207,19 @@ add_action('wp_ajax_aichat_easycfg_create_context', function(){
     check_ajax_referer('aichat_easycfg','nonce');
 
     global $wpdb; $table = $wpdb->prefix.'aichat_contexts';
-    $name = sanitize_text_field( $_POST['name'] ?? 'Easy Config Context');
+    $name = sanitize_text_field( wp_unslash( $_POST['name'] ?? 'Easy Config Context' ) );
 
     // Reuse if already created this session (simple approach)
-    $existing = $wpdb->get_var( $wpdb->prepare("SELECT id FROM $table WHERE name=%s LIMIT 1", $name) );
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin AJAX wizard; internal table read.
+    $existing = $wpdb->get_var(
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is a trusted plugin table name.
+        $wpdb->prepare( "SELECT id FROM $table WHERE name=%s LIMIT 1", $name )
+    );
     if ( $existing ) {
         wp_send_json_success(['context_id'=>(int)$existing,'reused'=>true]);
     }
 
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin AJAX wizard; internal table write.
     $ok = $wpdb->insert($table,[
         'name' => $name,
         'context_type' => 'local',
@@ -228,8 +238,8 @@ add_action('wp_ajax_aichat_easycfg_index_batch', function(){
     aichat_easycfg_require_cap();
     check_ajax_referer('aichat_easycfg','nonce');
 
-    $context_id = isset($_POST['context_id']) ? (int)$_POST['context_id'] : 0;
-    $batch = isset($_POST['ids']) ? array_map( 'intval', (array)$_POST['ids'] ) : [];
+    $context_id = isset( $_POST['context_id'] ) ? absint( wp_unslash( $_POST['context_id'] ) ) : 0;
+    $batch = isset( $_POST['ids'] ) ? array_map( 'intval', (array) wp_unslash( $_POST['ids'] ) ) : [];
     $processed = [];
     foreach($batch as $pid){
         $pid = (int)$pid; if ($pid<=0) continue;
@@ -244,7 +254,7 @@ add_action('wp_ajax_aichat_easycfg_save_api_key', function(){
     aichat_easycfg_require_cap();
     check_ajax_referer('aichat_easycfg','nonce');
 
-    $key = sanitize_text_field( $_POST['api_key'] ?? '' );
+    $key = sanitize_text_field( wp_unslash( $_POST['api_key'] ?? '' ) );
 
     if ( $key ) {
         // Guardamos el valor en bruto; el sanitize_callback registrado aplicará la encriptación.
@@ -285,13 +295,18 @@ add_action('wp_ajax_aichat_easycfg_create_bot', function(){
     aichat_easycfg_require_cap();
     check_ajax_referer('aichat_easycfg','nonce');
 
-    $context_id = isset($_POST['context_id']) ? (int)$_POST['context_id'] : 0;
+    $context_id = isset( $_POST['context_id'] ) ? absint( wp_unslash( $_POST['context_id'] ) ) : 0;
 
     // Find default bot (slug 'default')
     global $wpdb; $table = aichat_bots_table();
-    $bot = $wpdb->get_row( $wpdb->prepare("SELECT id,slug FROM $table WHERE slug=%s LIMIT 1", 'default'), ARRAY_A );
+    $bot = $wpdb->get_row(
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is a trusted plugin table name.
+        $wpdb->prepare( "SELECT id,slug FROM $table WHERE slug=%s LIMIT 1", 'default' ),
+        ARRAY_A
+    );
     if ( ! $bot ) { wp_send_json_error(['message'=>'default_bot_missing']); }
 
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin AJAX wizard; internal table update.
     $wpdb->update($table,[
         'context_mode' => 'embeddings',
         'context_id'   => $context_id,
@@ -302,11 +317,19 @@ add_action('wp_ajax_aichat_easycfg_create_bot', function(){
     // Use existing $wpdb to inspect context state and retro-fix progress
     $ctx_table = $wpdb->prefix.'aichat_contexts';
     $chunks_table = $wpdb->prefix.'aichat_chunks';
-    $ctx = $wpdb->get_row( $wpdb->prepare("SELECT id, processing_status, processing_progress FROM $ctx_table WHERE id=%d", $context_id), ARRAY_A );
+    $ctx = $wpdb->get_row(
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $ctx_table is a trusted plugin table name.
+        $wpdb->prepare( "SELECT id, processing_status, processing_progress FROM $ctx_table WHERE id=%d", $context_id ),
+        ARRAY_A
+    );
     if ( $ctx ) {
         if ( ($ctx['processing_status']==='in_progress' && (int)$ctx['processing_progress'] < 100) || ($ctx['processing_status']==='completed' && (int)$ctx['processing_progress']===0) ) {
-            $chunk_count = (int)$wpdb->get_var( $wpdb->prepare("SELECT COUNT(*) FROM $chunks_table WHERE id_context=%d", $context_id) );
+            $chunk_count = (int) $wpdb->get_var(
+                // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $chunks_table is a trusted plugin table name.
+                $wpdb->prepare( "SELECT COUNT(*) FROM $chunks_table WHERE id_context=%d", $context_id )
+            );
             if ( $chunk_count > 0 ) {
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin AJAX wizard; internal table update.
                 $wpdb->update($ctx_table, [ 'processing_status'=>'completed', 'processing_progress'=>100 ], [ 'id'=>$context_id ], ['%s','%d'], ['%d']);
             }
         }
@@ -321,7 +344,7 @@ add_action('wp_ajax_aichat_easycfg_create_bot', function(){
 add_action('wp_ajax_aichat_easycfg_save_global_bot', function(){
     aichat_easycfg_require_cap();
     check_ajax_referer('aichat_easycfg','nonce');
-    $slug = isset($_POST['bot_slug']) ? sanitize_title($_POST['bot_slug']) : '';
+    $slug = isset( $_POST['bot_slug'] ) ? sanitize_title( wp_unslash( $_POST['bot_slug'] ) ) : '';
     if($slug===''){
         wp_send_json_error(['message'=>'missing_slug'],400);
     }

@@ -7,7 +7,7 @@ if(!defined('ABSPATH')) exit;
  */
 function aichat_model_pricing(){
   /**
-   * Precios oficiales convertidos a USD por 1K tokens (input/output) – última revisión: 2025-11-14.
+  * Precios oficiales convertidos a USD por 1K tokens (input/output) – última revisión: 2026-01-15.
    * Fuente: páginas de pricing públicas OpenAI / Anthropic / Gemini API. Sólo tarifas "standard" (sin cached input, batch, fine‑tune o priority tiers).
    * Enlaces oficiales:
    *   - OpenAI: https://openai.com/api/pricing/
@@ -22,6 +22,11 @@ function aichat_model_pricing(){
       'gpt-5'        => ['input_per_1k'=>0.00125, 'output_per_1k'=>0.01000], // $1.25 / $10 per 1M
       'gpt-5-mini'   => ['input_per_1k'=>0.00025, 'output_per_1k'=>0.00200], // $0.25 / $2.00 per 1M
       'gpt-5-nano'   => ['input_per_1k'=>0.00005, 'output_per_1k'=>0.00040], // $0.05 / $0.40 per 1M
+
+      // GPT‑5.2 family (Dec 2025+)
+      // Nota: usamos las tarifas del modelo GPT‑5.2 (input/output estándar). Variantes "*-chat-latest" se tratan como alias.
+      'gpt-5.2'             => ['input_per_1k'=>0.00175, 'output_per_1k'=>0.01400], // $1.75 / $14 per 1M
+      'gpt-5.2-chat-latest' => ['input_per_1k'=>0.00175, 'output_per_1k'=>0.01400], // alias
 
       // GPT‑4.1 family
       'gpt-4.1'       => ['input_per_1k'=>0.00200, 'output_per_1k'=>0.00800], // $2 / $8 per 1M
@@ -83,7 +88,9 @@ function aichat_calc_cost_micros($provider,$model,$prompt_tokens,$completion_tok
 function aichat_update_daily_usage_row($provider,$model,$prompt,$completion,$total,$cost_micros){
   global $wpdb; $table = $wpdb->prefix.'aichat_usage_daily';
   $date = current_time('Y-m-d');
-  $wpdb->query($wpdb->prepare(
+  // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Internal aggregate upsert.
+  $wpdb->query( $wpdb->prepare(
+    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is a trusted plugin table name.
     "INSERT INTO $table (date,provider,model,prompt_tokens,completion_tokens,total_tokens,cost_micros,conversations)
       VALUES (%s,%s,%s,%d,%d,%d,%d,1)
       ON DUPLICATE KEY UPDATE
@@ -93,5 +100,5 @@ function aichat_update_daily_usage_row($provider,$model,$prompt,$completion,$tot
         cost_micros = cost_micros + VALUES(cost_micros),
         conversations = conversations + 1",
     $date,$provider,$model,$prompt,$completion,$total,$cost_micros
-  ));
+  ) );
 }

@@ -37,6 +37,7 @@ function aichat_admin_enqueue_scripts($hook) {
 
     // Encolar para la página de creación (pestaña 1)
     // Nota: No dependas del $hook, pues cambia con el parent slug. Usa $_GET['page'].
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only admin routing for asset enqueue.
     if ( isset($_GET['page']) && sanitize_text_field( wp_unslash($_GET['page']) ) === 'aichat-contexto-create' ) {
         wp_enqueue_script(
             'aichat-contexto-create',
@@ -57,6 +58,7 @@ function aichat_admin_enqueue_scripts($hook) {
     }
 
     // Encolar para la página de settings (pestaña 2)
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only admin routing for asset enqueue.
     if ( isset($_GET['page']) && sanitize_text_field( wp_unslash($_GET['page']) ) === 'aichat-contexto-settings' ) {        
         wp_enqueue_script(
             'aichat-contexto-settings',
@@ -162,6 +164,7 @@ function aichat_index_post( $post_id, $context_id = 0 ) {
 
     global $wpdb; $table = $wpdb->prefix.'aichat_chunks';
     // Remove existing chunks for this post/context (fresh rebuild)
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Internal table maintenance (rebuild chunks).
     $wpdb->delete( $table, [ 'post_id'=>$post_id, 'id_context'=>$context_id ], [ '%d','%d' ] );
 
     $type  = $post->post_type;
@@ -201,6 +204,7 @@ function aichat_index_post( $post_id, $context_id = 0 ) {
         if ( count($insert_data) !== count($insert_formats) ) {
             aichat_log_debug('Insert format mismatch', ['have_fields'=>count($insert_data),'have_formats'=>count($insert_formats)]);
         }
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Internal table write (chunk insert).
         $wpdb->insert( $table, $insert_data, $insert_formats );
         if ( $wpdb->last_error ) {
             aichat_log_debug('Chunk insert error', ['post_id'=>$post_id,'i'=>$i,'err'=>$wpdb->last_error]);
@@ -309,6 +313,7 @@ function aichat_get_context_for_question( $question, $args = [] ) {
     // Si hay que decidir automáticamente si es remoto/local, consultamos la tabla de contextos
     $context_row = null;
     if ( $context_id > 0 ) {
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Internal context lookup.
         $context_row = $wpdb->get_row(
             $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}aichat_contexts WHERE id = %d", $context_id ),
             ARRAY_A
@@ -419,8 +424,13 @@ function aichat_get_context_for_question( $question, $args = [] ) {
     // --------- Local DB ----------
     if ( $mode === 'local' ) {
         $table = $wpdb->prefix . 'aichat_chunks';
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Internal table read for context retrieval.
         $rows  = $wpdb->get_results(
-            $wpdb->prepare( "SELECT * FROM {$table} WHERE id_context = %d", $context_id ),
+            $wpdb->prepare(
+                // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is a trusted plugin table name.
+                "SELECT * FROM {$table} WHERE id_context = %d",
+                $context_id
+            ),
             ARRAY_A
         );
         aichat_log_debug('[AIChat] local context fetch', ['context_id'=>$context_id,'row_count'=> is_array($rows)?count($rows):-1]);

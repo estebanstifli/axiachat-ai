@@ -306,13 +306,19 @@ add_filter( 'pre_update_option_aichat_global_bot_slug', function( $new, $old ) {
     $new = sanitize_title( (string)$new );
 
     // Is the form being saved and the checkbox is active?
-    $enabled = isset( $_POST['aichat_global_bot_enabled'] )
-        ? (int) $_POST['aichat_global_bot_enabled']
-        : (int) get_option( 'aichat_global_bot_enabled', 0 );
+    // Note: when saving via options.php, WP core verifies the settings nonce.
+    $enabled = (int) get_option( 'aichat_global_bot_enabled', 0 );
+    // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified by WP core on options.php for registered settings.
+    if ( isset( $_POST['aichat_global_bot_enabled'] ) ) {
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified by WP core on options.php for registered settings.
+        $enabled = absint( wp_unslash( $_POST['aichat_global_bot_enabled'] ) );
+    }
 
     if ( $enabled && $new === '' ) {
         global $wpdb;
-        $slug = $wpdb->get_var( "SELECT slug FROM {$wpdb->prefix}aichat_bots ORDER BY id ASC LIMIT 1" );
+        $bots_table = $wpdb->prefix . 'aichat_bots';
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Internal table, no user input.
+        $slug = $wpdb->get_var( "SELECT slug FROM {$bots_table} ORDER BY id ASC LIMIT 1" );
         if ( $slug ) {
             return sanitize_title( $slug );
         }
@@ -330,6 +336,7 @@ function aichat_settings_page() {
 
     global $wpdb;
     $bots_table = $wpdb->prefix . 'aichat_bots';
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Internal table, no user input.
     $bots = $wpdb->get_results( "SELECT slug, name FROM {$bots_table} ORDER BY id ASC", ARRAY_A );
 
     $openai_key  = aichat_get_setting( 'aichat_openai_api_key' );
@@ -530,8 +537,10 @@ if ( ! function_exists( 'aichat_admin_api_key_notice' ) ) {
 add_filter( 'pre_update_option_aichat_tools_ssa_enabled', function( $new, $old ) {
     $ai_tools_enabled = (int) get_option( 'aichat_addon_ai_tools_enabled', 0 );
     // If the setting is being saved in the same form submission, prefer POST over stored option
+    // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified by WP core on options.php for registered settings.
     if ( isset( $_POST['aichat_addon_ai_tools_enabled'] ) ) {
-        $ai_tools_enabled = (int) $_POST['aichat_addon_ai_tools_enabled'];
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified by WP core on options.php for registered settings.
+        $ai_tools_enabled = absint( wp_unslash( $_POST['aichat_addon_ai_tools_enabled'] ) );
     }
     if ( ! $ai_tools_enabled ) {
         // If user tried to enable SSA while AI Tools is off, set a one-time notice

@@ -1,42 +1,233 @@
+FILE: includes/class-aichat-ajax.php
+Line	Column	Type	Code	Message	Edit Link
+1107	27	WARNING	WordPress.Security.NonceVerification.Recommended	Processing form data without nonce verification.	View in code editor (opens in a new tab)
+1908	27	WARNING	WordPress.Security.NonceVerification.Recommended	Processing form data without nonce verification.	View in code editor (opens in a new tab)
+1949	97	WARNING	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized	Detected usage of a non-sanitized input variable: $_POST['session_id']	View in code editor (opens in a new tab)
+1951	65	WARNING	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized	Detected usage of a non-sanitized input variable: $_POST['limit']	View in code editor (opens in a new tab)
+1997	21	WARNING	WordPress.DB.PreparedSQL.InterpolatedNotPrepared	Use placeholders and $wpdb->prepare(); found interpolated variable $t at "SELECT message, response FROM $t WHERE session_id=%s AND bot_slug=%s ORDER BY id DESC LIMIT %d"	View in code editor (opens in a new tab)
+
+FILE: includes/contexto-ajax-settings.php
+Line	Column	Type	Code	Message	Edit Link
+131	48	WARNING	WordPress.DB.PreparedSQL.InterpolatedNotPrepared	Use placeholders and $wpdb->prepare(); found interpolated variable $table at "SELECT post_id, title, content, embedding, type FROM $table WHERE id_context=%d"	View in code editor (opens in a new tab)
+256	1	WARNING	WordPress.DB.PreparedSQL.InterpolatedNotPrepared	Use placeholders and $wpdb->prepare(); found interpolated variable $placeholders_types at WHERE p.post_status='publish' AND p.post_type IN ($placeholders_types)\r\n	View in code editor (opens in a new tab)
+269	1	WARNING	WordPress.DB.PreparedSQL.InterpolatedNotPrepared	Use placeholders and $wpdb->prepare(); found interpolated variable $placeholders_types at WHERE c.post_id IS NULL AND p.post_status='publish' AND p.post_type IN ($placeholders_types)\r\n	View in code editor (opens in a new tab)
+
+FILE: includes/logs.php
+Line	Column	Type	Code	Message	Edit Link
+130	28	WARNING	WordPress.DB.PreparedSQL.InterpolatedNotPrepared	Use placeholders and $wpdb->prepare(); found interpolated variable $table at "SELECT DISTINCT bot_slug FROM $table ORDER BY bot_slug ASC"	View in code editor (opens in a new tab)
+135	29	WARNING	WordPress.DB.PreparedSQL.InterpolatedNotPrepared	Use placeholders and $wpdb->prepare(); found interpolated variable $table at "SELECT DISTINCT user_id FROM $table WHERE user_id>0 ORDER BY user_id ASC"	View in code editor (opens in a new tab)
+
+FILE: includes/usage-ajax.php
+Line	Column	Type	Code	Message	Edit Link
+26	1	WARNING	WordPress.DB.PreparedSQL.InterpolatedNotPrepared	Use placeholders and $wpdb->prepare(); found interpolated variable {$conv} at FROM {$conv}\r\n	View in code editor (opens in a new tab)
+46	1	WARNING	WordPress.DB.PreparedSQL.InterpolatedNotPrepared	Use placeholders and $wpdb->prepare(); found interpolated variable {$conv} at FROM {$conv}\r\n	View in code editor (opens in a new tab)
+86	1	WARNING	WordPress.DB.PreparedSQL.InterpolatedNotPrepared	Use placeholders and $wpdb->prepare(); found interpolated variable {$conv} at FROM {$conv}\r\n	View in code editor (opens in a new tab)
+
+FILE: axiachat-ai.php
+Line	Column	Type	Code	Message	Edit Link
+410	38	WARNING	WordPress.DB.PreparedSQL.InterpolatedNotPrepared	Use placeholders and $wpdb->prepare(); found interpolated variable $table at "SELECT COUNT(*) FROM $table"	View in code editor (opens in a new tab)
+446	26	WARNING	WordPress.DB.PreparedSQL.InterpolatedNotPrepared	Use placeholders and $wpdb->prepare(); found interpolated variable $t_escaped at "SHOW COLUMNS FROM `$t_escaped`"	View in code editor (opens in a new tab)
+478	1	WARNING	WordPress.DB.PreparedSQL.InterpolatedNotPrepared	Use placeholders and $wpdb->prepare(); found interpolated variable $charset at ) $charset"	View in code editor (opens in a new tab)
+494	1	WARNING	WordPress.DB.PreparedSQL.InterpolatedNotPrepared	Use placeholders and $wpdb->prepare(); found interpolated variable $charset at ) $charset"	View in code editor (opens in a new tab)
+507	9	WARNING	WordPress.DB.PreparedSQL.InterpolatedNotPrepared	Use placeholders and $wpdb->prepare(); found interpolated variable {$bots_table} at "SELECT id, tools_json FROM {$bots_table} WHERE tools_json LIKE %s"	View in code editor (opens in a new tab)
+707	1	WARNING	WordPress.DB.PreparedSQL.InterpolatedNotPrepared	Use placeholders and $wpdb->prepare(); found interpolated variable $charset at ) $charset"	View in code editor (opens in a new tab)
+732	1	WARNING	WordPress.DB.PreparedSQL.InterpolatedNotPrepared	Use placeholders and $wpdb->prepare(); found interpolated variable $charset at ) $charset"	View in code editor (opens in a new tab)
+945	18	WARNING	WordPress.Security.NonceVerification.Recommended	Processing form data without nonce verification.	View in code editor (opens in a new tab)
+946	46	WARNING	WordPress.Security.NonceVerification.Recommended	Processing form data without nonce verification.	View in code editor (opens in a new tab)
+1039	9	WARNING	WordPress.DB.PreparedSQL.InterpolatedNotPrepared	Use placeholders and $wpdb->prepare(); found interpolated variable {$contexts_table} at "SELECT id, name FROM {$contexts_table} WHERE processing_status = 'completed' ORDER BY name ASC"	View in code editor (opens in a new tab)
+1187	14	WARNING	WordPress.Security.NonceVerification.Recommended	Processing form data without nonce verification.	View in code editor (opens in a new tab)
+1217	14	WARNING	WordPress.Security.NonceVerification.Recommended	Processing form data without nonce verification.	View in code editor (opens in a new tab)
+1274	35	WARNING	WordPress.DB.PreparedSQL.InterpolatedNotPrepared	Use placeholders and $wpdb->prepare(); found interpolated variable $table at "DELETE FROM $table WHERE session_id=%s AND bot_slug=%s"	View in code editor (opens in a new tab)
+1288	41	WARNING	WordPress.Security.ValidatedSanitizedInput.MissingUnslash	$_SERVER[$k] not unslashed before sanitization. Use wp_unslash() or similar	View in code editor (opens in a new tab)
+1288	41	WARNING	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized	Detected usage of a non-sanitized input variable: $_SERVER[$k]	View in code editor (opens in a new tab)
+1352	16	WARNING	WordPress.Security.NonceVerification.Recommended	Processing form data without nonce verification.	View in code editor (opens in a new tab)
+1371	14	WARNING	WordPress.Security.NonceVerification.Recommended	Processing form data without nonce verification.	View in code editor (opens in a new tab)
+1372	62	WARNING	WordPress.Security.NonceVerification.Recommended	Processing form data without nonce verification.	View in code editor (opens in a new tab)
+1545	17	WARNING	WordPress.Security.NonceVerification.Recommended	Processing form data without nonce verification.	View in code editor (opens in a new tab)
+
+FILE: includes/add-ons/ai-tools/admin-ajax.php
+Line	Column	Type	Code	Message	Edit Link
+40	10	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+40	10	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+
+FILE: includes/add-ons/ai-tools/admin-logs.php
+Line	Column	Type	Code	Message	Edit Link
+12	11	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+12	11	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+
+FILE: includes/add-ons/ai-tools/admin-settings.php
+Line	Column	Type	Code	Message	Edit Link
+9	11	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+9	11	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+
+FILE: includes/add-ons/ai-tools/api.php
+Line	Column	Type	Code	Message	Edit Link
+204	12	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+204	12	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+277	12	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+277	12	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+395	12	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+395	12	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+
+FILE: includes/add-ons/ai-tools/macro-api.php
+Line	Column	Type	Code	Message	Edit Link
+121	19	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+121	19	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+127	13	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+127	13	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+
+FILE: includes/add-ons/ai-tools/tools-sample.php
+Line	Column	Type	Code	Message	Edit Link
+29	8	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+29	8	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+276	21	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+276	21	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+289	9	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+
+FILE: includes/add-ons/mcp/admin-ajax.php
+Line	Column	Type	Code	Message	Edit Link
+166	20	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+166	20	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+489	19	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+489	19	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+586	24	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+586	24	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+649	19	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+649	19	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+710	21	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+710	21	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+717	23	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+717	23	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+
+FILE: includes/add-ons/mcp/class-mcp-client-manager.php
+Line	Column	Type	Code	Message	Edit Link
+347	29	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+347	29	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+
+FILE: includes/add-ons/mcp/integration.php
+Line	Column	Type	Code	Message	Edit Link
+25	12	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+25	12	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+67	21	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+67	21	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+82	19	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+147	18	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+147	18	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+316	18	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+316	18	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+327	18	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+327	18	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+
+FILE: includes/aichat-cron.php
+Line	Column	Type	Code	Message	Edit Link
+36	5	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+36	5	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+88	9	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+88	9	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+144	20	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+144	20	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+152	18	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+152	18	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+175	13	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+175	13	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+184	13	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+184	13	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+261	9	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+261	9	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+296	13	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+296	13	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+313	18	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+313	18	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+332	13	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+332	13	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+340	13	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+340	13	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+388	17	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+388	17	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+420	21	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+420	21	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+434	20	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+434	20	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+438	20	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+438	20	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+453	16	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+453	16	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+466	9	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+466	9	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+476	13	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+476	13	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+494	16	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+494	16	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+
+FILE: includes/bots.php
+Line	Column	Type	Code	Message	Edit Link
+16	16	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+16	16	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+
+FILE: includes/class-aichat-ajax.php
+Line	Column	Type	Code	Message	Edit Link
+449	42	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+449	42	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+1154	21	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+1328	20	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+1328	20	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+1339	17	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+1339	17	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+1343	21	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+1343	21	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+1363	24	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+1363	24	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+1378	24	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+1378	24	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+1391	20	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+1391	20	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+1842	23	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+1842	23	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+1886	23	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+1886	23	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+1903	13	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+1913	21	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+1913	21	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+1956	21	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+1956	21	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+1994	21	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+1994	21	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+2431	21	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+
+FILE: includes/class-aichat-core.php
+Line	Column	Type	Code	Message	Edit Link
+90	21	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+90	21	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+
+FILE: includes/easy-config.php
+Line	Column	Type	Code	Message	Edit Link
+297	12	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+297	12	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+315	12	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+315	12	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+322	34	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+322	34	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+
+FILE: includes/usage-functions.php
+Line	Column	Type	Code	Message	Edit Link
+86	3	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+86	3	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+
 FILE: includes/providers/class-claude-provider.php
 Line	Column	Type	Code	Message	Edit Link
-256	25	ERROR	WordPress.WP.I18n.MissingTranslatorsComment	A function call to __() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
-Learn more (opens in a new tab)	View in code editor (opens in a new tab)
-730	25	ERROR	WordPress.WP.I18n.MissingTranslatorsComment	A function call to __() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
-Learn more (opens in a new tab)	View in code editor (opens in a new tab)
+660	29	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
 
-FILE: includes/addon-connect-installer.php
+FILE: includes/providers/class-gemini-provider.php
 Line	Column	Type	Code	Message	Edit Link
-48	33	ERROR	WordPress.WP.I18n.MissingTranslatorsComment	A function call to esc_html__() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
-Learn more (opens in a new tab)	View in code editor (opens in a new tab)
-91	9	ERROR	WordPress.WP.I18n.MissingTranslatorsComment	A function call to esc_html__() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
-Learn more (opens in a new tab)	View in code editor (opens in a new tab)
-95	9	ERROR	WordPress.WP.I18n.MissingTranslatorsComment	A function call to esc_html__() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
-Learn more (opens in a new tab)	View in code editor (opens in a new tab)
-99	9	ERROR	WordPress.WP.I18n.MissingTranslatorsComment	A function call to esc_html__() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
-Learn more (opens in a new tab)	View in code editor (opens in a new tab)
-103	9	ERROR	WordPress.WP.I18n.MissingTranslatorsComment	A function call to esc_html__() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
-Learn more (opens in a new tab)	View in code editor (opens in a new tab)
-103	21	ERROR	WordPress.WP.I18n.UnorderedPlaceholdersText	Multiple placeholders in translatable strings should be ordered. Expected "%1$s, %2$s", but got "%s, %s" in 'Choose the %s file you downloaded and click %s.'.
-Learn more (opens in a new tab)	View in code editor (opens in a new tab)
-109	9	ERROR	WordPress.WP.I18n.MissingTranslatorsComment	A function call to esc_html__() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
-Learn more (opens in a new tab)	View in code editor (opens in a new tab)
-118	33	ERROR	WordPress.WP.I18n.MissingTranslatorsComment	A function call to esc_html__() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
-Learn more (opens in a new tab)	View in code editor (opens in a new tab)
+751	29	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
 
-FILE: includes/settings/tab-general.php
+FILE: axiachat-ai.php
 Line	Column	Type	Code	Message	Edit Link
-64	80	ERROR	WordPress.WP.I18n.MissingTranslatorsComment	A function call to __() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
-Learn more (opens in a new tab)	View in code editor (opens in a new tab)
-
-FILE: includes/settings/tab-addons.php
-Line	Column	Type	Code	Message	Edit Link
-84	57	ERROR	WordPress.WP.I18n.MissingTranslatorsComment	A function call to esc_html__() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
-Learn more (opens in a new tab)	View in code editor (opens in a new tab)
-89	57	ERROR	WordPress.WP.I18n.MissingTranslatorsComment	A function call to esc_html__() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
-Learn more (opens in a new tab)	View in code editor (opens in a new tab)
-
-FILE: .dev/aichat_settings_page.php
-Line	Column	Type	Code	Message
-99	100	ERROR	WordPress.WP.I18n.MissingTranslatorsComment	A function call to __() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
-Learn more (opens in a new tab)
+545	7	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+545	7	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+1038	15	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+1038	15	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+1274	5	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+1274	5	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
+1383	15	WARNING	WordPress.DB.DirectDatabaseQuery.DirectQuery	Use of a direct database call is discouraged.	View in code editor (opens in a new tab)
+1383	15	WARNING	WordPress.DB.DirectDatabaseQuery.NoCaching	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().	View in code editor (opens in a new tab)
