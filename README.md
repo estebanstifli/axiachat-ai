@@ -90,6 +90,7 @@ Unlike generic chatbots, AxiaChat AI learns from YOUR actual content using advan
 - Encrypted API keys
 - Data ownership – all on your server
 - No external SaaS dependencies
+- Safe Markdown rendering (Parsedown in safe mode + final HTML allowlist)
 
 ---
 
@@ -159,6 +160,7 @@ axiachat-ai/
 │   ├── contexto-functions.php     # RAG & embeddings
 │   ├── bots.php                   # Bot management
 │   ├── moderation.php             # Spam & security
+│   ├── lib/parsedown/              # Markdown renderer (MIT)
 │   └── add-ons/
 │       ├── mcp/                   # MCP server integration
 │       └── ai-tools/              # AI capabilities system

@@ -96,6 +96,7 @@ In this quick video, we cover:
 * **Encrypted API keys**: secure storage of sensitive credentials
 * **Data ownership**: all processing on your server, no external SaaS proxy
 * **Local vendor assets**: Bootstrap & Icons bundled—no CDN dependencies
+* **Safe Markdown rendering**: Parsedown in safe mode + final HTML allowlist (MIT license: includes/lib/parsedown/LICENSE.txt)
 
 #### 🛠️ Developer-Friendly
 * **Action hooks**: `aichat_after_response`, `aichat_conversation_saved` for custom integrations

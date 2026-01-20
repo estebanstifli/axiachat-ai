@@ -301,6 +301,8 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
             }
             if ( ! empty( $intercept['abort'] ) ) {
                 $answer = isset($intercept['immediate_response']) ? (string)$intercept['immediate_response'] : __( 'No response available.', 'axiachat-ai' );
+                // Renderizar Markdown (si procede) antes de reemplazos HTML
+                $answer = $this->maybe_render_markdown_answer( $answer );
                 // Reemplazo [LINK] y embellecer enlaces conocidos antes de sanear
                 $answer = aichat_replace_link_placeholder( $answer );
                 if ( function_exists('aichat_pretty_known_links') ) { $answer = aichat_pretty_known_links( $answer ); }
@@ -393,6 +395,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                     $answer = __( 'No response available.', 'axiachat-ai' );
                 }
                 // Sanitizar y log opcional
+                $answer = $this->maybe_render_markdown_answer( $answer );
                 $answer = aichat_replace_link_placeholder( $answer );
                 if ( function_exists('aichat_pretty_known_links') ) { $answer = aichat_pretty_known_links( $answer ); }
                 $answer = $this->sanitize_answer_html( $answer );
@@ -740,7 +743,8 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 wp_send_json_error( [ 'message' => __( 'Model returned an empty response.', 'axiachat-ai' ) ], 500 );
             }
 
-            // 6) Reemplazo [LINK] y embellecer enlaces conocidos
+            // 6) Markdown -> HTML (si procede), luego reemplazo [LINK] y embellecer enlaces conocidos
+            $answer = $this->maybe_render_markdown_answer( $answer );
             $answer = aichat_replace_link_placeholder( $answer );
             if ( function_exists('aichat_pretty_known_links') ) {
                 $answer = aichat_pretty_known_links( $answer );
@@ -977,6 +981,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                     }
                     
                     // Post-procesar respuesta (igual que flujo principal)
+                    $answer = $this->maybe_render_markdown_answer( $answer );
                     $answer = aichat_replace_link_placeholder( $answer );
                     if ( function_exists('aichat_pretty_known_links') ) {
                         $answer = aichat_pretty_known_links( $answer );
@@ -1065,6 +1070,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                     }
                     
                     // Post-procesar respuesta
+                    $answer = $this->maybe_render_markdown_answer( $answer );
                     $answer = aichat_replace_link_placeholder( $answer );
                     if ( function_exists('aichat_pretty_known_links') ) {
                         $answer = aichat_pretty_known_links( $answer );
@@ -1308,6 +1314,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
                 ]);
                 aichat_log_debug('[AIChat Continue]['.$uid.'] final summary\n'.$pretty_cont, [], true);
             }
+            $final_text = $this->maybe_render_markdown_answer( $final_text );
             $final_text = aichat_replace_link_placeholder( $final_text );
             if ( function_exists('aichat_pretty_known_links') ) { $final_text = aichat_pretty_known_links( $final_text ); }
             $final_text = $this->sanitize_answer_html( $final_text );
@@ -1790,6 +1797,7 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
 
             $answer = (string)($result['message'] ?? '');
             if ($answer === '') return new WP_Error('aichat_empty_answer','Empty answer');
+            $answer = $this->maybe_render_markdown_answer( $answer );
             $answer = aichat_replace_link_placeholder( $answer );
             // Convert known plain URLs (e.g., Google Calendar) into compact, safe anchors
             if ( function_exists('aichat_pretty_known_links') ) {
@@ -1986,12 +1994,159 @@ if ( ! class_exists( 'AIChat_Ajax' ) ) {
         /**
          * Permite un HTML básico en la respuesta del bot (enlaces seguros, formateo simple).
          */
+        protected function maybe_render_markdown_answer( $text ) {
+            $text = (string) $text;
+            if ( $text === '' ) {
+                return $text;
+            }
+
+            // Si ya trae HTML "real", no intentamos parsear Markdown.
+            if ( preg_match( '/<\s*\/?\s*(a|p|br|ul|ol|li|pre|code|strong|em|span)\b/i', $text ) ) {
+                return $text;
+            }
+
+            $enabled = true;
+            if ( function_exists( 'apply_filters' ) ) {
+                $enabled = (bool) apply_filters( 'aichat_enable_markdown_output', $enabled, $text );
+            }
+            if ( ! $enabled ) {
+                return $text;
+            }
+
+            // Heurística simple: sólo si parece Markdown.
+            if ( ! $this->text_looks_like_markdown( $text ) ) {
+                return $text;
+            }
+
+            // Si Parsedown está disponible, usarlo (mejor soporte Markdown).
+            if ( class_exists( 'Parsedown' ) ) {
+                try {
+                    $pd = new Parsedown();
+                    if ( method_exists( $pd, 'setSafeMode' ) ) {
+                        $pd->setSafeMode( true );
+                    }
+                    if ( method_exists( $pd, 'setBreaksEnabled' ) ) {
+                        $pd->setBreaksEnabled( true );
+                    }
+                    return (string) $pd->text( $text );
+                } catch ( Exception $e ) {
+                    // fallback below
+                }
+            }
+
+            return $this->markdown_to_html_basic( $text );
+        }
+
+        protected function text_looks_like_markdown( $text ) {
+            $s = (string) $text;
+            return (bool) preg_match( '/(^|\n)\s*#{1,4}\s+|```|\*\*[^\n]+\*\*|`[^`]+`|\[[^\]]+\]\((https?:\/\/|\/)[^\)]+\)|(^|\n)\s*(?:-|\*)\s+|(^|\n)\s*\d+\.\s+/m', $s );
+        }
+
+        /**
+         * Conversor Markdown básico (sin dependencias) pensado para salida de chat.
+         * - Escapa HTML del modelo.
+         * - Soporta: headings (#..####), negrita, cursiva, inline code, fenced code blocks, listas simples y enlaces [txt](url).
+         * - El HTML resultante se vuelve a pasar por sanitize_answer_html().
+         */
+        protected function markdown_to_html_basic( $markdown ) {
+            $src = str_replace( ["\r\n", "\r"], "\n", (string) $markdown );
+
+            // 1) Extraer code fences primero (para evitar que regex de énfasis toque el código)
+            $blocks = [];
+            $src = preg_replace_callback( '/```([a-z0-9_-]+)?\n([\s\S]*?)```/i', function( $m ) use ( &$blocks ) {
+                $lang = isset( $m[1] ) ? sanitize_html_class( (string) $m[1] ) : '';
+                $code = isset( $m[2] ) ? (string) $m[2] : '';
+                $idx  = count( $blocks );
+                $blocks[] = [ 'lang' => $lang, 'code' => $code ];
+                return "\n\n[[AICHAT_CODEBLOCK_{$idx}]]\n\n";
+            }, $src );
+
+            // 2) Escapar el resto
+            $html = esc_html( $src );
+
+            // 3) Headings (#..####)
+            $html = preg_replace( '/^####\s+(.+)$/m', '<h4>$1</h4>', $html );
+            $html = preg_replace( '/^###\s+(.+)$/m',  '<h3>$1</h3>', $html );
+            $html = preg_replace( '/^##\s+(.+)$/m',   '<h2>$1</h2>', $html );
+            $html = preg_replace( '/^#\s+(.+)$/m',    '<h1>$1</h1>', $html );
+
+            // 4) Links [text](url) (solo http(s) o rutas /...)
+            $html = preg_replace_callback( '/\[([^\]\n]+)\]\(((?:https?:\/\/|\/)[^\)\s]+)\)/', function( $m ) {
+                $label = isset( $m[1] ) ? (string) $m[1] : '';
+                $url   = isset( $m[2] ) ? (string) $m[2] : '';
+                $href  = esc_url( html_entity_decode( $url, ENT_QUOTES ) );
+                if ( $href === '' ) {
+                    return $label;
+                }
+                return '<a href="' . $href . '" target="_blank" rel="noopener nofollow">' . esc_html( html_entity_decode( $label, ENT_QUOTES ) ) . '</a>';
+            }, $html );
+
+            // 5) Inline code
+            $html = preg_replace( '/`([^`\n]+)`/', '<code>$1</code>', $html );
+
+            // 6) Negrita y cursiva (básico)
+            $html = preg_replace( '/\*\*([^*\n]+)\*\*/', '<strong>$1</strong>', $html );
+            $html = preg_replace( '/__([^_\n]+)__/', '<strong>$1</strong>', $html );
+            // Cursiva: evitar **bold**
+            $html = preg_replace( '/(?<!\*)\*([^*\n]+)\*(?!\*)/', '<em>$1</em>', $html );
+            $html = preg_replace( '/(?<!_)_([^_\n]+)_(?!_)/', '<em>$1</em>', $html );
+
+            // 7) Listas simples (no anidadas)
+            $lines = explode( "\n", $html );
+            $out = [];
+            $in_ul = false;
+            $in_ol = false;
+            foreach ( $lines as $line ) {
+                if ( preg_match( '/^\s*(?:-|\*)\s+(.+)$/', $line, $mm ) ) {
+                    if ( $in_ol ) { $out[] = '</ol>'; $in_ol = false; }
+                    if ( ! $in_ul ) { $out[] = '<ul>'; $in_ul = true; }
+                    $out[] = '<li>' . $mm[1] . '</li>';
+                    continue;
+                }
+                if ( preg_match( '/^\s*\d+\.\s+(.+)$/', $line, $mm ) ) {
+                    if ( $in_ul ) { $out[] = '</ul>'; $in_ul = false; }
+                    if ( ! $in_ol ) { $out[] = '<ol>'; $in_ol = true; }
+                    $out[] = '<li>' . $mm[1] . '</li>';
+                    continue;
+                }
+                if ( $in_ul ) { $out[] = '</ul>'; $in_ul = false; }
+                if ( $in_ol ) { $out[] = '</ol>'; $in_ol = false; }
+                $out[] = $line;
+            }
+            if ( $in_ul ) { $out[] = '</ul>'; }
+            if ( $in_ol ) { $out[] = '</ol>'; }
+            $html = implode( "\n", $out );
+
+            // 8) Reinsertar code blocks
+            $html = preg_replace_callback( '/\[\[AICHAT_CODEBLOCK_(\d+)\]\]/', function( $m ) use ( $blocks ) {
+                $idx = isset( $m[1] ) ? (int) $m[1] : -1;
+                if ( $idx < 0 || ! isset( $blocks[ $idx ] ) ) {
+                    return '';
+                }
+                $lang = $blocks[ $idx ]['lang'];
+                $code = $blocks[ $idx ]['code'];
+                $class = $lang ? ' class="language-' . esc_attr( $lang ) . '"' : '';
+                return '<pre><code' . $class . '>' . esc_html( $code ) . '</code></pre>';
+            }, $html );
+
+            // 9) Párrafos / saltos de línea
+            if ( function_exists( 'wpautop' ) ) {
+                $html = wpautop( $html );
+            } else {
+                $html = nl2br( $html );
+            }
+
+            return $html;
+        }
+
         protected function sanitize_answer_html( $html ) {
             $allowed = [
                 'a'      => [ 'href' => true, 'target' => true, 'rel' => true, 'title' => true, 'class' => true ],
                 'strong' => [], 'em' => [], 'b' => [], 'i' => [],
                 'br'     => [], 'p' => [], 'ul' => [], 'ol' => [], 'li' => [],
                 'code'   => [], 'pre' => [],
+                'h1'     => [], 'h2' => [], 'h3' => [], 'h4' => [],
+                'blockquote' => [],
                 'span'   => [ 'class' => true ],
             ];
             // Forzar rel noopener en target=_blank

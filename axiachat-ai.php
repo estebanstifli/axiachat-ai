@@ -155,6 +155,14 @@ function aichat_ajax_get_log_tail() {
 require_once AICHAT_PLUGIN_DIR . 'vendor/autoload.php';
 //use Smalot\PdfParser\Parser;
 
+// Bundled Markdown renderer (Parsedown) used by the AJAX pipeline when available.
+if ( ! class_exists( 'Parsedown', false ) ) {
+  $aichat_parsedown_path = AICHAT_PLUGIN_DIR . 'includes/lib/parsedown/Parsedown.php';
+  if ( file_exists( $aichat_parsedown_path ) ) {
+    require_once $aichat_parsedown_path;
+  }
+}
+
 // === NUEVA ARQUITECTURA: Provider System ===
 // Cargar interfaz y registry de proveedores (Paso 1 de migración modular)
 require_once AICHAT_PLUGIN_DIR . 'includes/interfaces/interface-aichat-provider.php';
